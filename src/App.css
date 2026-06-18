@@ -1,0 +1,159 @@
+.react-flow {
+  background: #0A0A0F;
+}
+
+/* 기본 노드 글래스 리퀴드 */
+.react-flow__node-default,
+.react-flow__node-input,
+.react-flow__node-output {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(41, 217, 217, 0.18);
+  border-radius: 12px;
+  color: #F4F4F4;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+  padding: 10px 18px;
+  min-width: 220px;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(41, 217, 217, 0.06);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.react-flow__node-default:hover,
+.react-flow__node-input:hover,
+.react-flow__node-output:hover {
+  border-color: rgba(41, 217, 217, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(41, 217, 217, 0.2),
+    0 0 16px rgba(41, 217, 217, 0.12);
+}
+
+.react-flow__node-input {
+  border-color: rgba(41, 217, 217, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(41, 217, 217, 0.15),
+    0 0 12px rgba(41, 217, 217, 0.08);
+}
+
+.react-flow__node-output {
+  border-color: rgba(41, 217, 217, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(41, 217, 217, 0.15),
+    0 0 12px rgba(41, 217, 217, 0.08);
+}
+
+/* 선택 상태 — ReactFlow 기본 흰 테두리/outline 제거 후 글로우 적용 */
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-default.selected,
+.react-flow__node-default:focus,
+.react-flow__node-default:focus-visible,
+.react-flow__node-input.selected,
+.react-flow__node-input:focus,
+.react-flow__node-input:focus-visible,
+.react-flow__node-output.selected,
+.react-flow__node-output:focus,
+.react-flow__node-output:focus-visible,
+.react-flow__node.selected .react-flow__node-default,
+.react-flow__node.selected .react-flow__node-input,
+.react-flow__node.selected .react-flow__node-output {
+  outline: none !important;
+  border-color: #29D9D9 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 0 0 1.5px #29D9D9,
+    0 0 16px rgba(41, 217, 217, 0.75),
+    0 0 40px rgba(41, 217, 217, 0.4),
+    0 0 80px rgba(41, 217, 217, 0.18),
+    0 8px 32px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 드래그 선택 박스 */
+.react-flow__selection {
+  background: rgba(41, 217, 217, 0.06);
+  border: 1.5px solid #29D9D9;
+  box-shadow: 0 0 12px rgba(41, 217, 217, 0.3), inset 0 0 20px rgba(41, 217, 217, 0.04);
+  border-radius: 4px;
+}
+
+/* 엣지 */
+.react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1.5;
+}
+
+/* 핸들 */
+.react-flow__handle {
+  background: rgba(41, 217, 217, 0.5);
+  border: 1.5px solid #29D9D9;
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 6px rgba(41, 217, 217, 0.5);
+}
+
+.react-flow__handle:hover {
+  background: #29D9D9;
+  box-shadow: 0 0 12px rgba(41, 217, 217, 0.8);
+}
+
+/* 컨트롤 */
+.react-flow__controls {
+  background: rgba(19, 19, 26, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.react-flow__controls-button {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  fill: rgba(244, 244, 244, 0.7);
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(31, 65, 176, 0.15);
+  fill: #F4F4F4;
+}
+
+/* 미니맵 */
+.react-flow__minimap {
+  background: rgba(13, 13, 20, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(31, 65, 176, 0.12);
+}
+
+.react-flow__minimap-node {
+  fill: rgba(255, 255, 255, 0.08);
+}
