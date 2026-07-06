@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Handle, Position } from '@xyflow/react'
+import { useState, useEffect } from 'react'
+import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   cyan: '#29D9D9',
@@ -39,9 +39,14 @@ const textareaStyle = {
   boxSizing: 'border-box',
 }
 
-export default function StyleAnchorInputNode({ data, selected }) {
+export default function StyleAnchorInputNode({ id, data, selected }) {
+  const { updateNodeData } = useReactFlow()
   const [imageAnchor, setImageAnchor] = useState(data.imageAnchor ?? '')
   const [videoAnchor, setVideoAnchor] = useState(data.videoAnchor ?? '')
+
+  // ScriptImportNode에서 updateNodeData로 값이 주입되면 동기화
+  useEffect(() => { if (data.imageAnchor !== undefined) setImageAnchor(data.imageAnchor) }, [data.imageAnchor])
+  useEffect(() => { if (data.videoAnchor !== undefined) setVideoAnchor(data.videoAnchor) }, [data.videoAnchor])
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -76,7 +81,7 @@ export default function StyleAnchorInputNode({ data, selected }) {
           style={textareaStyle}
           placeholder="이미지 스타일 앵커를 붙여넣으세요..."
           value={imageAnchor}
-          onChange={e => setImageAnchor(e.target.value)}
+          onChange={e => { setImageAnchor(e.target.value); updateNodeData(id, { imageAnchor: e.target.value }) }}
         />
       </div>
 
@@ -94,7 +99,7 @@ export default function StyleAnchorInputNode({ data, selected }) {
           style={textareaStyle}
           placeholder="비디오 스타일 앵커를 붙여넣으세요..."
           value={videoAnchor}
-          onChange={e => setVideoAnchor(e.target.value)}
+          onChange={e => { setVideoAnchor(e.target.value); updateNodeData(id, { videoAnchor: e.target.value }) }}
         />
       </div>
 

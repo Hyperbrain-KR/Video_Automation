@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Handle, Position } from '@xyflow/react'
 
 const C = {
@@ -169,6 +169,14 @@ const styles = {
 export default function ReviewGateNode({ data, selected }) {
   const [status, setStatus] = useState('pending')
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
+
+  // Claude 생성 완료 시 외부에서 data.prompt가 업데이트되면 동기화
+  useEffect(() => {
+    if (data.prompt && data.prompt !== '(프롬프트 없음)') {
+      setPrompt(data.prompt)
+      setStatus('pending')
+    }
+  }, [data.prompt])
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',

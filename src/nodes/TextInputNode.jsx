@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Handle, Position } from '@xyflow/react'
+import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   cyan: '#29D9D9',
@@ -22,8 +22,9 @@ const nodeBase = {
   ].join(', '),
 }
 
-export default function TextInputNode({ data, selected }) {
-  const [value, setValue] = useState(data.defaultValue ?? '')
+export default function TextInputNode({ id, data, selected }) {
+  const { updateNodeData } = useReactFlow()
+  const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -64,7 +65,7 @@ export default function TextInputNode({ data, selected }) {
         }}
         placeholder={data.placeholder ?? '내용을 입력하세요...'}
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={e => { setValue(e.target.value); updateNodeData(id, { value: e.target.value }) }}
       />
 
       <Handle

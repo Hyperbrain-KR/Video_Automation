@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
   useNodesState, useEdgesState, useReactFlow,
   addEdge, BackgroundVariant,
 } from '@xyflow/react'
+import { generateHandlerRef } from './lib/generateHandlerRef'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -14,6 +15,7 @@ import ClaudeNode from './nodes/ClaudeNode'
 import HiggsfieldNode from './nodes/HiggsfieldNode'
 import SectionBackgroundNode from './nodes/SectionBackgroundNode'
 import ImageNode from './nodes/ImageNode'
+import ScriptImportNode from './nodes/ScriptImportNode'
 import ContextMenu from './components/ContextMenu'
 
 const nodeTypes = {
@@ -24,6 +26,7 @@ const nodeTypes = {
   higgsfieldNode: HiggsfieldNode,
   sectionBackground: SectionBackgroundNode,
   imageNode: ImageNode,
+  scriptImport: ScriptImportNode,
 }
 
 // ── Edge style helpers ─────────────────────────────────────────────
@@ -52,6 +55,10 @@ const dataEdge = {
 
 // ── Node templates for context menu ───────────────────────────────
 const nodeTemplates = {
+  scriptImport: {
+    type: 'scriptImport',
+    data: {},
+  },
   textInput: {
     type: 'textInput',
     data: { label: '텍스트 입력', placeholder: '내용을 입력하세요...' },
@@ -131,6 +138,14 @@ const nodes0 = [
     },
     selectable: false, draggable: false, focusable: false,
     zIndex: -1,
+  },
+
+  // ── 스크립트 불러오기 (SCRIPT-AUTOMATION 연동) ────────────
+  {
+    id: 'scriptImport',
+    type: 'scriptImport',
+    position: { x: -320, y: 200 },
+    data: {},
   },
 
   // ── 스타일 앵커 ───────────────────────────────────────────
@@ -311,11 +326,90 @@ const edges0 = [
 ]
 
 // ── FlowCanvas (uses useReactFlow — must be inside ReactFlowProvider) ──
+const CANVAS_API = 'http://localhost:3002'
+
+const CLAUDE_PROMPTS = {
+  claudeChar: {
+    system: '당신은 AI 이미지 생성 전문가입니다. 이미지 스타일 앵커와 캐릭터 연출 방향을 바탕으로 Higgsfield AI 캐릭터 이미지 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 외모·표정·조명·배경을 구체적으로 묘사하며, 200단어 이내로 작성하세요.',
+    user: (anchor, command) => `이미지 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n캐릭터 연출:\n${command || '(연출 입력 없음)'}`,
+  },
+  claudeImage: {
+    system: '당신은 AI 이미지 생성 전문가입니다. 이미지 스타일 앵커와 캐릭터 참조 정보를 바탕으로 Higgsfield AI 첫 프레임 이미지 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 캐릭터·배경·조명·카메라 구도를 구체적으로 묘사하며, 200단어 이내로 작성하세요.',
+    user: (anchor, command) => `이미지 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n캐릭터 참조:\n${command || '(캐릭터 정보 없음)'}`,
+  },
+  claudeVideo: {
+    system: '당신은 AI 비디오 생성 전문가입니다. 비디오 스타일 앵커와 연출 방향을 바탕으로 Higgsfield AI 비디오 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 카메라 움직임·속도·분위기를 구체적으로 묘사하며, 150단어 이내로 작성하세요.',
+    user: (anchor, command) => `비디오 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n비디오 연출:\n${command || '(연출 입력 없음)'}`,
+  },
+}
+
+const GENERIC_PROMPT = {
+  system: '당신은 AI 콘텐츠 생성 전문가입니다. 주어진 앵커와 입력을 바탕으로 AI 이미지/비디오 생성에 최적화된 영어 프롬프트를 작성하세요.',
+  user: (anchor, command) => `앵커:\n${anchor || '(없음)'}\n\n입력:\n${command || '(없음)'}`,
+}
+
 function FlowCanvas() {
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getEdges, updateNodeData } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
   const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
   const [contextMenu, setContextMenu] = useState(null)
+
+  // ── Claude 프롬프트 생성 실행 엔진 ───────────────────────────
+  const handleGenerate = useCallback(async (nodeId) => {
+    const currentNodes = getNodes()
+    const currentEdges = getEdges()
+
+    // 연결된 소스 노드에서 입력값 읽기
+    const getInput = (targetHandle) => {
+      const edge = currentEdges.find(e => e.target === nodeId && e.targetHandle === targetHandle)
+      if (!edge) return ''
+      const src = currentNodes.find(n => n.id === edge.source)
+      if (!src) return ''
+      if (src.type === 'styleAnchorInput')
+        return edge.sourceHandle === 'video' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
+      if (src.type === 'scriptImport')
+        return edge.sourceHandle === 'videoAnchor' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
+      if (src.type === 'textInput') return src.data.value || ''
+      if (src.type === 'reviewGate') return src.data.prompt || ''
+      return ''
+    }
+
+    const anchor = getInput('anchor')
+    const command = getInput('command')
+
+    const cfg = CLAUDE_PROMPTS[nodeId] ?? GENERIC_PROMPT
+
+    updateNodeData(nodeId, { status: 'loading', error: undefined })
+
+    try {
+      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt: cfg.system,
+          userMessage: cfg.user(anchor, command),
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `서버 오류 ${res.status}`)
+      }
+      const { text } = await res.json()
+
+      updateNodeData(nodeId, { status: 'done', result: text })
+
+      // 연결된 ReviewGate 노드에 결과 주입 (재생성 루프 엣지 제외)
+      const outEdge = getEdges().find(e => e.source === nodeId && e.target !== nodeId)
+      if (outEdge) updateNodeData(outEdge.target, { prompt: text })
+    } catch (err) {
+      updateNodeData(nodeId, { status: 'error', error: err.message })
+    }
+  }, [getNodes, getEdges, updateNodeData])
+
+  // generateHandlerRef에 등록 (ClaudeNode가 직접 참조)
+  useEffect(() => {
+    generateHandlerRef.current = handleGenerate
+  }, [handleGenerate])
 
   // 노드 연결
   const onConnect = useCallback((params) => {
