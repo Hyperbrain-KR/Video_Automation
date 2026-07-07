@@ -5,6 +5,7 @@ import {
   addEdge, BackgroundVariant,
 } from '@xyflow/react'
 import { generateHandlerRef } from './lib/generateHandlerRef'
+import { higgsfieldHandlerRef } from './lib/higgsfieldHandlerRef'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -227,7 +228,7 @@ const nodes0 = [
     id: 'higgsfieldImage',
     type: 'higgsfieldNode',
     position: { x: 660, y: 840 },
-    data: { label: '이미지 생성', type: 'image', hasRef: true },
+    data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_2_shots' },
   },
   {
     id: 'reviewImageResult',
@@ -406,10 +407,85 @@ function FlowCanvas() {
     }
   }, [getNodes, getEdges, updateNodeData])
 
-  // generateHandlerRef에 등록 (ClaudeNode가 직접 참조)
+  // generateHandlerRef에 등록
   useEffect(() => {
     generateHandlerRef.current = handleGenerate
   }, [handleGenerate])
+
+  // ── Higgsfield 생성 실행 엔진 ────────────────────────────
+  const handleHiggsfieldGenerate = useCallback(async (nodeId) => {
+    const currentNodes = getNodes()
+    const currentEdges = getEdges()
+
+    const node = currentNodes.find(n => n.id === nodeId)
+    const isVideo = node?.data?.type === 'video'
+
+    // 프롬프트 입력 수집
+    const promptEdge = currentEdges.find(e => e.target === nodeId && e.targetHandle === 'prompt')
+    const promptSrc = promptEdge ? currentNodes.find(n => n.id === promptEdge.source) : null
+    const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
+
+    // 참조 미디어 입력 수집 (ref 또는 image 핸들)
+    const mediaEdge = currentEdges.find(e => e.target === nodeId &&
+      (e.targetHandle === 'ref' || e.targetHandle === 'image'))
+    const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
+    const referenceJobId = mediaSrc?.data?.jobId ?? null
+
+    updateNodeData(nodeId, { status: 'loading', error: undefined })
+
+    try {
+      const endpoint = isVideo ? 'video' : 'image'
+      const body = isVideo
+        ? { prompt, ...(referenceJobId ? { firstFrameJobId: referenceJobId } : {}) }
+        : {
+            prompt,
+            model: node?.data?.model ?? 'nano_banana_2',
+            quality: node?.data?.quality ?? '1k',
+            aspectRatio: node?.data?.aspectRatio ?? 'auto',
+            ...(referenceJobId ? { referenceJobId } : {}),
+          }
+
+      const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!genRes.ok) {
+        const err = await genRes.json().catch(() => ({}))
+        throw new Error(err.error || `서버 오류 ${genRes.status}`)
+      }
+      const { jobId } = await genRes.json()
+      if (!jobId) throw new Error('jobId를 받지 못했습니다')
+
+      updateNodeData(nodeId, { status: 'generating', jobId })
+
+      // 결과 폴링 (최대 10회, 5초 간격)
+      let resultUrl = null
+      for (let i = 0; i < 10; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 5000))
+        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusData = await statusRes.json()
+        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
+        if (statusData.error) throw new Error(statusData.error)
+      }
+
+      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
+
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
+
+      // 연결된 ReviewGate 노드에 결과 주입
+      const outEdge = getEdges().find(e => e.source === nodeId)
+      if (outEdge) updateNodeData(outEdge.target, { resultUrl, jobId })
+
+    } catch (err) {
+      console.error('[higgsfield]', err)
+      updateNodeData(nodeId, { status: 'error', error: err.message })
+    }
+  }, [getNodes, getEdges, updateNodeData])
+
+  useEffect(() => {
+    higgsfieldHandlerRef.current = handleHiggsfieldGenerate
+  }, [handleHiggsfieldGenerate])
 
   // 노드 연결
   const onConnect = useCallback((params) => {
