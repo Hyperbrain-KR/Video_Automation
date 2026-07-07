@@ -2,6 +2,7 @@ const paneItems = [
   { key: 'scriptImport',     icon: '📥', label: '스크립트 불러오기',   desc: 'SCRIPT-AUTOMATION 연동' },
   { key: 'imageNode',        icon: '📸', label: '이미지 노드',        desc: '참조 이미지 추가' },
   { key: 'textInput',        icon: '✏️', label: '텍스트 입력',        desc: '사용자 입력 노드' },
+  { key: 'referenceImage',  icon: '🖼', label: '레퍼런스 이미지',     desc: '이미지 업로드 / URL 레퍼런스' },
   { key: 'claudeNode',       icon: '🤖', label: 'Claude',             desc: '프롬프트 생성' },
   { key: 'higgsfieldImage',  icon: '🖼', label: 'Higgsfield 이미지',  desc: '이미지 생성' },
   { key: 'higgsfieldVideo',  icon: '🎬', label: 'Higgsfield 비디오',  desc: '비디오 생성' },

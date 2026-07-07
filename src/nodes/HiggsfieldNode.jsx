@@ -27,8 +27,7 @@ const nodeBase = {
 }
 
 const IMAGE_MODELS = [
-  ['nano_banana_2', '나노바나나 2'],
-  ['nano_banana_2_shots', '나노바나나 Pro (레퍼런스 필요)'],
+  ['nano_banana_pro', '나노바나나 Pro'],
   ['gpt_image_2', 'GPT 이미지 2'],
 ]
 

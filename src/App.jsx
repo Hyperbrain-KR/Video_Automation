@@ -17,6 +17,7 @@ import HiggsfieldNode from './nodes/HiggsfieldNode'
 import SectionBackgroundNode from './nodes/SectionBackgroundNode'
 import ImageNode from './nodes/ImageNode'
 import ScriptImportNode from './nodes/ScriptImportNode'
+import ReferenceImageNode from './nodes/ReferenceImageNode'
 import ContextMenu from './components/ContextMenu'
 
 const nodeTypes = {
@@ -28,6 +29,7 @@ const nodeTypes = {
   sectionBackground: SectionBackgroundNode,
   imageNode: ImageNode,
   scriptImport: ScriptImportNode,
+  referenceImage: ReferenceImageNode,
 }
 
 // ── Edge style helpers ─────────────────────────────────────────────
@@ -86,6 +88,10 @@ const nodeTemplates = {
   },
   styleAnchorInput: {
     type: 'styleAnchorInput',
+    data: {},
+  },
+  referenceImage: {
+    type: 'referenceImage',
     data: {},
   },
 }
@@ -207,12 +213,21 @@ const nodes0 = [
   // Section 2: 이미지 생성
   // ════════════════════════════════════════
   {
+    id: 'imageDirection',
+    type: 'textInput',
+    position: { x: 370, y: 580 },
+    data: {
+      label: '이미지 연출 입력',
+      placeholder: '원하는 장면을 설명해주세요.\n예) 캐릭터가 카페 창가에 앉아 커피를 마시는 장면...',
+    },
+  },
+  {
     id: 'claudeImage',
     type: 'claudeNode',
     position: { x: 660, y: 580 },
     data: {
       label: '이미지 프롬프트 생성',
-      description: '이미지 앵커 + 캐릭터 참조 → 첫 프레임 이미지 프롬프트',
+      description: '캐릭터 참조 + 이미지 연출 → 첫 프레임 이미지 프롬프트',
     },
   },
   {
@@ -228,7 +243,7 @@ const nodes0 = [
     id: 'higgsfieldImage',
     type: 'higgsfieldNode',
     position: { x: 660, y: 840 },
-    data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_2_shots' },
+    data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_pro' },
   },
   {
     id: 'reviewImageResult',
@@ -305,7 +320,8 @@ const edges0 = [
   { id: 'e-rcr-rcp', source: 'reviewCharResult', target: 'reviewCharPrompt', targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
 
   // ── Section 1 → 2: 캐릭터 참조 ──────────────────────────
-  { id: 'e-rcr-ci', source: 'reviewCharResult', target: 'claudeImage', targetHandle: 'command', label: '캐릭터 참조', ...dataEdge },
+  { id: 'e-rcr-ci', source: 'reviewCharResult', target: 'claudeImage', targetHandle: 'anchor', label: '캐릭터 참조', ...dataEdge },
+  { id: 'e-id-ci', source: 'imageDirection', target: 'claudeImage', targetHandle: 'command' },
   { id: 'e-rcr-hi', source: 'reviewCharResult', target: 'higgsfieldImage', targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge },
 
   // ── Section 2: 이미지 ────────────────────────────────────
@@ -331,16 +347,92 @@ const CANVAS_API = 'http://localhost:3002'
 
 const CLAUDE_PROMPTS = {
   claudeChar: {
-    system: '당신은 AI 이미지 생성 전문가입니다. 이미지 스타일 앵커와 캐릭터 연출 방향을 바탕으로 Higgsfield AI 캐릭터 이미지 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 외모·표정·조명·배경을 구체적으로 묘사하며, 200단어 이내로 작성하세요.',
-    user: (anchor, command) => `이미지 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n캐릭터 연출:\n${command || '(연출 입력 없음)'}`,
+    system: `You are a prompt generator for higgsfield.ai using Nano Banana Pro.
+
+Your job is to convert the user's character direction into a strong English image-generation prompt. No reference image is provided at this step — write a complete character description that will be reused across all later image and video generation steps to maintain consistency.
+
+Follow these rules:
+- Describe the character's physical appearance in full detail: face shape, eye color and shape, skin tone, hair color, length, and style, body type, clothing style and colors
+- Determine the output type (character sheet, character board, single portrait, etc.) and adjust the prompt accordingly
+- For character sheets or boards, prioritize clarity, clean layout, and consistent character presentation
+- Apply the Extended Style Decomposition Rule: describe rendering type, shape language, surface/material qualities, lighting model, color behavior, and line treatment — select only the 3–5 most decisive attributes
+- Use style sentence templates: "in a [core style] with [shape language], [surface traits], and [lighting/color behavior]"
+- Do not add aesthetic filler like "masterpiece" or "best quality"
+- Do not ask follow-up questions
+
+Output rules:
+- Output the English prompt only
+- No code blocks, no Korean translation, no explanations`,
+    user: (_, command) => `Character direction:\n${command || '(no input)'}`,
   },
   claudeImage: {
-    system: '당신은 AI 이미지 생성 전문가입니다. 이미지 스타일 앵커와 캐릭터 참조 정보를 바탕으로 Higgsfield AI 첫 프레임 이미지 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 캐릭터·배경·조명·카메라 구도를 구체적으로 묘사하며, 200단어 이내로 작성하세요.',
-    user: (anchor, command) => `이미지 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n캐릭터 참조:\n${command || '(캐릭터 정보 없음)'}`,
+    system: `You are a prompt generator for higgsfield.ai using Nano Banana Pro.
+
+Your job is to convert the user's scene direction into a strong English image-generation prompt. A reference character image will be provided directly to the AI model — do not redundantly restate visible appearance details.
+
+Follow the Reference Image Rules:
+- Do not over-describe the character's visible hairstyle, clothing, facial features, or body traits
+- Assume the attached image already provides the subject's visual identity
+- Use phrasing such as: "using the attached image as the character reference", "keeping the referenced character unchanged"
+- Only mention appearance details if needed to explain a requested change or prevent ambiguity
+
+Use the prompt mainly to describe:
+- what should happen or be added to the scene
+- mood, atmosphere, and lighting
+- composition and framing
+- camera angle or visual focus
+- style direction if the user requests it
+
+Apply the Style Continuity Rule:
+- Any new scene elements should match the visual style of the reference image unless a different style is requested
+- Use firm language when consistency is critical: "Ensure the entire image follows the same visual style as the reference"
+
+Apply the Style Source Priority Rule:
+1. User-specified style (highest)
+2. Style inferred from reference image
+3. High-quality visual default
+
+Do not ask follow-up questions.
+
+Output rules:
+- Output the English prompt only
+- No code blocks, no Korean translation, no explanations`,
+    user: (anchor, command) => `Character reference prompt (from previous step):\n${anchor || '(none)'}\n\nScene direction:\n${command || '(no input)'}`,
   },
   claudeVideo: {
-    system: '당신은 AI 비디오 생성 전문가입니다. 비디오 스타일 앵커와 연출 방향을 바탕으로 Higgsfield AI 비디오 생성에 최적화된 영어 프롬프트를 작성하세요. 반드시 영어로만 작성하고, 카메라 움직임·속도·분위기를 구체적으로 묘사하며, 150단어 이내로 작성하세요.',
-    user: (anchor, command) => `비디오 스타일 앵커:\n${anchor || '(앵커 없음)'}\n\n비디오 연출:\n${command || '(연출 입력 없음)'}`,
+    system: `You are a video prompt generator for Kling 3.0 via higgsfield.ai.
+
+Your job is to convert the user's video direction into a strong English video-generation prompt. A reference image (first frame) will be provided to the AI model.
+
+Follow the Main Principle:
+- If the reference image is provided and will be used during generation, do not redundantly restate visible appearance details that are already clearly shown in the image
+- Use the prompt mainly to describe: what happens, what changes, what moves, how the camera behaves, what mood develops
+
+Always write the prompt in this order:
+1. Motion header — camera behavior and movement intensity (e.g. "Head Tracking (70) + Dolly In (40)")
+2. Main subject state
+3. Main action or event
+4. Character reaction
+5. Camera behavior
+6. Atmosphere and lighting
+7. Secondary motion details
+8. Final visual quality or style note
+
+Motion header phrases: Head Tracking, Eye-Level Tracking, Static Shot, Dolly In, Dolly Out, Slow Push, Fast Push, Pan Left, Pan Right, Tilt Up, Tilt Down, Orbit Left, Orbit Right, Handheld Motion, Locked Frame
+
+Kling 3.0 Style Rules:
+- Write as a flowing sequence, not keyword stacking
+- Describe the scene as it unfolds over time
+- Prioritize: motion > action > reaction > atmosphere > detail
+- Avoid filler like "masterpiece" or "best quality"
+- Use phrasing like "keeping the referenced character unchanged", "based on the attached reference frame"
+
+Do not ask follow-up questions.
+
+Output rules:
+- Output the English prompt only
+- No code blocks, no Korean translation, no explanations`,
+    user: (_, command) => `Video direction:\n${command || '(no input)'}`,
   },
 }
 
@@ -425,11 +517,35 @@ function FlowCanvas() {
     const promptSrc = promptEdge ? currentNodes.find(n => n.id === promptEdge.source) : null
     const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
 
-    // 참조 미디어 입력 수집 (ref 또는 image 핸들)
-    const mediaEdge = currentEdges.find(e => e.target === nodeId &&
+    // 참조 미디어 입력 수집 (ref 또는 image 핸들) — referenceImage 타입 우선
+    const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
       (e.targetHandle === 'ref' || e.targetHandle === 'image'))
+    const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+    const mediaEdge = refImgEdge ?? mediaEdges[0]
     const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
-    const referenceJobId = mediaSrc?.data?.jobId ?? null
+
+    let referenceJobId = mediaSrc?.data?.jobId ?? null
+    let referenceMediaId = null
+
+    // referenceImageNode면 먼저 Higgsfield에 업로드/임포트
+    if (mediaSrc?.type === 'referenceImage') {
+      const { imageDataUrl, imageUrl, filename, contentType } = mediaSrc.data ?? {}
+      if (imageDataUrl || imageUrl) {
+        updateNodeData(nodeId, { status: 'loading', error: undefined })
+        const uploadRes = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: imageUrl || null, fileBase64: imageDataUrl || null, filename, contentType }),
+        })
+        const uploadData = await uploadRes.json()
+        if (!uploadRes.ok || !uploadData.mediaId) {
+          updateNodeData(nodeId, { status: 'error', error: uploadData.error || '이미지 업로드 실패' })
+          return
+        }
+        referenceMediaId = uploadData.mediaId
+        referenceJobId = null
+      }
+    }
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
@@ -439,10 +555,11 @@ function FlowCanvas() {
         ? { prompt, ...(referenceJobId ? { firstFrameJobId: referenceJobId } : {}) }
         : {
             prompt,
-            model: node?.data?.model ?? 'nano_banana_2',
+            model: node?.data?.model ?? 'nano_banana_pro',
             quality: node?.data?.quality ?? '1k',
             aspectRatio: node?.data?.aspectRatio ?? 'auto',
             ...(referenceJobId ? { referenceJobId } : {}),
+            ...(referenceMediaId ? { referenceMediaId } : {}),
           }
 
       const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {

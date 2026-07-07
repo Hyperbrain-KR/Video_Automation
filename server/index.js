@@ -110,21 +110,27 @@ function extractResultUrl(result) {
 
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
 app.post('/api/higgsfield/image', async (req, res) => {
-  const { prompt, model = 'nano_banana_2_shots', quality, aspectRatio, referenceJobId } = req.body
+  const { prompt, model = 'nano_banana_pro', quality, aspectRatio, referenceJobId, referenceMediaId } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!prompt) return res.status(400).json({ error: 'prompt 필요' })
 
-  // nano_banana_2_lite는 quality 파라미터 사용, 나머지 주요 모델은 resolution 사용
-  const noResolution = ['nano_banana_2_lite', 'nano_banana', 'soul_2', 'soul_cinematic', 'seedream_v5_lite'].includes(model)
-  const supportsResolution = !noResolution
+  // resolution 파라미터 지원 모델
+  const supportsResolution = ['nano_banana_2', 'nano_banana_pro', 'nano_banana_2_shots', 'gpt_image_2', 'cinematic_studio_2_5', 'marketing_studio_image', 'ms_image', 'flux_2'].includes(model)
+
+  // nano_banana_2_shots는 image_references role 필요
+  const refRole = model === 'nano_banana_2_shots' ? 'image_references' : 'image'
+
+  // nano_banana_pro는 auto 비율 미지원
+  const useAspect = aspectRatio && aspectRatio !== 'auto'
 
   const args = {
     params: {
       model,
       prompt,
-      ...(aspectRatio && aspectRatio !== 'auto' ? { aspect_ratio: aspectRatio } : {}),
+      ...(useAspect ? { aspect_ratio: aspectRatio } : {}),
       ...(quality && supportsResolution ? { resolution: quality } : {}),
-      ...(referenceJobId ? { medias: [{ value: referenceJobId, role: model === 'nano_banana_2_shots' ? 'image_references' : 'reference' }] } : {}),
+      ...(referenceMediaId ? { medias: [{ value: referenceMediaId, role: refRole }] } :
+          referenceJobId   ? { medias: [{ value: referenceJobId,  role: refRole }] } : {}),
     },
   }
 
@@ -185,6 +191,93 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 })
+
+// ── Higgsfield: 레퍼런스 이미지 업로드/임포트 ──────────────
+app.post('/api/higgsfield/upload-reference', async (req, res) => {
+  const { url, fileBase64, filename, contentType } = req.body
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  if (!url && !fileBase64) return res.status(400).json({ error: 'url 또는 fileBase64 필요' })
+
+  try {
+    let mediaId
+
+    if (url) {
+      // URL 임포트
+      const importResult = await callHiggsfieldMCP('media_import_url', { url, type: 'image' })
+      if (importResult.isError) throw new Error(importResult.content?.[0]?.text || 'URL 임포트 실패')
+      mediaId = extractMediaId(importResult)
+      console.log('[upload-ref] import mediaId:', mediaId)
+    } else {
+      // presigned URL 업로드
+      const uploadResult = await callHiggsfieldMCP('media_upload', {
+        filename: filename || 'reference.jpg',
+        content_type: contentType || 'image/jpeg',
+      })
+      if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
+      const { presignedUrl, id } = extractPresigned(uploadResult)
+      console.log('[upload-ref] presignedUrl:', presignedUrl?.slice(0, 80), 'id:', id)
+      if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+
+      // base64 → Buffer → PUT 업로드
+      const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const putRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType || 'image/jpeg' },
+        body: buffer,
+      })
+      console.log('[upload-ref] PUT status:', putRes.status)
+      if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+      mediaId = id
+    }
+
+    if (!mediaId) throw new Error('mediaId 획득 실패')
+
+    // confirm
+    const confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
+    console.log('[upload-ref] confirm:', confirmResult.content?.[0]?.text?.slice(0, 200))
+
+    res.json({ mediaId })
+  } catch (err) {
+    console.error('[upload-ref]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+function extractMediaId(result) {
+  for (const c of (result.content ?? [])) {
+    if (c.type === 'text') {
+      try {
+        const obj = JSON.parse(c.text)
+        if (obj.id) return obj.id
+        if (obj.media_id) return obj.media_id
+      } catch {}
+      const m = c.text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+      if (m) return m[0]
+    }
+  }
+  return null
+}
+
+function extractPresigned(result) {
+  // structuredContent.uploads[0] 우선
+  const upload = result.structuredContent?.uploads?.[0]
+  if (upload?.upload_url && upload?.media_id) {
+    return { presignedUrl: upload.upload_url, id: upload.media_id }
+  }
+  // fallback: text 파싱
+  for (const c of (result.content ?? [])) {
+    if (c.type === 'text') {
+      try {
+        const obj = JSON.parse(c.text)
+        const presignedUrl = obj.upload_url || obj.presigned_url || obj.url
+        const id = obj.id || obj.media_id
+        if (presignedUrl) return { presignedUrl, id }
+      } catch {}
+    }
+  }
+  return {}
+}
 
 // ── 다운로드 프록시 ───────────────────────────────────────
 app.get('/api/download', async (req, res) => {
