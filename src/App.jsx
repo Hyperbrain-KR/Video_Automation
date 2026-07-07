@@ -15,7 +15,6 @@ import TextInputNode from './nodes/TextInputNode'
 import ClaudeNode from './nodes/ClaudeNode'
 import HiggsfieldNode from './nodes/HiggsfieldNode'
 import SectionBackgroundNode from './nodes/SectionBackgroundNode'
-import ImageNode from './nodes/ImageNode'
 import ScriptImportNode from './nodes/ScriptImportNode'
 import ReferenceImageNode from './nodes/ReferenceImageNode'
 import ContextMenu from './components/ContextMenu'
@@ -27,7 +26,6 @@ const nodeTypes = {
   claudeNode: ClaudeNode,
   higgsfieldNode: HiggsfieldNode,
   sectionBackground: SectionBackgroundNode,
-  imageNode: ImageNode,
   scriptImport: ScriptImportNode,
   referenceImage: ReferenceImageNode,
 }
@@ -81,10 +79,6 @@ const nodeTemplates = {
   reviewGate: {
     type: 'reviewGate',
     data: { label: '리뷰 게이트', prompt: '(내용을 검토하세요)' },
-  },
-  imageNode: {
-    type: 'imageNode',
-    data: { label: '이미지', src: null },
   },
   styleAnchorInput: {
     type: 'styleAnchorInput',
@@ -517,49 +511,82 @@ function FlowCanvas() {
     const promptSrc = promptEdge ? currentNodes.find(n => n.id === promptEdge.source) : null
     const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
 
-    // 참조 미디어 입력 수집 (ref 또는 image 핸들) — referenceImage 타입 우선
+    // 헬퍼: ReferenceImageNode 업로드
+    const uploadRefImage = async (srcNode) => {
+      const { imageDataUrl, imageUrl, filename, contentType } = srcNode.data ?? {}
+      if (!imageDataUrl && !imageUrl) return null
+      const uploadRes = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: imageUrl || null, fileBase64: imageDataUrl || null, filename, contentType }),
+      })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok || !uploadData.mediaId) throw new Error(uploadData.error || '이미지 업로드 실패')
+      return uploadData.mediaId
+    }
+
+    // 첫 프레임 / 참조 이미지 수집 (ref 또는 image 핸들) — referenceImage 타입 우선
     const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
       (e.targetHandle === 'ref' || e.targetHandle === 'image'))
     const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
     const mediaEdge = refImgEdge ?? mediaEdges[0]
     const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
 
-    let referenceJobId = mediaSrc?.data?.jobId ?? null
-    let referenceMediaId = null
+    let firstFrameJobId = mediaSrc?.data?.jobId ?? null
+    let firstFrameMediaId = null
 
-    // referenceImageNode면 먼저 Higgsfield에 업로드/임포트
-    if (mediaSrc?.type === 'referenceImage') {
-      const { imageDataUrl, imageUrl, filename, contentType } = mediaSrc.data ?? {}
-      if (imageDataUrl || imageUrl) {
-        updateNodeData(nodeId, { status: 'loading', error: undefined })
-        const uploadRes = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: imageUrl || null, fileBase64: imageDataUrl || null, filename, contentType }),
-        })
-        const uploadData = await uploadRes.json()
-        if (!uploadRes.ok || !uploadData.mediaId) {
-          updateNodeData(nodeId, { status: 'error', error: uploadData.error || '이미지 업로드 실패' })
-          return
-        }
-        referenceMediaId = uploadData.mediaId
-        referenceJobId = null
-      }
-    }
+    // 끝 프레임 수집 (end_image 핸들) — video 전용
+    const endEdges = currentEdges.filter(e => e.target === nodeId && e.targetHandle === 'end_image')
+    const endRefImgEdge = endEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+    const endEdge = endRefImgEdge ?? endEdges[0]
+    const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
+
+    let endFrameJobId = endSrc?.data?.jobId ?? null
+    let endFrameMediaId = null
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
+
+    // referenceImage 노드면 먼저 업로드
+    if (mediaSrc?.type === 'referenceImage') {
+      try {
+        firstFrameMediaId = await uploadRefImage(mediaSrc)
+        firstFrameJobId = null
+      } catch (err) {
+        updateNodeData(nodeId, { status: 'error', error: err.message })
+        return
+      }
+    }
+    if (endSrc?.type === 'referenceImage') {
+      try {
+        endFrameMediaId = await uploadRefImage(endSrc)
+        endFrameJobId = null
+      } catch (err) {
+        updateNodeData(nodeId, { status: 'error', error: err.message })
+        return
+      }
+    }
 
     try {
       const endpoint = isVideo ? 'video' : 'image'
       const body = isVideo
-        ? { prompt, ...(referenceJobId ? { firstFrameJobId: referenceJobId } : {}) }
+        ? {
+            prompt,
+            duration: node?.data?.duration ?? '5',
+            videoMode: node?.data?.videoMode ?? 'std',
+            sound: node?.data?.sound ?? 'off',
+            videoAspect: node?.data?.videoAspect ?? '16:9',
+            ...(firstFrameJobId ? { firstFrameJobId } : {}),
+            ...(firstFrameMediaId ? { firstFrameMediaId } : {}),
+            ...(endFrameJobId ? { endFrameJobId } : {}),
+            ...(endFrameMediaId ? { endFrameMediaId } : {}),
+          }
         : {
             prompt,
             model: node?.data?.model ?? 'nano_banana_pro',
             quality: node?.data?.quality ?? '1k',
             aspectRatio: node?.data?.aspectRatio ?? 'auto',
-            ...(referenceJobId ? { referenceJobId } : {}),
-            ...(referenceMediaId ? { referenceMediaId } : {}),
+            ...(firstFrameJobId ? { referenceJobId: firstFrameJobId } : {}),
+            ...(firstFrameMediaId ? { referenceMediaId: firstFrameMediaId } : {}),
           }
 
       const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {
@@ -576,9 +603,10 @@ function FlowCanvas() {
 
       updateNodeData(nodeId, { status: 'generating', jobId })
 
-      // 결과 폴링 (최대 10회, 5초 간격)
+      // 결과 폴링 (이미지: 최대 10회×5s=50s, 비디오: 최대 24회×5s=120s)
+      const maxPolls = isVideo ? 24 : 10
       let resultUrl = null
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < maxPolls; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 5000))
         const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
@@ -677,35 +705,9 @@ function FlowCanvas() {
   }, [contextMenu, handleNodeAction, handleEdgeAction, handleAddNode])
 
   // 이미지 드롭 → image 노드 생성
-  const onDrop = useCallback((event) => {
-    event.preventDefault()
-    const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    if (!files.length) return
-
-    const file = files[0]
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
-      setNodes(nds => [
-        ...nds,
-        {
-          id: `imgdrop-${Date.now()}`,
-          type: 'imageNode',
-          position,
-          data: { src: e.target.result, label: file.name },
-        },
-      ])
-    }
-    reader.readAsDataURL(file)
-  }, [screenToFlowPosition, setNodes])
-
-  const onDragOver = useCallback((event) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
-  }, [])
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }} onDrop={onDrop} onDragOver={onDragOver}>
+    <div style={{ width: '100vw', height: '100vh' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

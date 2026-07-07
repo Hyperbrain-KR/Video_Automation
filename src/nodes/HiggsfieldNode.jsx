@@ -88,16 +88,25 @@ function SelectRow({ label, value, onChange, options }) {
 
 const CANVAS_API = 'http://localhost:3002'
 
+const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
+const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
+
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const isVideo = data.type === 'video'
   const hasRef = data.hasRef ?? false
   const hasMultiInput = isVideo || hasRef
-  const promptTop = hasMultiInput ? '30%' : '50%'
+  const promptTop = hasMultiInput ? '25%' : '50%'
 
-  const [model, setModel] = useState(data.model ?? 'nano_banana_2')
+  const [model, setModel] = useState(data.model ?? 'nano_banana_pro')
   const [quality, setQuality] = useState(data.quality ?? '1k')
   const [aspectRatio, setAspectRatio] = useState(data.aspectRatio ?? 'auto')
+
+  // 비디오 전용 상태
+  const [duration, setDuration] = useState(Number(data.duration ?? 5))
+  const [videoMode, setVideoMode] = useState(data.videoMode ?? 'std')
+  const [sound, setSound] = useState(data.sound ?? 'off')
+  const [videoAspect, setVideoAspect] = useState(data.videoAspect ?? '16:9')
 
   const status = data.status ?? 'idle'
   const cfg = statusConfigs[status] ?? statusConfigs.idle
@@ -109,7 +118,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   if (isVideo) description = '프롬프트 + 첫 프레임 → 영상 생성'
 
   const selectedGlow = selected ? {
-    borderColor: '#29D9D9',
+    border: '1px solid #29D9D9',
     boxShadow: [
       '0 0 0 1.5px #29D9D9',
       '0 0 16px rgba(41,217,217,0.75)',
@@ -121,6 +130,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleModel = (v) => { setModel(v); updateNodeData(id, { model: v }) }
   const handleQuality = (v) => { setQuality(v); updateNodeData(id, { quality: v }) }
   const handleAspect = (v) => { setAspectRatio(v); updateNodeData(id, { aspectRatio: v }) }
+  const handleDuration = (v) => { const n = Number(v); setDuration(n); updateNodeData(id, { duration: String(n) }) }
+  const handleVideoMode = (v) => { setVideoMode(v); updateNodeData(id, { videoMode: v }) }
+  const handleSound = () => { const next = sound === 'on' ? 'off' : 'on'; setSound(next); updateNodeData(id, { sound: next }) }
+  const handleVideoAspect = (v) => { setVideoAspect(v); updateNodeData(id, { videoAspect: v }) }
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
@@ -136,15 +149,20 @@ export default function HiggsfieldNode({ id, data, selected }) {
   return (
     <div style={{ ...nodeBase, ...selectedGlow }}>
 
+      {/* 프롬프트 핸들 */}
       <Handle id="prompt" type="target" position={Position.Left}
-        style={{ top: promptTop, background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
+        style={{ top: isVideo ? '18%' : promptTop, background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
       {hasRef && (
         <Handle id="ref" type="target" position={Position.Left}
           style={{ top: '68%', background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
       )}
       {isVideo && (
         <Handle id="image" type="target" position={Position.Left}
-          style={{ top: '68%', background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
+          style={{ top: '62%', background: 'rgba(41,217,217,0.6)', border: '1.5px solid #29D9D9' }} />
+      )}
+      {isVideo && (
+        <Handle id="end_image" type="target" position={Position.Left}
+          style={{ top: '80%', background: 'rgba(176,31,101,0.6)', border: '1.5px solid #b01f65' }} />
       )}
 
       {/* 헤더 */}
@@ -170,6 +188,84 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
+      {/* 비디오 노드: Kling 3.0 컨트롤 */}
+      {isVideo && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10,
+          padding: '8px 9px', background: 'rgba(0,0,0,0.2)',
+          border: '1px solid rgba(255,255,255,0.06)', borderRadius: 7 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(41,217,217,0.6)',
+            letterSpacing: '0.08em', marginBottom: 4 }}>KLING 3.0</div>
+
+          {/* 길이 슬라이더 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.35)', width: 36, flexShrink: 0 }}>길이</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.cyan }}>{duration}s</span>
+                <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.25)' }}>3–15</span>
+              </div>
+              <input
+                type="range"
+                min={3} max={15} step={1}
+                value={duration}
+                onChange={e => handleDuration(e.target.value)}
+                className="nopan nodrag"
+                style={{
+                  width: '100%', cursor: 'pointer', height: 4,
+                  accentColor: '#29D9D9', appearance: 'none', WebkitAppearance: 'none',
+                  background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) 100%)`,
+                  borderRadius: 2, outline: 'none', border: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
+          <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
+
+          {/* 오디오 토글 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.35)', width: 36, flexShrink: 0 }}>오디오</span>
+            <button
+              onClick={handleSound}
+              className="nopan"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '3px 10px 3px 4px',
+                background: sound === 'on'
+                  ? 'linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.08))'
+                  : 'linear-gradient(135deg, rgba(202,184,25,0.15), rgba(202,184,25,0.08))',
+                border: sound === 'on'
+                  ? '1px solid rgba(34,197,94,0.4)'
+                  : '1px solid rgba(202,184,25,0.35)',
+                borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.2s',
+              }}
+            >
+              {/* 토글 원형 */}
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: sound === 'on'
+                  ? 'radial-gradient(circle at 40% 40%, #4ade80, #16a34a)'
+                  : 'radial-gradient(circle at 40% 40%, #fde047, #ca8a04)',
+                boxShadow: sound === 'on'
+                  ? '0 0 6px rgba(34,197,94,0.7)'
+                  : '0 0 6px rgba(202,184,25,0.6)',
+                border: '1.5px solid rgba(255,255,255,0.2)',
+                flexShrink: 0,
+                transition: 'all 0.2s',
+              }} />
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                color: sound === 'on' ? 'rgba(74,222,128,0.9)' : 'rgba(253,224,71,0.9)',
+              }}>
+                {sound === 'on' ? 'ON' : 'OFF'}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {hasMultiInput && !isVideo && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           <span style={inputBadge}>📝 프롬프트</span>
@@ -177,9 +273,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
       {isVideo && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           <span style={inputBadge}>📝 프롬프트</span>
-          <span style={inputBadge}>🖼 첫 프레임</span>
+          <span style={{ ...inputBadge, borderColor: 'rgba(41,217,217,0.3)', color: 'rgba(41,217,217,0.7)' }}>🖼 첫 프레임</span>
+          <span style={{ ...inputBadge, borderColor: 'rgba(176,31,101,0.3)', color: 'rgba(176,31,101,0.8)' }}>🏁 끝 프레임</span>
         </div>
       )}
 
@@ -253,6 +350,16 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        input[type=range]::-webkit-slider-runnable-track {
+          height: 4px; border-radius: 2px;
+          background: linear-gradient(to right, #29D9D9 0%, #29D9D9 var(--pct, 0%), rgba(255,255,255,0.1) var(--pct, 0%), rgba(255,255,255,0.1) 100%);
+        }
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none; width: 12px; height: 12px;
+          border-radius: 50%; background: #29D9D9;
+          margin-top: -4px; cursor: pointer;
+          box-shadow: 0 0 4px rgba(41,217,217,0.6);
+        }
       `}</style>
     </div>
   )

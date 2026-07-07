@@ -152,20 +152,46 @@ app.post('/api/higgsfield/image', async (req, res) => {
 
 // ── Higgsfield: 비디오 생성 ────────────────────────────────
 app.post('/api/higgsfield/video', async (req, res) => {
-  const { prompt, model = 'cinematic_studio_3_0', firstFrameJobId } = req.body
+  const {
+    prompt,
+    duration = '5',
+    videoMode = 'std',
+    sound = 'on',
+    videoAspect = '16:9',
+    firstFrameJobId,
+    firstFrameMediaId,
+    endFrameJobId,
+    endFrameMediaId,
+  } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!prompt) return res.status(400).json({ error: 'prompt 필요' })
 
+  // medias 배열 구성
+  const medias = []
+  if (firstFrameMediaId) medias.push({ value: firstFrameMediaId, role: 'start_image' })
+  else if (firstFrameJobId) medias.push({ value: firstFrameJobId, role: 'start_image' })
+  if (endFrameMediaId) medias.push({ value: endFrameMediaId, role: 'end_image' })
+  else if (endFrameJobId) medias.push({ value: endFrameJobId, role: 'end_image' })
+
   const args = {
     params: {
-      model,
+      model: 'kling3_0',
       prompt,
-      ...(firstFrameJobId ? { medias: [{ value: firstFrameJobId, role: 'first_frame' }] } : {}),
+      duration: Number(duration),
+      mode: videoMode,
+      sound: sound === 'on',
+      aspects: videoAspect,
+      ...(medias.length > 0 ? { medias } : {}),
     },
   }
 
   try {
     const result = await callHiggsfieldMCP('generate_video', args)
+    if (result.isError) {
+      const errText = result.content?.map(c => c.text).join(' ') ?? 'unknown error'
+      console.error('[higgsfield/video] MCP error:', errText)
+      return res.status(500).json({ error: errText })
+    }
     const jobId = extractJobId(result)
     console.log('[higgsfield/video] jobId:', jobId)
     res.json({ jobId, content: result.content })
