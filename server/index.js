@@ -51,6 +51,8 @@ async function callHiggsfieldMCP(toolName, args) {
     }),
   })
 
+  if (!res.ok) throw new Error(`Higgsfield MCP HTTP ${res.status}: ${toolName}`)
+
   const text = await res.text()
   for (const line of text.split('\n')) {
     if (!line.startsWith('data: ')) continue
@@ -68,41 +70,51 @@ async function callHiggsfieldMCP(toolName, args) {
 function extractJobId(result) {
   for (const c of (result.content ?? [])) {
     if (c.type !== 'text') continue
+    let parsed = false
     try {
       const obj = JSON.parse(c.text)
+      parsed = true
       if (obj.job_id) return obj.job_id
       if (obj.id) return obj.id
     } catch {}
-    const m = c.text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
-    if (m) return m[0]
+    // UUID 폴백은 JSON 파싱 실패 시에만 사용 (다른 필드 오매칭 방지)
+    if (!parsed) {
+      const m = c.text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+      if (m) return m[0]
+    }
   }
   return null
 }
 
 function extractResultUrl(result) {
   const contents = result.content ?? []
-  console.log('[extractResultUrl] content types:', contents.map(c => c.type))
+  console.log('[extractResultUrl] types:', contents.map(c => c.type))
 
   for (const c of contents) {
-    // image/video 타입 직접 URL
     if ((c.type === 'image' || c.type === 'video') && c.url) return c.url
-    // resource 타입 (URI)
     if (c.type === 'resource' && c.uri) return c.uri
     if (c.type === 'resource' && c.resource?.uri) return c.resource.uri
 
     if (c.type === 'text') {
-      console.log('[extractResultUrl] text preview:', c.text?.slice(0, 300))
-      // JSON 파싱 시도
+      console.log('[extractResultUrl] text:', c.text?.slice(0, 500))
+      // JSON 파싱: 가능한 모든 필드명 시도
       try {
         const obj = JSON.parse(c.text)
-        const url = obj.output_url || obj.url || obj.media_url
-          || obj.video_url || obj.image_url
-          || obj.outputs?.[0]?.url || obj.result?.url
-        if (url) return url
+        const url =
+          obj.output_url || obj.url || obj.media_url ||
+          obj.video_url || obj.image_url || obj.result_url ||
+          obj.asset_url || obj.file_url || obj.link || obj.output ||
+          obj.result?.url || obj.result?.output_url || obj.result?.media_url ||
+          obj.data?.url || obj.data?.output_url ||
+          obj.outputs?.[0]?.url || obj.assets?.[0]?.url
+        if (typeof url === 'string' && url.startsWith('http')) return url
       } catch {}
-      // 정규식 폴백: https URL에 미디어 확장자
-      const m = c.text?.match(/https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|jpg|jpeg|png|gif|webp)/i)
-      if (m) return m[0]
+      // 정규식 폴백 1: 미디어 확장자 URL
+      const m1 = c.text?.match(/https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|jpg|jpeg|png|gif|webp)(?:[?#][^\s"'<>]*)?/i)
+      if (m1) return m1[0]
+      // 정규식 폴백 2: 알려진 CDN 도메인 URL (확장자 없어도)
+      const m2 = c.text?.match(/https:\/\/(?:cdn\.|storage\.|s3\.|media\.|assets\.|files\.)[^\s"'<>]{15,}/i)
+      if (m2) return m2[0]
     }
   }
   return null
@@ -110,27 +122,29 @@ function extractResultUrl(result) {
 
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
 app.post('/api/higgsfield/image', async (req, res) => {
-  const { prompt, model = 'nano_banana_pro', quality, aspectRatio, referenceJobId, referenceMediaId } = req.body
+  const { prompt, model = 'nano_banana_pro', quality, aspectRatio,
+          referenceMediaIds = [], referenceJobIds = [] } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!prompt) return res.status(400).json({ error: 'prompt 필요' })
 
-  // resolution 파라미터 지원 모델
-  const supportsResolution = ['nano_banana_2', 'nano_banana_pro', 'nano_banana_2_shots', 'gpt_image_2', 'cinematic_studio_2_5', 'marketing_studio_image', 'ms_image', 'flux_2'].includes(model)
-
-  // nano_banana_2_shots는 image_references role 필요
+  const isGptImage = model === 'gpt_image_2'
+  const supportsResolution = ['nano_banana_2', 'nano_banana_pro', 'nano_banana_2_shots', 'cinematic_studio_2_5', 'marketing_studio_image', 'ms_image', 'flux_2'].includes(model)
   const refRole = model === 'nano_banana_2_shots' ? 'image_references' : 'image'
-
-  // nano_banana_pro는 auto 비율 미지원
   const useAspect = aspectRatio && aspectRatio !== 'auto'
+
+  const medias = [
+    ...referenceMediaIds.map(id => ({ value: id, role: refRole })),
+    ...referenceJobIds.map(id => ({ value: id, role: refRole })),
+  ]
 
   const args = {
     params: {
       model,
       prompt,
       ...(useAspect ? { aspect_ratio: aspectRatio } : {}),
+      ...(isGptImage && quality ? { quality } : {}),
       ...(quality && supportsResolution ? { resolution: quality } : {}),
-      ...(referenceMediaId ? { medias: [{ value: referenceMediaId, role: refRole }] } :
-          referenceJobId   ? { medias: [{ value: referenceJobId,  role: refRole }] } : {}),
+      ...(medias.length > 0 ? { medias } : {}),
     },
   }
 
@@ -180,10 +194,12 @@ app.post('/api/higgsfield/video', async (req, res) => {
       duration: Number(duration),
       mode: videoMode,
       sound: sound === 'on',
-      aspects: videoAspect,
+      aspect_ratio: videoAspect,
       ...(medias.length > 0 ? { medias } : {}),
     },
   }
+
+  console.log('[higgsfield/video] params:', JSON.stringify(args.params, null, 2))
 
   try {
     const result = await callHiggsfieldMCP('generate_video', args)
@@ -262,6 +278,10 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
     // confirm
     const confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
     console.log('[upload-ref] confirm:', confirmResult.content?.[0]?.text?.slice(0, 200))
+    if (confirmResult.isError) {
+      const errText = confirmResult.content?.map(c => c.text).join(' ') ?? 'confirm 실패'
+      throw new Error(`media_confirm 실패: ${errText}`)
+    }
 
     res.json({ mediaId })
   } catch (err) {
@@ -272,12 +292,15 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
 
 function extractMediaId(result) {
   for (const c of (result.content ?? [])) {
-    if (c.type === 'text') {
-      try {
-        const obj = JSON.parse(c.text)
-        if (obj.id) return obj.id
-        if (obj.media_id) return obj.media_id
-      } catch {}
+    if (c.type !== 'text') continue
+    let parsed = false
+    try {
+      const obj = JSON.parse(c.text)
+      parsed = true
+      if (obj.id) return obj.id
+      if (obj.media_id) return obj.media_id
+    } catch {}
+    if (!parsed) {
       const m = c.text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
       if (m) return m[0]
     }

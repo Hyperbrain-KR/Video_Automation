@@ -70,6 +70,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
   const tabBtn = (t, label) => (
     <button
       onClick={() => setTab(t)}
+      className="nopan nodrag"
       style={{
         flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
         fontFamily: 'inherit', cursor: 'pointer', border: 'none',
@@ -101,6 +102,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
+          className="nopan nodrag"
           style={{
             border: `1.5px dashed ${dragging ? C.cyan : 'rgba(255,255,255,0.12)'}`,
             borderRadius: 8, padding: '12px 8px', textAlign: 'center',
@@ -126,6 +128,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
             value={urlInput}
             onChange={e => setUrlInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleUrlConfirm()}
+            className="nopan nodrag"
             style={{
               background: 'rgba(0,0,0,0.3)',
               border: '1px solid rgba(255,255,255,0.08)',
@@ -135,6 +138,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
           />
           <button
             onClick={handleUrlConfirm}
+            className="nopan nodrag"
             style={{
               background: 'rgba(41,217,217,0.1)',
               border: '1px solid rgba(41,217,217,0.25)',

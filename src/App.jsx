@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
   useNodesState, useEdgesState, useReactFlow,
@@ -176,6 +176,7 @@ const nodes0 = [
     data: {
       label: '캐릭터 프롬프트 생성',
       description: '이미지 앵커 + 캐릭터 연출 → 캐릭터 생성 프롬프트',
+      promptType: 'claudeChar',
     },
   },
   {
@@ -222,6 +223,7 @@ const nodes0 = [
     data: {
       label: '이미지 프롬프트 생성',
       description: '캐릭터 참조 + 이미지 연출 → 첫 프레임 이미지 프롬프트',
+      promptType: 'claudeImage',
     },
   },
   {
@@ -268,6 +270,7 @@ const nodes0 = [
     data: {
       label: '비디오 프롬프트 생성',
       description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트',
+      promptType: 'claudeVideo',
     },
   },
   {
@@ -341,57 +344,67 @@ const CANVAS_API = 'http://localhost:3002'
 
 const CLAUDE_PROMPTS = {
   claudeChar: {
-    system: `You are a prompt generator for higgsfield.ai using Nano Banana Pro.
+    system: `You are a character description writer for AI image generation.
 
-Your job is to convert the user's character direction into a strong English image-generation prompt. No reference image is provided at this step — write a complete character description that will be reused across all later image and video generation steps to maintain consistency.
+Your only job is to describe WHO the character is — not HOW they are rendered.
+Style, rendering, lighting, and visual treatment are handled separately by the style anchor. Do not add any style language.
 
-Follow these rules:
-- Describe the character's physical appearance in full detail: face shape, eye color and shape, skin tone, hair color, length, and style, body type, clothing style and colors
-- Determine the output type (character sheet, character board, single portrait, etc.) and adjust the prompt accordingly
-- For character sheets or boards, prioritize clarity, clean layout, and consistent character presentation
-- Apply the Extended Style Decomposition Rule: describe rendering type, shape language, surface/material qualities, lighting model, color behavior, and line treatment — select only the 3–5 most decisive attributes
-- Use style sentence templates: "in a [core style] with [shape language], [surface traits], and [lighting/color behavior]"
-- Do not add aesthetic filler like "masterpiece" or "best quality"
-- Do not ask follow-up questions
+WHAT to write:
+- Emotional expression and mood (e.g. "tired but gentle expression", "shy smile")
+- Body posture and gesture (e.g. "slightly slouched", "arms crossed loosely")
+- Silhouette and build (e.g. "petite frame", "broad-shouldered")
+- Hair: color, length, and loose shape only (e.g. "loose shoulder-length dark hair")
+- Clothing: fabric feel and color tone only (e.g. "muted oversized knit sweater", "simple linen dress")
+- One or two personality-readable details maximum
+
+WHAT NOT to write:
+- No rendering style: no "realistic", "painterly", "3D", "illustration", "cartoon", "chibi"
+- No skin description: no "matte skin", "fine texture", "pores", "skin tone codes"
+- No lighting: no "soft window light", "rim light", "subsurface scattering"
+- No facial anatomy: no "oval face", "defined cheekbones", "almond eyes"
+- No camera or composition: no "three-quarter portrait", "close-up", "depth of field"
+- No quality filler: no "masterpiece", "best quality", "highly detailed"
+
+The style anchor prepended above this prompt already defines the visual style. Your output must not conflict with it.
 
 Output rules:
-- Output the English prompt only
-- No code blocks, no Korean translation, no explanations`,
-    user: (_, command) => `Character direction:\n${command || '(no input)'}`,
+- One short paragraph, plain English
+- No code blocks, no Korean, no explanations`,
+    user: (anchor, command) => `Style anchor (already defines visual style — do not repeat or contradict):\n${anchor || '(none)'}\n\nCharacter direction:\n${command || '(no input)'}`,
   },
   claudeImage: {
-    system: `You are a prompt generator for higgsfield.ai using Nano Banana Pro.
+    system: `You are a scene description writer for AI image generation.
 
-Your job is to convert the user's scene direction into a strong English image-generation prompt. A reference character image will be provided directly to the AI model — do not redundantly restate visible appearance details.
+The style anchor prepended to this prompt already defines the complete visual style. Do not introduce any new style language.
 
-Follow the Reference Image Rules:
-- Do not over-describe the character's visible hairstyle, clothing, facial features, or body traits
-- Assume the attached image already provides the subject's visual identity
-- Use phrasing such as: "using the attached image as the character reference", "keeping the referenced character unchanged"
-- Only mention appearance details if needed to explain a requested change or prevent ambiguity
+A reference character image MAY or MAY NOT be provided to the AI model. Read the scene direction carefully:
 
-Use the prompt mainly to describe:
-- what should happen or be added to the scene
-- mood, atmosphere, and lighting
-- composition and framing
-- camera angle or visual focus
-- style direction if the user requests it
+IF the scene includes a character:
+- Do not re-describe the character's appearance (it is covered by the reference image)
+- Use phrasing like "keeping the referenced character unchanged", "with the attached character"
+- Focus on: what the character is doing, where they are, the mood of the scene
 
-Apply the Style Continuity Rule:
-- Any new scene elements should match the visual style of the reference image unless a different style is requested
-- Use firm language when consistency is critical: "Ensure the entire image follows the same visual style as the reference"
+IF the scene has no character (object, environment, abstract, etc.):
+- Describe the subject or scene fully: what it is, its key visual qualities, its placement
+- Describe mood, atmosphere, composition, and framing
+- Do not reference any character or person
 
-Apply the Style Source Priority Rule:
-1. User-specified style (highest)
-2. Style inferred from reference image
-3. High-quality visual default
+In both cases, write only:
+- Subject or action (what is in the scene)
+- Mood and atmosphere
+- Composition and framing
+
+Do NOT write:
+- Rendering or art style (already in the anchor)
+- Skin texture, lighting model, or material descriptions
+- Quality filler like "masterpiece", "best quality"
 
 Do not ask follow-up questions.
 
 Output rules:
 - Output the English prompt only
-- No code blocks, no Korean translation, no explanations`,
-    user: (anchor, command) => `Character reference prompt (from previous step):\n${anchor || '(none)'}\n\nScene direction:\n${command || '(no input)'}`,
+- No code blocks, no Korean, no explanations`,
+    user: (anchor, command) => `Image style anchor:\n${anchor || '(none)'}\n\nScene direction:\n${command || '(no input)'}`,
   },
   claudeVideo: {
     system: `You are a video prompt generator for Kling 3.0 via higgsfield.ai.
@@ -426,7 +439,7 @@ Do not ask follow-up questions.
 Output rules:
 - Output the English prompt only
 - No code blocks, no Korean translation, no explanations`,
-    user: (_, command) => `Video direction:\n${command || '(no input)'}`,
+    user: (anchor, command) => `Video style anchor:\n${anchor || '(none)'}\n\nVideo direction:\n${command || '(no input)'}`,
   },
 }
 
@@ -464,7 +477,8 @@ function FlowCanvas() {
     const anchor = getInput('anchor')
     const command = getInput('command')
 
-    const cfg = CLAUDE_PROMPTS[nodeId] ?? GENERIC_PROMPT
+    const node = currentNodes.find(n => n.id === nodeId)
+    const cfg = CLAUDE_PROMPTS[node?.data?.promptType] ?? GENERIC_PROMPT
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
@@ -482,12 +496,13 @@ function FlowCanvas() {
         throw new Error(body.error || `서버 오류 ${res.status}`)
       }
       const { text } = await res.json()
+      const finalText = anchor ? `${anchor}\n\n${text}` : text
 
-      updateNodeData(nodeId, { status: 'done', result: text })
+      updateNodeData(nodeId, { status: 'done', result: finalText })
 
       // 연결된 ReviewGate 노드에 결과 주입 (재생성 루프 엣지 제외)
-      const outEdge = getEdges().find(e => e.source === nodeId && e.target !== nodeId)
-      if (outEdge) updateNodeData(outEdge.target, { prompt: text })
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
+        .forEach(e => updateNodeData(e.target, { prompt: finalText }))
     } catch (err) {
       updateNodeData(nodeId, { status: 'error', error: err.message })
     }
@@ -511,7 +526,7 @@ function FlowCanvas() {
     const promptSrc = promptEdge ? currentNodes.find(n => n.id === promptEdge.source) : null
     const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
 
-    // 헬퍼: ReferenceImageNode 업로드
+    // 헬퍼: ReferenceImageNode 업로드 (파일/URL → mediaId)
     const uploadRefImage = async (srcNode) => {
       const { imageDataUrl, imageUrl, filename, contentType } = srcNode.data ?? {}
       if (!imageDataUrl && !imageUrl) return null
@@ -525,41 +540,69 @@ function FlowCanvas() {
       return uploadData.mediaId
     }
 
-    // 첫 프레임 / 참조 이미지 수집 (ref 또는 image 핸들) — referenceImage 타입 우선
+    // 헬퍼: 이전 생성 결과 URL → Higgsfield mediaId (media_import_url 경유)
+    const importRefUrl = async (url) => {
+      const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.mediaId) throw new Error(data.error || 'URL 임포트 실패')
+      return data.mediaId
+    }
+
+    // ref/image 핸들에 연결된 소스 노드 전체 수집
     const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
       (e.targetHandle === 'ref' || e.targetHandle === 'image'))
-    const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
-    const mediaEdge = refImgEdge ?? mediaEdges[0]
-    const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
-
-    let firstFrameJobId = mediaSrc?.data?.jobId ?? null
-    let firstFrameMediaId = null
-
-    // 끝 프레임 수집 (end_image 핸들) — video 전용
-    const endEdges = currentEdges.filter(e => e.target === nodeId && e.targetHandle === 'end_image')
-    const endRefImgEdge = endEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
-    const endEdge = endRefImgEdge ?? endEdges[0]
-    const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
-
-    let endFrameJobId = endSrc?.data?.jobId ?? null
-    let endFrameMediaId = null
+    const mediaSources = mediaEdges
+      .map(e => currentNodes.find(n => n.id === e.source))
+      .filter(Boolean)
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
-    // referenceImage 노드면 먼저 업로드
-    if (mediaSrc?.type === 'referenceImage') {
+    // 이미지: 연결된 모든 참조를 mediaId로 변환 (병렬)
+    let referenceMediaIds = []
+
+    if (!isVideo) {
       try {
-        firstFrameMediaId = await uploadRefImage(mediaSrc)
-        firstFrameJobId = null
+        const results = await Promise.all(mediaSources.map(src => {
+          if (src.type === 'referenceImage') return uploadRefImage(src)
+          if (src.data?.resultUrl) return importRefUrl(src.data.resultUrl)
+          return Promise.resolve(null)
+        }))
+        results.forEach(id => { if (id) referenceMediaIds.push(id) })
       } catch (err) {
         updateNodeData(nodeId, { status: 'error', error: err.message })
         return
       }
     }
-    if (endSrc?.type === 'referenceImage') {
+
+    // 비디오: 첫 프레임(단일) + 끝 프레임(단일) → mediaId
+    let firstFrameMediaId = null
+    let endFrameMediaId = null
+
+    if (isVideo) {
+      const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+      const mediaEdge = refImgEdge ?? mediaEdges[0]
+      const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
+
+      const endEdges = currentEdges.filter(e => e.target === nodeId && e.targetHandle === 'end_image')
+      const endRefImgEdge = endEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+      const endEdge = endRefImgEdge ?? endEdges[0]
+      const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
+
       try {
-        endFrameMediaId = await uploadRefImage(endSrc)
-        endFrameJobId = null
+        const [fId, eId] = await Promise.all([
+          mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
+            : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
+            : Promise.resolve(null),
+          endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
+            : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
+            : Promise.resolve(null),
+        ])
+        if (fId) firstFrameMediaId = fId
+        if (eId) endFrameMediaId = eId
       } catch (err) {
         updateNodeData(nodeId, { status: 'error', error: err.message })
         return
@@ -575,9 +618,7 @@ function FlowCanvas() {
             videoMode: node?.data?.videoMode ?? 'std',
             sound: node?.data?.sound ?? 'off',
             videoAspect: node?.data?.videoAspect ?? '16:9',
-            ...(firstFrameJobId ? { firstFrameJobId } : {}),
             ...(firstFrameMediaId ? { firstFrameMediaId } : {}),
-            ...(endFrameJobId ? { endFrameJobId } : {}),
             ...(endFrameMediaId ? { endFrameMediaId } : {}),
           }
         : {
@@ -585,8 +626,7 @@ function FlowCanvas() {
             model: node?.data?.model ?? 'nano_banana_pro',
             quality: node?.data?.quality ?? '1k',
             aspectRatio: node?.data?.aspectRatio ?? 'auto',
-            ...(firstFrameJobId ? { referenceJobId: firstFrameJobId } : {}),
-            ...(firstFrameMediaId ? { referenceMediaId: firstFrameMediaId } : {}),
+            referenceMediaIds,
           }
 
       const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {
@@ -603,15 +643,16 @@ function FlowCanvas() {
 
       updateNodeData(nodeId, { status: 'generating', jobId })
 
-      // 결과 폴링 (이미지: 최대 10회×5s=50s, 비디오: 최대 24회×5s=120s)
-      const maxPolls = isVideo ? 24 : 10
+      // 결과 폴링 (이미지: 최대 5분, 비디오: 최대 10분)
+      const deadlineMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
-      for (let i = 0; i < maxPolls; i++) {
-        if (i > 0) await new Promise(r => setTimeout(r, 5000))
+      while (Date.now() < deadlineMs) {
         const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
+        if (Date.now() + 5000 < deadlineMs) await new Promise(r => setTimeout(r, 5000))
+        else break
       }
 
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
@@ -619,8 +660,8 @@ function FlowCanvas() {
       updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
 
       // 연결된 ReviewGate 노드에 결과 주입
-      const outEdge = getEdges().find(e => e.source === nodeId)
-      if (outEdge) updateNodeData(outEdge.target, { resultUrl, jobId })
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
+        .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
 
     } catch (err) {
       console.error('[higgsfield]', err)
@@ -636,6 +677,25 @@ function FlowCanvas() {
   const onConnect = useCallback((params) => {
     setEdges(eds => addEdge({ ...params, type: 'smoothstep' }, eds))
   }, [setEdges])
+
+  // ── 활성 노드 엣지 강조 ──────────────────────────────────
+  const activeEdges = useMemo(() => {
+    const activeIds = new Set(
+      nodes
+        .filter(n => n.data?.status === 'loading' || n.data?.status === 'generating')
+        .map(n => n.id)
+    )
+    if (activeIds.size === 0) return edges
+    return edges.map(edge => {
+      if (!activeIds.has(edge.source) && !activeIds.has(edge.target)) return edge
+      return {
+        ...edge,
+        animated: true,
+        style: { ...edge.style, stroke: '#22c55e', strokeWidth: 2 },
+        className: (edge.className ?? '') + ' edge-active',
+      }
+    })
+  }, [edges, nodes])
 
   // ── 우클릭: 빈 캔버스 ────────────────────────────────────
   const onPaneContextMenu = useCallback((event) => {
@@ -710,7 +770,7 @@ function FlowCanvas() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={activeEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

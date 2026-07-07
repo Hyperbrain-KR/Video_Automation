@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Handle, Position } from '@xyflow/react'
+import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   blue: '#1F41B0',
@@ -166,7 +166,8 @@ const styles = {
   },
 }
 
-export default function ReviewGateNode({ data, selected }) {
+export default function ReviewGateNode({ id, data, selected }) {
+  const { updateNodeData } = useReactFlow()
   const [status, setStatus] = useState('pending')
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
 
@@ -231,7 +232,10 @@ export default function ReviewGateNode({ data, selected }) {
           <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>
             취소
           </button>
-          <button style={styles.btnApprove} onClick={() => setStatus('approved')}>
+          <button style={styles.btnApprove} onClick={() => {
+            updateNodeData(id, { prompt })
+            setStatus('approved')
+          }}>
             수정 후 승인
           </button>
         </div>

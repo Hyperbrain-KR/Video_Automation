@@ -104,6 +104,16 @@
   stroke-width: 1.5;
 }
 
+/* 활성 엣지 점멸 */
+@keyframes edge-pulse {
+  0%, 100% { opacity: 1;   filter: drop-shadow(0 0 3px #22c55e); }
+  50%       { opacity: 0.4; filter: drop-shadow(0 0 8px #22c55e); }
+}
+
+.react-flow__edge.edge-active .react-flow__edge-path {
+  animation: edge-pulse 1.2s ease-in-out infinite;
+}
+
 /* 핸들 */
 .react-flow__handle {
   background: rgba(41, 217, 217, 0.5);

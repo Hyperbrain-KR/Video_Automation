@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 
@@ -36,6 +36,12 @@ const QUALITY_OPTIONS = [
   ['1k', '1K'],
   ['2k', '2K'],
   ['4k', '4K'],
+]
+
+const GPT_QUALITY_OPTIONS = [
+  ['low', 'Low'],
+  ['medium', 'Medium'],
+  ['high', 'High'],
 ]
 
 const ASPECT_OPTIONS = [
@@ -99,7 +105,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const promptTop = hasMultiInput ? '25%' : '50%'
 
   const [model, setModel] = useState(data.model ?? 'nano_banana_pro')
-  const [quality, setQuality] = useState(data.quality ?? '1k')
+  const defaultQuality = (data.model ?? 'nano_banana_pro') === 'gpt_image_2' ? 'high' : '1k'
+  const [quality, setQuality] = useState(data.quality ?? defaultQuality)
   const [aspectRatio, setAspectRatio] = useState(data.aspectRatio ?? 'auto')
 
   // 비디오 전용 상태
@@ -127,7 +134,20 @@ export default function HiggsfieldNode({ id, data, selected }) {
     ].join(', '),
   } : {}
 
-  const handleModel = (v) => { setModel(v); updateNodeData(id, { model: v }) }
+  // 외부 updateNodeData(undo 등) 반영
+  useEffect(() => { setModel(data.model ?? 'nano_banana_pro') }, [data.model])
+  useEffect(() => { setQuality(data.quality ?? '1k') }, [data.quality])
+  useEffect(() => { setAspectRatio(data.aspectRatio ?? 'auto') }, [data.aspectRatio])
+  useEffect(() => { setDuration(Number(data.duration ?? 5)) }, [data.duration])
+  useEffect(() => { setVideoMode(data.videoMode ?? 'std') }, [data.videoMode])
+  useEffect(() => { setSound(data.sound ?? 'off') }, [data.sound])
+  useEffect(() => { setVideoAspect(data.videoAspect ?? '16:9') }, [data.videoAspect])
+
+  const handleModel = (v) => {
+    const newQuality = v === 'gpt_image_2' ? 'high' : '1k'
+    setModel(v); setQuality(newQuality)
+    updateNodeData(id, { model: v, quality: newQuality })
+  }
   const handleQuality = (v) => { setQuality(v); updateNodeData(id, { quality: v }) }
   const handleAspect = (v) => { setAspectRatio(v); updateNodeData(id, { aspectRatio: v }) }
   const handleDuration = (v) => { const n = Number(v); setDuration(n); updateNodeData(id, { duration: String(n) }) }
@@ -183,7 +203,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
           padding: '8px 9px', background: 'rgba(0,0,0,0.2)',
           border: '1px solid rgba(255,255,255,0.06)', borderRadius: 7 }}>
           <SelectRow label="모델" value={model} onChange={handleModel} options={IMAGE_MODELS} />
-          <SelectRow label="해상도" value={quality} onChange={handleQuality} options={QUALITY_OPTIONS} />
+          <SelectRow label="퀄리티" value={quality} onChange={handleQuality} options={model === 'gpt_image_2' ? GPT_QUALITY_OPTIONS : QUALITY_OPTIONS} />
           <SelectRow label="비율" value={aspectRatio} onChange={handleAspect} options={ASPECT_OPTIONS} />
         </div>
       )}
@@ -215,6 +235,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                   accentColor: '#29D9D9', appearance: 'none', WebkitAppearance: 'none',
                   background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) 100%)`,
                   borderRadius: 2, outline: 'none', border: 'none',
+                  '--pct': `${((duration - 3) / 12) * 100}%`,
                 }}
               />
             </div>
