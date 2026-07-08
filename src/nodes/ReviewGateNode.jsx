@@ -213,7 +213,7 @@ export default function ReviewGateNode({ id, data, selected }) {
   }
 
   const selectedGlow = selected ? {
-    borderColor: '#29D9D9',
+    border: '1px solid #29D9D9',
     boxShadow: [
       'inset 0 1px 0 rgba(255,255,255,0.16)',
       'inset 0 -1px 0 rgba(0,0,0,0.2)',

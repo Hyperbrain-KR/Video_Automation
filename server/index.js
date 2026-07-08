@@ -35,21 +35,33 @@ app.post('/api/claude/generate', async (req, res) => {
 })
 
 // ── Higgsfield MCP 헬퍼 ───────────────────────────────────
-async function callHiggsfieldMCP(toolName, args) {
-  const res = await fetch('https://mcp.higgsfield.ai/mcp', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: { name: toolName, arguments: args },
-      id: Date.now(),
-    }),
-  })
+async function callHiggsfieldMCP(toolName, args, timeoutMs = 180_000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  let res
+  try {
+    res = await fetch('https://mcp.higgsfield.ai/mcp', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: toolName, arguments: args },
+        id: Date.now(),
+      }),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`Higgsfield MCP 타임아웃 (${timeoutMs / 1000}s): ${toolName}`)
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!res.ok) throw new Error(`Higgsfield MCP HTTP ${res.status}: ${toolName}`)
 
@@ -179,8 +191,10 @@ app.post('/api/higgsfield/video', async (req, res) => {
   } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
-  const prompt = rawPrompt.length > 2500 ? rawPrompt.slice(0, 2500) : rawPrompt
-  if (rawPrompt.length > 2500) console.warn(`[higgsfield/video] prompt truncated ${rawPrompt.length} → 2500`)
+  const trimmed = rawPrompt.length > 2490 ? rawPrompt.slice(0, 2490) : rawPrompt
+  if (rawPrompt.length > 2490) console.warn(`[higgsfield/video] prompt truncated ${rawPrompt.length} → 2490`)
+  // dedup 방지: Higgsfield가 동일 프롬프트 재사용 시 실패 job을 반환하는 문제 우회
+  const prompt = trimmed + ` [${Date.now()}]`
 
   // medias 배열 구성
   const medias = []
@@ -195,26 +209,51 @@ app.post('/api/higgsfield/video', async (req, res) => {
       prompt,
       duration: Number(duration),
       mode: videoMode,
-      sound: sound === 'on',
+      sound,
       aspect_ratio: videoAspect,
+      seed: Math.floor(Math.random() * 2_147_483_647),
       ...(medias.length > 0 ? { medias } : {}),
     },
   }
 
   console.log('[higgsfield/video] params:', JSON.stringify(args.params, null, 2))
 
+  const t0 = Date.now()
+  const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
+
   try {
-    const result = await callHiggsfieldMCP('generate_video', args)
-    if (result.isError) {
-      const errText = result.content?.map(c => c.text).join(' ') ?? 'unknown error'
-      console.error('[higgsfield/video] MCP error:', errText)
-      return res.status(500).json({ error: errText })
+    console.log('[higgsfield/video] ① generate_video MCP 호출 중...')
+    let result = await callHiggsfieldMCP('generate_video', args)
+    console.log(`[higgsfield/video] ② MCP 응답 수신 (${ts()})`)
+    let rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+    console.log('[higgsfield/video] content:', rawContent.slice(0, 300))
+
+    // Higgsfield가 프리셋을 제안하는 경우 → 자동으로 declined_preset_id 붙여 재시도
+    if (rawContent.includes('declined_preset_id')) {
+      const m = rawContent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+      const presetId = m?.[0]
+      console.log(`[higgsfield/video] 프리셋 감지 (${presetId}), 리터럴 생성으로 재시도...`)
+      const retryArgs = {
+        params: { ...args.params, declined_preset_id: presetId },
+      }
+      result = await callHiggsfieldMCP('generate_video', retryArgs)
+      rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+      console.log('[higgsfield/video] 재시도 content:', rawContent.slice(0, 300))
+    }
+
+    if (result.isError || rawContent.toLowerCase().includes('something went wrong')) {
+      console.error('[higgsfield/video] 에러 응답:', rawContent)
+      return res.status(500).json({ error: rawContent || 'generate_video 실패' })
     }
     const jobId = extractJobId(result)
-    console.log('[higgsfield/video] jobId:', jobId)
+    console.log(`[higgsfield/video] ③ jobId: ${jobId} (${ts()})`)
+    if (!jobId) {
+      console.error('[higgsfield/video] jobId 추출 실패, content:', rawContent)
+      return res.status(500).json({ error: `jobId 추출 실패: ${rawContent.slice(0, 200)}` })
+    }
     res.json({ jobId, content: result.content })
   } catch (err) {
-    console.error('[higgsfield/video]', err.message)
+    console.error(`[higgsfield/video] 실패 (${ts()}):`, err.message)
     res.status(500).json({ error: err.message })
   }
 })
@@ -226,9 +265,10 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
   try {
     const result = await callHiggsfieldMCP('job_status', {
       jobId: req.params.jobId,
-      sync: true,
     })
     const resultUrl = extractResultUrl(result)
+    const statusText = result.content?.[0]?.text?.slice(0, 120) ?? '(no text)'
+    console.log(`[higgsfield/status] ${req.params.jobId.slice(0, 8)}… → ${resultUrl ? '✅ URL 획득' : '⏳ 대기 중'} | ${statusText}`)
     res.json({ jobId: req.params.jobId, resultUrl, content: result.content })
   } catch (err) {
     console.error('[higgsfield/status]', err.message)
@@ -242,52 +282,56 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!url && !fileBase64) return res.status(400).json({ error: 'url 또는 fileBase64 필요' })
 
+  const t0 = Date.now()
+  const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
+
   try {
     let mediaId
 
     if (url) {
-      // URL 임포트
+      console.log(`[upload-ref] ① media_import_url 호출 중... (url: ${url.slice(0, 60)})`)
       const importResult = await callHiggsfieldMCP('media_import_url', { url, type: 'image' })
       if (importResult.isError) throw new Error(importResult.content?.[0]?.text || 'URL 임포트 실패')
       mediaId = extractMediaId(importResult)
-      console.log('[upload-ref] import mediaId:', mediaId)
+      console.log(`[upload-ref] ② mediaId 획득: ${mediaId} (${ts()})`)
     } else {
-      // presigned URL 업로드
+      console.log(`[upload-ref] ① media_upload presigned 요청 중... (${filename})`)
       const uploadResult = await callHiggsfieldMCP('media_upload', {
         filename: filename || 'reference.jpg',
         content_type: contentType || 'image/jpeg',
       })
       if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
       const { presignedUrl, id } = extractPresigned(uploadResult)
-      console.log('[upload-ref] presignedUrl:', presignedUrl?.slice(0, 80), 'id:', id)
+      console.log(`[upload-ref] ② presignedUrl: ${presignedUrl?.slice(0, 60)} id: ${id} (${ts()})`)
       if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
 
-      // base64 → Buffer → PUT 업로드
       const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
+      console.log(`[upload-ref] ③ S3 PUT 업로드 중... (${buffer.length} bytes)`)
       const putRes = await fetch(presignedUrl, {
         method: 'PUT',
         headers: { 'Content-Type': contentType || 'image/jpeg' },
         body: buffer,
       })
-      console.log('[upload-ref] PUT status:', putRes.status)
+      console.log(`[upload-ref] ④ S3 PUT 완료: ${putRes.status} (${ts()})`)
       if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
       mediaId = id
     }
 
     if (!mediaId) throw new Error('mediaId 획득 실패')
 
-    // confirm
+    console.log(`[upload-ref] ⑤ media_confirm 호출 중... (mediaId: ${mediaId})`)
     const confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
-    console.log('[upload-ref] confirm:', confirmResult.content?.[0]?.text?.slice(0, 200))
+    console.log(`[upload-ref] ⑥ confirm 완료 (${ts()}):`, confirmResult.content?.[0]?.text?.slice(0, 100))
     if (confirmResult.isError) {
       const errText = confirmResult.content?.map(c => c.text).join(' ') ?? 'confirm 실패'
       throw new Error(`media_confirm 실패: ${errText}`)
     }
 
+    console.log(`[upload-ref] 완료 → mediaId: ${mediaId} (총 ${ts()})`)
     res.json({ mediaId })
   } catch (err) {
-    console.error('[upload-ref]', err.message)
+    console.error(`[upload-ref] 실패 (${ts()}):`, err.message)
     res.status(500).json({ error: err.message })
   }
 })

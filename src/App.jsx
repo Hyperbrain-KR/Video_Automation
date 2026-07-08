@@ -563,6 +563,10 @@ function FlowCanvas() {
       .map(e => currentNodes.find(n => n.id === e.source))
       .filter(Boolean)
 
+    const t0 = Date.now()
+    const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
+    console.log(`[생성 시작] nodeId: ${nodeId}, type: ${isVideo ? '비디오' : '이미지'}, prompt: "${prompt.slice(0, 60)}..."`)
+
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
     // 이미지: 연결된 모든 참조를 mediaId로 변환 (병렬)
@@ -596,6 +600,7 @@ function FlowCanvas() {
       const endEdge = endRefImgEdge ?? endEdges[0]
       const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
 
+      console.log(`[미디어 임포트] 첫프레임: ${mediaSrc?.type ?? '없음'}, 끝프레임: ${endSrc?.type ?? '없음'}`)
       try {
         const [fId, eId] = await Promise.all([
           mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
@@ -607,7 +612,9 @@ function FlowCanvas() {
         ])
         if (fId) firstFrameMediaId = fId
         if (eId) endFrameMediaId = eId
+        console.log(`[미디어 임포트 완료] firstFrameMediaId: ${firstFrameMediaId}, endFrameMediaId: ${endFrameMediaId} (${ts()})`)
       } catch (err) {
+        console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
         updateNodeData(nodeId, { status: 'error', error: err.message })
         return
       }
@@ -619,7 +626,7 @@ function FlowCanvas() {
         ? {
             prompt,
             duration: node?.data?.duration ?? '5',
-            videoMode: node?.data?.videoMode ?? 'std',
+            videoMode: node?.data?.videoMode ?? 'pro',
             sound: node?.data?.sound ?? 'off',
             videoAspect: node?.data?.videoAspect ?? '16:9',
             ...(firstFrameMediaId ? { firstFrameMediaId } : {}),
@@ -633,6 +640,7 @@ function FlowCanvas() {
             referenceMediaIds,
           }
 
+      console.log(`[생성 요청] /api/higgsfield/${endpoint} 호출 중...`, body)
       const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -642,24 +650,34 @@ function FlowCanvas() {
         const err = await genRes.json().catch(() => ({}))
         throw new Error(err.error || `서버 오류 ${genRes.status}`)
       }
-      const { jobId } = await genRes.json()
+      const genResData = await genRes.json()
+      const { jobId } = genResData
+      console.log(`[생성 응답 원문] content:`, genResData.content?.[0]?.text)
       if (!jobId) throw new Error('jobId를 받지 못했습니다')
+      console.log(`[생성 요청 완료] jobId: ${jobId} (${ts()})`)
 
       updateNodeData(nodeId, { status: 'generating', jobId })
 
       // 결과 폴링 (이미지: 최대 5분, 비디오: 최대 10분)
       const deadlineMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
+      let pollCount = 0
       while (Date.now() < deadlineMs) {
+        pollCount++
         const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
+        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
+        console.log(`[폴링 #${pollCount}] (${ts()})`, statusData.resultUrl ? `✅ URL: ${statusData.resultUrl.slice(0, 60)}` : `⏳ 대기 중`, statusData.error ? `❌ ${statusData.error}` : '', '\n  Higgsfield 응답:', rawStatus)
+        if (!statusRes.ok) throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
+        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
         if (Date.now() + 5000 < deadlineMs) await new Promise(r => setTimeout(r, 5000))
         else break
       }
 
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
+      console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
 
       updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
 
@@ -668,7 +686,7 @@ function FlowCanvas() {
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
 
     } catch (err) {
-      console.error('[higgsfield]', err)
+      console.error(`[생성 실패] (${ts()})`, err.message)
       updateNodeData(nodeId, { status: 'error', error: err.message })
     }
   }, [getNodes, getEdges, updateNodeData])

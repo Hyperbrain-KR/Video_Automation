@@ -142,6 +142,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const isLoading = status === 'loading' || status === 'generating'
   const isDone = status === 'done'
 
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (status !== 'generating') { setElapsed(0); return }
+    const start = Date.now()
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(t)
+  }, [status])
+
   let description = '프롬프트 → 이미지 생성'
   if (hasRef) description = '프롬프트 + 캐릭터 참조 → 이미지 생성'
   if (isVideo) description = '프롬프트 + 첫 프레임 → 영상 생성'
@@ -338,7 +346,37 @@ export default function HiggsfieldNode({ id, data, selected }) {
           animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : 'none',
         }} />
         {cfg.text}
+        {status === 'generating' && elapsed > 0 && (
+          <span style={{ fontWeight: 400, opacity: 0.7 }}>
+            {` ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`}
+          </span>
+        )}
       </div>
+
+      {/* 생성 중일 때 jobId + 취소 버튼 */}
+      {status === 'generating' && (
+        <div style={{ marginTop: 5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          {data.jobId && (
+            <div style={{
+              flex: 1, fontSize: 9, color: 'rgba(244,244,244,0.25)',
+              fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.4,
+            }}>
+              job: {data.jobId}
+            </div>
+          )}
+          <button
+            onClick={() => updateNodeData(id, { status: 'idle', error: undefined })}
+            style={{
+              flexShrink: 0, fontSize: 9, fontWeight: 700,
+              color: 'rgba(227,64,84,0.7)', background: 'rgba(227,64,84,0.08)',
+              border: '1px solid rgba(227,64,84,0.25)', borderRadius: 4,
+              padding: '2px 7px', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            취소
+          </button>
+        </div>
+      )}
 
       {/* 오류 */}
       {status === 'error' && data.error && (
