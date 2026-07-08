@@ -167,7 +167,7 @@ app.post('/api/higgsfield/image', async (req, res) => {
 // ── Higgsfield: 비디오 생성 ────────────────────────────────
 app.post('/api/higgsfield/video', async (req, res) => {
   const {
-    prompt,
+    prompt: rawPrompt,
     duration = '5',
     videoMode = 'std',
     sound = 'on',
@@ -178,7 +178,9 @@ app.post('/api/higgsfield/video', async (req, res) => {
     endFrameMediaId,
   } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
-  if (!prompt) return res.status(400).json({ error: 'prompt 필요' })
+  if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
+  const prompt = rawPrompt.length > 2500 ? rawPrompt.slice(0, 2500) : rawPrompt
+  if (rawPrompt.length > 2500) console.warn(`[higgsfield/video] prompt truncated ${rawPrompt.length} → 2500`)
 
   // medias 배열 구성
   const medias = []

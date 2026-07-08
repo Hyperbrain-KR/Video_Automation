@@ -280,6 +280,7 @@ const nodes0 = [
     data: {
       label: '비디오 프롬프트 리뷰',
       prompt: '(Claude가 생성한 비디오 프롬프트)',
+      charLimit: 2500,
     },
   },
   {
@@ -438,7 +439,8 @@ Do not ask follow-up questions.
 
 Output rules:
 - Output the English prompt only
-- No code blocks, no Korean translation, no explanations`,
+- No code blocks, no Korean translation, no explanations
+- Maximum 2500 characters total — cut secondary details if needed to stay within this limit`,
     user: (anchor, command) => `Video style anchor:\n${anchor || '(none)'}\n\nVideo direction:\n${command || '(no input)'}`,
   },
 }
@@ -496,7 +498,9 @@ function FlowCanvas() {
         throw new Error(body.error || `서버 오류 ${res.status}`)
       }
       const { text } = await res.json()
-      const finalText = anchor ? `${anchor}\n\n${text}` : text
+      // 비디오 프롬프트는 앵커를 Claude 컨텍스트로만 사용하고 출력에는 붙이지 않음
+      const prependAnchor = node?.data?.promptType !== 'claudeVideo'
+      const finalText = (anchor && prependAnchor) ? `${anchor}\n\n${text}` : text
 
       updateNodeData(nodeId, { status: 'done', result: finalText })
 

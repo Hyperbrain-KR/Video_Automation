@@ -166,18 +166,51 @@ const styles = {
   },
 }
 
+const CANVAS_API = 'http://localhost:3002'
+
 export default function ReviewGateNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const [status, setStatus] = useState('pending')
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
+  const charLimit = data.charLimit ?? (data.label?.includes('비디오 프롬프트') ? 2500 : null)
+  const [showKo, setShowKo] = useState(false)
+  const [koText, setKoText] = useState(null)
+  const [translating, setTranslating] = useState(false)
 
   // Claude 생성 완료 시 외부에서 data.prompt가 업데이트되면 동기화
   useEffect(() => {
     if (data.prompt && data.prompt !== '(프롬프트 없음)') {
       setPrompt(data.prompt)
       setStatus('pending')
+      setShowKo(false)
+      setKoText(null)
     }
   }, [data.prompt])
+
+  const toggleTranslation = async () => {
+    if (showKo) { setShowKo(false); return }
+    if (koText) { setShowKo(true); return }
+    setTranslating(true)
+    try {
+      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt: 'Translate the following English AI image/video generation prompt into natural Korean. Output Korean translation only — no explanations, no English.',
+          userMessage: prompt,
+          maxTokens: 4000,
+        }),
+      })
+      const data2 = await res.json()
+      setKoText(data2.text || '번역 실패')
+      setShowKo(true)
+    } catch {
+      setKoText('번역 오류')
+      setShowKo(true)
+    } finally {
+      setTranslating(false)
+    }
+  }
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -217,6 +250,23 @@ export default function ReviewGateNode({ id, data, selected }) {
     )
   }
 
+  const CharCount = ({ text }) => {
+    if (!charLimit) return null
+    const len = text.length
+    const over = len > charLimit
+    return (
+      <div style={{
+        textAlign: 'right', fontSize: 10, fontWeight: 700,
+        color: over ? C.red : len > charLimit * 0.9 ? '#f59e0b' : 'rgba(244,244,244,0.3)',
+        marginTop: -6, marginBottom: 8,
+        transition: 'color 0.2s',
+      }}>
+        {len.toLocaleString()} / {charLimit.toLocaleString()}
+        {over && ' ⚠'}
+      </div>
+    )
+  }
+
   if (status === 'editing') {
     return (
       <div style={{ ...styles.node, ...selectedGlow }}>
@@ -228,6 +278,7 @@ export default function ReviewGateNode({ id, data, selected }) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
+        <CharCount text={prompt} />
         <div style={styles.row}>
           <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>
             취소
@@ -248,7 +299,36 @@ export default function ReviewGateNode({ id, data, selected }) {
       {handles}
       <div style={styles.statusBadge}>⏳ 검토 대기</div>
       <div style={styles.label}>{data.label}</div>
-      <div style={styles.prompt}>{prompt}</div>
+
+      {/* 프롬프트 / 번역 토글 영역 */}
+      <div
+        onClick={toggleTranslation}
+        title={showKo ? '클릭하면 영어 원문 보기' : '클릭하면 한국어 번역 보기'}
+        style={{
+          ...styles.prompt,
+          cursor: translating ? 'wait' : 'pointer',
+          position: 'relative',
+          userSelect: 'none',
+        }}
+      >
+        {translating
+          ? <span style={{ color: 'rgba(244,244,244,0.3)' }}>번역 중…</span>
+          : (showKo ? koText : prompt)
+        }
+        <span style={{
+          position: 'absolute', bottom: 6, right: 8,
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+          color: showKo ? C.cyan : 'rgba(244,244,244,0.2)',
+          background: showKo ? 'rgba(41,217,217,0.1)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${showKo ? 'rgba(41,217,217,0.3)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 3, padding: '1px 5px',
+          transition: 'all 0.2s',
+        }}>
+          {showKo ? 'KO' : 'EN'}
+        </span>
+      </div>
+
+      <CharCount text={prompt} />
       <div style={styles.row}>
         <button style={styles.btnSecondary} onClick={() => setStatus('editing')}>
           수정
