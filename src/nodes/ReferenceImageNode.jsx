@@ -3,13 +3,13 @@ import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   cyan: '#29D9D9',
-  light: '#F4F4F4',
-  muted: 'rgba(244,244,244,0.45)',
+  light: 'var(--t1)',
+  muted: 'var(--t3)',
   blue: '#1F41B0',
 }
 
 const nodeBase = {
-  background: 'rgba(15,22,40,0.7)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(41,217,217,0.3)',
@@ -91,7 +91,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
 
       {/* 탭 */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8,
-        background: 'rgba(0,0,0,0.2)', borderRadius: 5, padding: 3 }}>
+        background: 'var(--node-prompt)', borderRadius: 5, padding: 3 }}>
         {tabBtn('file', '파일 업로드')}
         {tabBtn('url', 'URL 입력')}
       </div>
@@ -107,7 +107,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
             border: `1.5px dashed ${dragging ? C.cyan : 'rgba(255,255,255,0.12)'}`,
             borderRadius: 8, padding: '12px 8px', textAlign: 'center',
             cursor: 'pointer', transition: 'all 0.15s',
-            background: dragging ? 'rgba(41,217,217,0.05)' : 'rgba(0,0,0,0.15)',
+            background: dragging ? 'rgba(41,217,217,0.05)' : 'var(--node-prompt)',
           }}
         >
           <div style={{ fontSize: 18, marginBottom: 4 }}>📁</div>
@@ -130,8 +130,8 @@ export default function ReferenceImageNode({ id, data, selected }) {
             onKeyDown={e => e.key === 'Enter' && handleUrlConfirm()}
             className="nopan nodrag"
             style={{
-              background: 'rgba(0,0,0,0.3)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'var(--node-input)',
+              border: '1px solid var(--sep2)',
               borderRadius: 5, padding: '5px 8px',
               fontSize: 10, color: C.light, fontFamily: 'inherit', outline: 'none',
             }}

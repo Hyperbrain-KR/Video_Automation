@@ -6,12 +6,12 @@ const C = {
   blue: '#1F41B0',
   cyan: '#29D9D9',
   red: '#E34054',
-  light: '#F4F4F4',
-  muted: 'rgba(244,244,244,0.45)',
+  light: 'var(--t1)',
+  muted: 'var(--t3)',
 }
 
 const nodeBase = {
-  background: 'rgba(15,22,40,0.7)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(31,65,176,0.45)',
@@ -59,7 +59,7 @@ const ASPECT_OPTIONS = [
 ]
 
 const statusConfigs = {
-  idle:       { dot: 'rgba(244,244,244,0.25)', text: '대기 중',  glow: 'none' },
+  idle:       { dot: 'var(--t5)', text: '대기 중',  glow: 'none' },
   loading:    { dot: '#29D9D9', text: '생성 중…', glow: '0 0 8px rgba(41,217,217,0.8)' },
   generating: { dot: '#29D9D9', text: '생성 중…', glow: '0 0 8px rgba(41,217,217,0.8)' },
   done:       { dot: '#29D9D9', text: '완료',     glow: '0 0 8px rgba(41,217,217,0.8)' },
@@ -68,10 +68,10 @@ const statusConfigs = {
 
 const selectStyle = {
   flex: 1,
-  background: 'rgba(0,0,0,0.3)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--node-input)',
+  border: '1px solid var(--sep2)',
   borderRadius: 5,
-  color: 'rgba(244,244,244,0.8)',
+  color: 'var(--t2)',
   padding: '3px 6px',
   fontSize: 10,
   fontFamily: 'inherit',
@@ -82,7 +82,7 @@ const selectStyle = {
 function SelectRow({ label, value, onChange, options }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.35)', width: 36, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>{label}</span>
       <select value={value} onChange={e => onChange(e.target.value)} style={selectStyle}>
         {options.map(([v, l]) => (
           <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>
@@ -188,7 +188,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
     background: isLoading ? 'rgba(31,65,176,0.1)' : isDone ? 'rgba(41,217,217,0.08)' : 'linear-gradient(135deg, #1a3090 0%, #1F41B0 100%)',
-    color: isLoading ? 'rgba(244,244,244,0.25)' : isDone ? 'rgba(41,217,217,0.85)' : C.light,
+    color: isLoading ? 'var(--t5)' : isDone ? 'rgba(41,217,217,0.85)' : '#F4F4F4',
     border: isLoading ? '1px solid rgba(31,65,176,0.2)' : isDone ? '1px solid rgba(41,217,217,0.3)' : '1px solid rgba(31,65,176,0.6)',
     borderRadius: 7, cursor: isLoading ? 'not-allowed' : 'pointer',
     fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', fontFamily: 'inherit',
@@ -230,8 +230,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {/* 이미지 노드: 모델/퀄리티/비율 선택 */}
       {!isVideo && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10,
-          padding: '8px 9px', background: 'rgba(0,0,0,0.2)',
-          border: '1px solid rgba(255,255,255,0.06)', borderRadius: 7 }}>
+          padding: '8px 9px', background: 'var(--node-prompt)',
+          border: '1px solid var(--sep)', borderRadius: 7 }}>
           <SelectRow label="모델" value={model} onChange={handleModel} options={IMAGE_MODELS} />
           <SelectRow label="퀄리티" value={quality} onChange={handleQuality} options={model === 'gpt_image_2' ? GPT_QUALITY_OPTIONS : QUALITY_OPTIONS} />
           <SelectRow label="비율" value={aspectRatio} onChange={handleAspect} options={ASPECT_OPTIONS} />
@@ -241,18 +241,18 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {/* 비디오 노드: Kling 3.0 컨트롤 */}
       {isVideo && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10,
-          padding: '8px 9px', background: 'rgba(0,0,0,0.2)',
-          border: '1px solid rgba(255,255,255,0.06)', borderRadius: 7 }}>
+          padding: '8px 9px', background: 'var(--node-prompt)',
+          border: '1px solid var(--sep)', borderRadius: 7 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(41,217,217,0.6)',
             letterSpacing: '0.08em', marginBottom: 4 }}>KLING 3.0</div>
 
           {/* 길이 슬라이더 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.35)', width: 36, flexShrink: 0 }}>길이</span>
+            <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>길이</span>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: C.cyan }}>{duration}s</span>
-                <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.25)' }}>3–15</span>
+                <span style={{ fontSize: 9, color: 'var(--t5)' }}>3–15</span>
               </div>
               <input
                 type="range"
@@ -263,7 +263,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 style={{
                   width: '100%', cursor: 'pointer', height: 4,
                   accentColor: '#29D9D9', appearance: 'none', WebkitAppearance: 'none',
-                  background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) ${((duration - 3) / 12) * 100}%, rgba(255,255,255,0.12) 100%)`,
+                  background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${((duration - 3) / 12) * 100}%, var(--sep2) ${((duration - 3) / 12) * 100}%, var(--sep2) 100%)`,
                   borderRadius: 2, outline: 'none', border: 'none',
                   '--pct': `${((duration - 3) / 12) * 100}%`,
                 }}
@@ -276,7 +276,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
           {/* 오디오 토글 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: 'rgba(244,244,244,0.35)', width: 36, flexShrink: 0 }}>오디오</span>
+            <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>오디오</span>
             <button
               onClick={handleSound}
               className="nopan"
@@ -336,8 +336,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
         display: 'inline-flex', alignItems: 'center', gap: 5,
         fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
         color: status === 'error' ? C.red : status === 'idle' ? C.muted : C.cyan,
-        background: 'rgba(255,255,255,0.04)',
-        border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'rgba(255,255,255,0.08)'}`,
+        background: 'var(--node-bg)',
+        border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'var(--sep2)'}`,
         borderRadius: 4, padding: '2px 8px',
       }}>
         <span style={{
@@ -358,7 +358,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
         <div style={{ marginTop: 5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
           {data.jobId && (
             <div style={{
-              flex: 1, fontSize: 9, color: 'rgba(244,244,244,0.25)',
+              flex: 1, fontSize: 9, color: 'var(--t5)',
               fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.4,
             }}>
               job: {data.jobId}
@@ -468,9 +468,9 @@ function InputBadge({ handle, icon, label, color, connected, onFlash }) {
           border: `1px solid ${color}55`,
           animation: 'badge-pulse 1.6s ease-in-out infinite',
         } : {
-          color: 'rgba(244,244,244,0.25)',
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          color: 'var(--t5)',
+          background: 'var(--node-bg)',
+          border: '1px solid var(--sep2)',
         }),
       }}
     >

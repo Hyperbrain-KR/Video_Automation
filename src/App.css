@@ -1,5 +1,54 @@
+/* ── Theme variables ─────────────────────────────────────── */
+:root {
+  /* Canvas chrome */
+  --bg-canvas: #0A0A0F;
+  --controls-bg: rgba(15,18,30,0.85);
+  --controls-border: rgba(41,217,217,0.15);
+  --controls-fill: rgba(244,244,244,0.7);
+  --controls-fill-hover: #F4F4F4;
+  --minimap-bg: rgba(10,10,20,0.9);
+  --minimap-mask: rgba(0,0,0,0.55);
+  /* Node text */
+  --t1: #F4F4F4;
+  --t2: rgba(244,244,244,0.65);
+  --t3: rgba(244,244,244,0.45);
+  --t4: rgba(244,244,244,0.30);
+  --t5: rgba(244,244,244,0.20);
+  /* Node surfaces */
+  --node-bg: rgba(255,255,255,0.04);
+  --node-prompt: rgba(0,0,0,0.25);
+  --node-input: rgba(0,0,0,0.30);
+  --node-section: rgba(255,255,255,0.05);
+  --sep: rgba(255,255,255,0.06);
+  --sep2: rgba(255,255,255,0.08);
+}
+
+:root[data-theme="light"] {
+  /* Canvas chrome */
+  --bg-canvas: #EEF0F8;
+  --controls-bg: rgba(255,255,255,0.88);
+  --controls-border: rgba(41,217,217,0.35);
+  --controls-fill: rgba(30,40,80,0.65);
+  --controls-fill-hover: #1a2050;
+  --minimap-bg: rgba(230,234,248,0.95);
+  --minimap-mask: rgba(180,190,220,0.45);
+  /* Node text */
+  --t1: #1E2456;
+  --t2: rgba(30,36,86,0.78);
+  --t3: rgba(30,36,86,0.50);
+  --t4: rgba(30,36,86,0.35);
+  --t5: rgba(30,36,86,0.20);
+  /* Node surfaces */
+  --node-bg: rgba(255,255,255,0.75);
+  --node-prompt: rgba(228,232,252,0.60);
+  --node-input: rgba(228,232,252,0.55);
+  --node-section: rgba(255,255,255,0.55);
+  --sep: rgba(0,0,0,0.06);
+  --sep2: rgba(0,0,0,0.08);
+}
+
 .react-flow {
-  background: #0A0A0F;
+  background: var(--bg-canvas);
 }
 
 /* 기본 노드 글래스 리퀴드 */
@@ -104,6 +153,10 @@
   stroke-width: 1.5;
 }
 
+:root[data-theme="light"] .react-flow__edge-path {
+  stroke: rgba(30, 36, 86, 0.25);
+}
+
 /* 소스 노드 flash (뱃지 클릭 시) */
 @keyframes node-flash {
   0%   { filter: brightness(1)   drop-shadow(0 0 0px transparent); }
@@ -153,12 +206,25 @@
 .react-flow__controls-button {
   background: transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  fill: rgba(244, 244, 244, 0.7);
+  fill: var(--controls-fill);
 }
 
 .react-flow__controls-button:hover {
   background: rgba(31, 65, 176, 0.15);
-  fill: #F4F4F4;
+  fill: var(--controls-fill-hover);
+}
+
+:root[data-theme="light"] .react-flow__controls-button {
+  border-bottom-color: rgba(0,0,0,0.06);
+}
+
+/* 라이트 모드: 슬라이더 트랙 */
+:root[data-theme="light"] input[type="range"] {
+  --track-empty: rgba(30,36,86,0.15) !important;
+}
+
+:root[data-theme="light"] .react-flow__minimap-node {
+  fill: rgba(41,217,217,0.25);
 }
 
 /* 미니맵 */

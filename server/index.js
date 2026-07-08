@@ -2,6 +2,13 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import Anthropic from '@anthropic-ai/sdk'
+import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ENV_PATH = path.join(__dirname, '.env')
 
 const app = express()
 app.use(cors())
@@ -9,6 +16,71 @@ app.use(express.json({ limit: '10mb' }))
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6'
+
+// ── Higgsfield OAuth ──────────────────────────────────────
+const OAUTH_CLIENT_ID = 'HLFkiErFzYPuRQxm'
+const OAUTH_REDIRECT = 'http://localhost:3002/auth/callback'
+let _oauthPending = {}
+
+function updateEnvKey(key, value) {
+  let content = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : ''
+  const re = new RegExp(`^${key}=.*$`, 'm')
+  if (re.test(content)) content = content.replace(re, `${key}=${value}`)
+  else content += `\n${key}=${value}`
+  fs.writeFileSync(ENV_PATH, content)
+  process.env[key] = value
+}
+
+async function refreshHiggsfieldToken() {
+  const rt = process.env.HIGGSFIELD_REFRESH_TOKEN
+  if (!rt) return false
+  try {
+    const r = await fetch('https://mcp.higgsfield.ai/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: rt, client_id: OAUTH_CLIENT_ID }),
+    })
+    const t = await r.json()
+    if (!t.access_token) return false
+    updateEnvKey('HIGGSFIELD_API_KEY', t.access_token)
+    if (t.refresh_token) updateEnvKey('HIGGSFIELD_REFRESH_TOKEN', t.refresh_token)
+    console.log('[oauth] Higgsfield 토큰 자동 갱신 완료')
+    return true
+  } catch { return false }
+}
+
+app.get('/auth/higgsfield/start', (req, res) => {
+  const verifier = crypto.randomBytes(32).toString('base64url')
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url')
+  const state = crypto.randomBytes(16).toString('hex')
+  _oauthPending = { verifier, state }
+  const url = `https://mcp.higgsfield.ai/oauth2/authorize?` + new URLSearchParams({
+    response_type: 'code', client_id: OAUTH_CLIENT_ID, redirect_uri: OAUTH_REDIRECT,
+    scope: 'openid email offline_access', state, code_challenge: challenge, code_challenge_method: 'S256',
+  })
+  res.redirect(url)
+})
+
+app.get('/auth/callback', async (req, res) => {
+  const { code, state } = req.query
+  if (state !== _oauthPending.state) return res.status(400).send('State mismatch')
+  try {
+    const r = await fetch('https://mcp.higgsfield.ai/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code', code, redirect_uri: OAUTH_REDIRECT,
+        client_id: OAUTH_CLIENT_ID, code_verifier: _oauthPending.verifier,
+      }),
+    })
+    const t = await r.json()
+    if (!t.access_token) return res.status(400).send(`<pre>실패: ${JSON.stringify(t)}</pre>`)
+    updateEnvKey('HIGGSFIELD_API_KEY', t.access_token)
+    if (t.refresh_token) updateEnvKey('HIGGSFIELD_REFRESH_TOKEN', t.refresh_token)
+    console.log('[oauth] Higgsfield 로그인 성공, 토큰 저장됨')
+    res.send('<h2 style="font-family:sans-serif;color:green">✅ Higgsfield 로그인 완료! 이 탭을 닫으세요.</h2>')
+  } catch (e) { res.status(500).send(e.message) }
+})
 
 // ── Health ────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
@@ -63,6 +135,11 @@ async function callHiggsfieldMCP(toolName, args, timeoutMs = 180_000) {
     clearTimeout(timer)
   }
 
+  if (res.status === 401) {
+    const refreshed = await refreshHiggsfieldToken()
+    if (refreshed) return callHiggsfieldMCP(toolName, args, timeoutMs)
+    throw new Error('Higgsfield 인증 실패 — /auth/higgsfield/start 에서 재로그인 필요')
+  }
   if (!res.ok) throw new Error(`Higgsfield MCP HTTP ${res.status}: ${toolName}`)
 
   const text = await res.text()
@@ -160,13 +237,22 @@ app.post('/api/higgsfield/image', async (req, res) => {
     },
   }
 
+  const runImage = async () => callHiggsfieldMCP('generate_image', args)
   try {
-    const result = await callHiggsfieldMCP('generate_image', args)
+    let result = await runImage()
+    // 토큰 만료 시 자동 갱신 후 재시도
     if (result.isError) {
-      const msg = result.content?.[0]?.text || '생성 오류'
-      console.error('[higgsfield/image] isError:', msg)
-      return res.status(500).json({ error: msg })
+      const msg = result.content?.[0]?.text || ''
+      if (msg.toLowerCase().includes('invalid or expired token')) {
+        const refreshed = await refreshHiggsfieldToken()
+        if (refreshed) result = await runImage()
+        else return res.status(401).json({ error: 'Higgsfield 토큰 만료 — http://localhost:3002/auth/higgsfield/start 에서 재로그인' })
+      } else {
+        console.error('[higgsfield/image] isError:', msg)
+        return res.status(500).json({ error: msg })
+      }
     }
+    if (result.isError) return res.status(500).json({ error: result.content?.[0]?.text || '생성 오류' })
     const jobId = extractJobId(result)
     console.log('[higgsfield/image] jobId:', jobId)
     res.json({ jobId, content: result.content })

@@ -5,12 +5,12 @@ const C = {
   blue: '#1F41B0',
   cyan: '#29D9D9',
   red: '#E34054',
-  light: '#F4F4F4',
-  muted: 'rgba(244,244,244,0.45)',
+  light: 'var(--t1)',
+  muted: 'var(--t3)',
 }
 
 const nodeBase = {
-  background: 'rgba(31,65,176,0.07)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(31,65,176,0.35)',
@@ -76,10 +76,10 @@ export default function ClaudeNode({ id, data, selected }) {
         ? 'rgba(41,217,217,0.08)'
         : 'linear-gradient(135deg, #1F41B0 0%, rgba(41,65,200,0.85) 100%)',
     color: isLoading
-      ? 'rgba(244,244,244,0.25)'
+      ? 'var(--t5)'
       : isDone
         ? 'rgba(41,217,217,0.85)'
-        : C.light,
+        : '#F4F4F4',
     border: isLoading
       ? '1px solid rgba(31,65,176,0.2)'
       : isDone
@@ -133,8 +133,8 @@ export default function ClaudeNode({ id, data, selected }) {
         display: 'inline-flex', alignItems: 'center', gap: 5,
         fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
         color: status === 'error' ? C.red : status === 'idle' ? C.muted : C.cyan,
-        background: 'rgba(255,255,255,0.04)',
-        border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'rgba(255,255,255,0.08)'}`,
+        background: 'var(--node-bg)',
+        border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'var(--sep2)'}`,
         borderRadius: 4, padding: '2px 8px',
       }}>
         <span style={{

@@ -3,12 +3,12 @@ import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   cyan: '#29D9D9',
-  light: '#F4F4F4',
-  muted: 'rgba(244,244,244,0.45)',
+  light: 'var(--t1)',
+  muted: 'var(--t3)',
 }
 
 const nodeBase = {
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(41,217,217,0.3)',
@@ -26,15 +26,15 @@ const nodeBase = {
 const textareaStyle = {
   width: '100%',
   minHeight: 72,
-  background: 'rgba(0,0,0,0.25)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--node-input)',
+  border: '1px solid var(--sep)',
   borderRadius: 7,
   padding: '7px 9px',
   fontSize: 11,
   fontFamily: 'inherit',
   resize: 'vertical',
   outline: 'none',
-  color: 'rgba(244,244,244,0.8)',
+  color: 'var(--t2)',
   lineHeight: 1.55,
   boxSizing: 'border-box',
 }
@@ -85,7 +85,7 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
         />
       </div>
 
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 12 }} />
+      <div style={{ height: 1, background: 'var(--sep)', marginBottom: 12 }} />
 
       {/* 비디오 앵커 */}
       <div>

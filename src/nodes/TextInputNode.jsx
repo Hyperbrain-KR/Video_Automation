@@ -3,12 +3,12 @@ import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
   cyan: '#29D9D9',
-  muted: 'rgba(244,244,244,0.45)',
-  light: '#F4F4F4',
+  muted: 'var(--t3)',
+  light: 'var(--t1)',
 }
 
 const nodeBase = {
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(255,255,255,0.09)',
@@ -51,15 +51,15 @@ export default function TextInputNode({ id, data, selected }) {
         style={{
           width: '100%',
           minHeight: 80,
-          background: 'rgba(0,0,0,0.25)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: 'var(--node-input)',
+          border: '1px solid var(--sep)',
           borderRadius: 7,
           padding: '8px 10px',
           fontSize: 12,
           fontFamily: 'inherit',
           resize: 'vertical',
           outline: 'none',
-          color: 'rgba(244,244,244,0.85)',
+          color: 'var(--t2)',
           lineHeight: 1.6,
           boxSizing: 'border-box',
         }}

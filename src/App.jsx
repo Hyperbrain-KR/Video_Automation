@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
-  ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
+  ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Panel,
   useNodesState, useEdgesState, useReactFlow,
   addEdge, BackgroundVariant,
 } from '@xyflow/react'
@@ -30,29 +30,7 @@ const nodeTypes = {
   referenceImage: ReferenceImageNode,
 }
 
-// ── Edge style helpers ─────────────────────────────────────────────
-const approveLabel = {
-  labelStyle: { fill: '#F4F4F4', fontWeight: 700, fontSize: 11 },
-  labelBgStyle: { fill: 'rgba(5,10,25,0.92)' },
-  labelBgPadding: [5, 7],
-  labelBgBorderRadius: 5,
-  style: { stroke: '#29D9D9', strokeWidth: 1.5 },
-}
-
-const rejectLabel = {
-  labelStyle: { fill: '#F4F4F4', fontWeight: 700, fontSize: 11 },
-  labelBgStyle: { fill: 'rgba(5,10,25,0.92)' },
-  labelBgPadding: [5, 7],
-  labelBgBorderRadius: 5,
-}
-
-const dataEdge = {
-  style: { stroke: 'rgba(244,244,244,0.22)', strokeDasharray: '5,4', strokeWidth: 1.2 },
-  labelStyle: { fill: 'rgba(244,244,244,0.5)', fontSize: 10 },
-  labelBgStyle: { fill: 'rgba(5,10,25,0.85)' },
-  labelBgPadding: [3, 5],
-  labelBgBorderRadius: 4,
-}
+// ── Edge style helpers (theme-aware, computed inside FlowCanvas) ───
 
 // ── Node templates for context menu ───────────────────────────────
 const nodeTemplates = {
@@ -455,6 +433,33 @@ function FlowCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
   const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
   const [contextMenu, setContextMenu] = useState(null)
+  const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('canvas-theme', theme)
+  }, [theme])
+
+  const isLight = theme === 'light'
+  const approveLabel = {
+    labelStyle: { fill: isLight ? '#1E2456' : '#F4F4F4', fontWeight: 700, fontSize: 11 },
+    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.95)' : 'rgba(5,10,25,0.92)' },
+    labelBgPadding: [5, 7],
+    labelBgBorderRadius: 5,
+    style: { stroke: '#29D9D9', strokeWidth: 1.5 },
+  }
+  const rejectLabel = {
+    labelStyle: { fill: isLight ? '#1E2456' : '#F4F4F4', fontWeight: 700, fontSize: 11 },
+    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.95)' : 'rgba(5,10,25,0.92)' },
+    labelBgPadding: [5, 7],
+    labelBgBorderRadius: 5,
+  }
+  const dataEdge = {
+    style: { stroke: isLight ? 'rgba(30,36,86,0.28)' : 'rgba(244,244,244,0.22)', strokeDasharray: '5,4', strokeWidth: 1.2 },
+    labelStyle: { fill: isLight ? 'rgba(30,36,86,0.6)' : 'rgba(244,244,244,0.5)', fontSize: 10 },
+    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.92)' : 'rgba(5,10,25,0.85)' },
+    labelBgPadding: [3, 5],
+    labelBgBorderRadius: 4,
+  }
 
   // ── Claude 프롬프트 생성 실행 엔진 ───────────────────────────
   const handleGenerate = useCallback(async (nodeId) => {
@@ -790,6 +795,25 @@ function FlowCanvas() {
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
+      <button
+        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+        style={{
+          position: 'fixed', bottom: 160, left: 12, zIndex: 10,
+          width: 32, height: 32, borderRadius: 7,
+          border: '1px solid var(--controls-border)',
+          background: 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: theme === 'dark' ? '#a0b0d0' : '#5a6a90',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        {theme === 'dark'
+          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        }
+      </button>
       <ReactFlow
         nodes={nodes}
         edges={activeEdges}
@@ -815,23 +839,13 @@ function FlowCanvas() {
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1}
-          color="rgba(255,255,255,0.06)"
+          color={theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.09)'}
         />
-        <Controls
-          style={{
-            background: 'rgba(15,18,30,0.85)',
-            border: '1px solid rgba(41,217,217,0.15)',
-            borderRadius: 8,
-          }}
-        />
+        <Controls style={{ background: 'var(--controls-bg)', border: '1px solid var(--controls-border)', borderRadius: 8 }} />
         <MiniMap
-          style={{
-            background: 'rgba(10,10,20,0.9)',
-            border: '1px solid rgba(41,217,217,0.15)',
-            borderRadius: 8,
-          }}
+          style={{ background: 'var(--minimap-bg)', border: '1px solid var(--controls-border)', borderRadius: 8 }}
           nodeColor="rgba(41,217,217,0.35)"
-          maskColor="rgba(0,0,0,0.55)"
+          maskColor="var(--minimap-mask)"
         />
       </ReactFlow>
 

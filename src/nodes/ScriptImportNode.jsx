@@ -6,12 +6,12 @@ const SCRIPT_API = 'http://localhost:3001/api/canvas/scripts'
 const C = {
   cyan: '#29D9D9',
   red: '#E34054',
-  light: '#F4F4F4',
-  muted: 'rgba(244,244,244,0.45)',
+  light: 'var(--t1)',
+  muted: 'var(--t3)',
 }
 
 const nodeBase = {
-  background: 'rgba(10,20,50,0.78)',
+  background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
   border: '1px solid rgba(41,217,217,0.3)',
@@ -109,8 +109,8 @@ export default function ScriptImportNode({ selected }) {
           title="새로고침"
           style={{
             fontSize: 13, lineHeight: 1, color: loading ? C.cyan : C.muted,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--node-section)',
+            border: '1px solid var(--sep2)',
             borderRadius: 4, padding: '2px 8px', cursor: 'pointer',
             transition: 'color 0.2s',
           }}
@@ -138,7 +138,7 @@ export default function ScriptImportNode({ selected }) {
           onChange={e => handleSelect(e.target.value)}
           style={{
             width: '100%',
-            background: 'rgba(0,0,0,0.35)',
+            background: 'var(--node-input)',
             border: `1px solid ${selectedId ? 'rgba(41,217,217,0.35)' : 'rgba(255,255,255,0.1)'}`,
             borderRadius: 7,
             color: selectedId ? C.light : C.muted,
@@ -162,7 +162,7 @@ export default function ScriptImportNode({ selected }) {
       {entry && (
         <div style={{ marginTop: 10 }}>
           <div style={{
-            fontSize: 9, color: 'rgba(244,244,244,0.3)', marginBottom: 8,
+            fontSize: 9, color: 'var(--t4)', marginBottom: 8,
             letterSpacing: '0.04em',
           }}>
             {new Date(entry.createdAt).toLocaleString('ko-KR')} · {entry.mode === 'create' ? '신규 생성' : '변환'}
@@ -191,14 +191,14 @@ function OutputRow({ label, active }) {
       }} />
       <span style={{
         fontSize: 10,
-        color: active ? 'rgba(244,244,244,0.7)' : 'rgba(244,244,244,0.25)',
+        color: active ? 'var(--t2)' : 'var(--t5)',
         transition: 'color 0.2s',
       }}>
         {label}
       </span>
       <span style={{
         marginLeft: 'auto', fontSize: 9,
-        color: active ? 'rgba(41,217,217,0.7)' : 'rgba(244,244,244,0.15)',
+        color: active ? 'rgba(41,217,217,0.7)' : 'var(--t5)',
       }}>
         {active ? '연결 가능' : '없음'}
       </span>
