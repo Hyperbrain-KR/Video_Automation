@@ -164,14 +164,6 @@ export default function HiggsfieldNode({ id, data, selected }) {
     ].join(', '),
   } : {}
 
-  // 외부 updateNodeData(undo 등) 반영
-  useEffect(() => { setModel(data.model ?? 'nano_banana_pro') }, [data.model])
-  useEffect(() => { setQuality(data.quality ?? '1k') }, [data.quality])
-  useEffect(() => { setAspectRatio(data.aspectRatio ?? 'auto') }, [data.aspectRatio])
-  useEffect(() => { setDuration(Number(data.duration ?? 5)) }, [data.duration])
-  useEffect(() => { setVideoMode(data.videoMode ?? 'pro') }, [data.videoMode])
-  useEffect(() => { setSound(data.sound ?? 'off') }, [data.sound])
-  useEffect(() => { setVideoAspect(data.videoAspect ?? '1:1') }, [data.videoAspect])
 
   const handleModel = (v) => {
     const newQuality = v === 'gpt_image_2' ? 'high' : '1k'
