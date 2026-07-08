@@ -104,6 +104,17 @@
   stroke-width: 1.5;
 }
 
+/* 소스 노드 flash (뱃지 클릭 시) */
+@keyframes node-flash {
+  0%   { filter: brightness(1)   drop-shadow(0 0 0px transparent); }
+  30%  { filter: brightness(1.6) drop-shadow(0 0 14px #29D9D9); }
+  60%  { filter: brightness(1.2) drop-shadow(0 0 6px #29D9D9); }
+  100% { filter: brightness(1)   drop-shadow(0 0 0px transparent); }
+}
+.react-flow__node.node-flash {
+  animation: node-flash 0.9s ease-out forwards;
+}
+
 /* 활성 엣지 점멸 */
 @keyframes edge-pulse {
   0%, 100% { opacity: 1;   filter: drop-shadow(0 0 3px #22c55e); }

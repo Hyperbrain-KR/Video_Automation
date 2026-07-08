@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 
 const C = {
@@ -98,7 +98,29 @@ const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
 const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
-  const { updateNodeData } = useReactFlow()
+  const { updateNodeData, getEdges, setNodes } = useReactFlow()
+
+  // 연결된 핸들 실시간 감지 (edges 변경 시 자동 갱신)
+  const connectedHandleStr = useStore(s =>
+    s.edges.filter(e => e.target === id && e.targetHandle).map(e => e.targetHandle).join(',')
+  )
+  const connected = new Set(connectedHandleStr.split(',').filter(Boolean))
+
+  // 뱃지 클릭 → 해당 핸들에 연결된 모든 소스 노드 flash
+  const flashSource = (handle) => {
+    const srcIds = new Set(
+      getEdges().filter(e => e.target === id && e.targetHandle === handle).map(e => e.source)
+    )
+    if (srcIds.size === 0) return
+    setNodes(nds => nds.map(n =>
+      srcIds.has(n.id) ? { ...n, className: ((n.className ?? '').replace(' node-flash', '')) + ' node-flash' } : n
+    ))
+    setTimeout(() => {
+      setNodes(nds => nds.map(n =>
+        srcIds.has(n.id) ? { ...n, className: (n.className ?? '').replace(' node-flash', '') } : n
+      ))
+    }, 900)
+  }
   const isVideo = data.type === 'video'
   const hasRef = data.hasRef ?? false
   const hasMultiInput = isVideo || hasRef
@@ -111,9 +133,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   // 비디오 전용 상태
   const [duration, setDuration] = useState(Number(data.duration ?? 5))
-  const [videoMode, setVideoMode] = useState(data.videoMode ?? 'std')
+  const [videoMode, setVideoMode] = useState(data.videoMode ?? 'pro')
   const [sound, setSound] = useState(data.sound ?? 'off')
-  const [videoAspect, setVideoAspect] = useState(data.videoAspect ?? '16:9')
+  const [videoAspect, setVideoAspect] = useState(data.videoAspect ?? '1:1')
 
   const status = data.status ?? 'idle'
   const cfg = statusConfigs[status] ?? statusConfigs.idle
@@ -139,9 +161,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
   useEffect(() => { setQuality(data.quality ?? '1k') }, [data.quality])
   useEffect(() => { setAspectRatio(data.aspectRatio ?? 'auto') }, [data.aspectRatio])
   useEffect(() => { setDuration(Number(data.duration ?? 5)) }, [data.duration])
-  useEffect(() => { setVideoMode(data.videoMode ?? 'std') }, [data.videoMode])
+  useEffect(() => { setVideoMode(data.videoMode ?? 'pro') }, [data.videoMode])
   useEffect(() => { setSound(data.sound ?? 'off') }, [data.sound])
-  useEffect(() => { setVideoAspect(data.videoAspect ?? '16:9') }, [data.videoAspect])
+  useEffect(() => { setVideoAspect(data.videoAspect ?? '1:1') }, [data.videoAspect])
 
   const handleModel = (v) => {
     const newQuality = v === 'gpt_image_2' ? 'high' : '1k'
@@ -289,15 +311,15 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
       {hasMultiInput && !isVideo && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          <span style={inputBadge}>📝 프롬프트</span>
-          {hasRef && <span style={inputBadge}>🎭 캐릭터</span>}
+          <InputBadge handle="prompt"  icon="📝" label="프롬프트" color="#6488ff" connected={connected} onFlash={flashSource} />
+          {hasRef && <InputBadge handle="ref" icon="🎭" label="캐릭터" color="#29D9D9" connected={connected} onFlash={flashSource} />}
         </div>
       )}
       {isVideo && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-          <span style={inputBadge}>📝 프롬프트</span>
-          <span style={{ ...inputBadge, borderColor: 'rgba(41,217,217,0.3)', color: 'rgba(41,217,217,0.7)' }}>🖼 첫 프레임</span>
-          <span style={{ ...inputBadge, borderColor: 'rgba(176,31,101,0.3)', color: 'rgba(176,31,101,0.8)' }}>🏁 끝 프레임</span>
+          <InputBadge handle="prompt"    icon="📝" label="프롬프트" color="#6488ff"  connected={connected} onFlash={flashSource} />
+          <InputBadge handle="image"     icon="🖼" label="첫 프레임" color="#29D9D9" connected={connected} onFlash={flashSource} />
+          <InputBadge handle="end_image" icon="🏁" label="끝 프레임" color="#e040a0" connected={connected} onFlash={flashSource} />
         </div>
       )}
 
@@ -371,6 +393,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes badge-pulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 0px transparent; }
+          50%       { opacity: 0.55; box-shadow: 0 0 6px var(--badge-color, #29D9D9); }
+        }
         input[type=range]::-webkit-slider-runnable-track {
           height: 4px; border-radius: 2px;
           background: linear-gradient(to right, #29D9D9 0%, #29D9D9 var(--pct, 0%), rgba(255,255,255,0.1) var(--pct, 0%), rgba(255,255,255,0.1) 100%);
@@ -386,9 +412,31 @@ export default function HiggsfieldNode({ id, data, selected }) {
   )
 }
 
-const inputBadge = {
-  fontSize: 9, color: 'rgba(244,244,244,0.5)',
-  background: 'rgba(31,65,176,0.12)',
-  border: '1px solid rgba(31,65,176,0.2)',
-  borderRadius: 3, padding: '1px 5px',
+function InputBadge({ handle, icon, label, color, connected, onFlash }) {
+  const isActive = connected.has(handle)
+  return (
+    <span
+      onClick={() => isActive && onFlash(handle)}
+      style={{
+        fontSize: 9, fontWeight: 700,
+        borderRadius: 3, padding: '2px 6px',
+        transition: 'all 0.2s',
+        cursor: isActive ? 'pointer' : 'default',
+        userSelect: 'none',
+        '--badge-color': color,
+        ...(isActive ? {
+          color,
+          background: color + '18',
+          border: `1px solid ${color}55`,
+          animation: 'badge-pulse 1.6s ease-in-out infinite',
+        } : {
+          color: 'rgba(244,244,244,0.25)',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }),
+      }}
+    >
+      {icon} {label}
+    </span>
+  )
 }
