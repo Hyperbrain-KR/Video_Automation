@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 
@@ -143,10 +143,13 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const isDone = status === 'done'
 
   const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef(null)
   useEffect(() => {
-    if (status !== 'generating') { setElapsed(0); return }
-    const start = Date.now()
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    if (status !== 'generating') { startRef.current = null; return }
+    startRef.current = Date.now()
+    const t = setInterval(() => {
+      if (startRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 1000)
     return () => clearInterval(t)
   }, [status])
 
