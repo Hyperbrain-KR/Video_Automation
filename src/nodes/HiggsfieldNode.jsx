@@ -179,9 +179,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
-    background: isLoading ? 'rgba(31,65,176,0.1)' : isDone ? 'rgba(41,217,217,0.08)' : 'linear-gradient(135deg, #1a3090 0%, #1F41B0 100%)',
-    color: isLoading ? 'var(--t5)' : isDone ? 'rgba(41,217,217,0.85)' : '#F4F4F4',
-    border: isLoading ? '1px solid rgba(31,65,176,0.2)' : isDone ? '1px solid rgba(41,217,217,0.3)' : '1px solid rgba(31,65,176,0.6)',
+    background: isLoading ? 'var(--node-bg)' : isDone ? 'var(--btn-done-bg)' : 'linear-gradient(135deg, #1a3090 0%, #1F41B0 100%)',
+    color: isLoading ? 'var(--t5)' : isDone ? 'var(--btn-done-text)' : '#F4F4F4',
+    border: isLoading ? '1px solid rgba(31,65,176,0.2)' : isDone ? '1px solid var(--btn-done-border)' : '1px solid rgba(31,65,176,0.6)',
     borderRadius: 7, cursor: isLoading ? 'not-allowed' : 'pointer',
     fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', fontFamily: 'inherit',
     boxShadow: isLoading || isDone ? 'none' : '0 2px 12px rgba(31,65,176,0.45)',
@@ -211,7 +211,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
         <span style={{
           fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
-          color: C.light, background: C.blue,
+          color: '#F4F4F4', background: C.blue,
           borderRadius: 4, padding: '2px 6px', textTransform: 'uppercase',
         }}>Higgsfield</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: C.light }}>{data.label}</span>
@@ -276,11 +276,11 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '3px 10px 3px 4px',
                 background: sound === 'on'
-                  ? 'linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.08))'
-                  : 'linear-gradient(135deg, rgba(202,184,25,0.15), rgba(202,184,25,0.08))',
+                  ? 'linear-gradient(135deg, rgba(34,197,94,0.18), rgba(34,197,94,0.10))'
+                  : 'linear-gradient(135deg, rgba(202,184,25,0.28), rgba(202,184,25,0.16))',
                 border: sound === 'on'
-                  ? '1px solid rgba(34,197,94,0.4)'
-                  : '1px solid rgba(202,184,25,0.35)',
+                  ? '1px solid rgba(34,197,94,0.5)'
+                  : '1px solid rgba(180,150,0,0.55)',
                 borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'all 0.2s',
               }}
@@ -300,7 +300,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
               }} />
               <span style={{
                 fontSize: 10, fontWeight: 700,
-                color: sound === 'on' ? 'rgba(74,222,128,0.9)' : 'rgba(253,224,71,0.9)',
+                color: sound === 'on' ? 'rgba(74,222,128,0.9)' : 'rgba(180,140,0,1)',
               }}>
                 {sound === 'on' ? 'ON' : 'OFF'}
               </span>
@@ -395,9 +395,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
           >
             <div style={{
               width: '100%', padding: '6px 0', textAlign: 'center',
-              background: 'rgba(41,217,217,0.08)',
-              border: '1px solid rgba(41,217,217,0.25)', borderRadius: 6,
-              fontSize: 11, fontWeight: 700, color: 'rgba(41,217,217,0.85)',
+              background: 'var(--btn-done-bg)',
+              border: '1px solid var(--btn-done-border)', borderRadius: 6,
+              fontSize: 11, fontWeight: 700, color: 'var(--btn-done-text)',
               cursor: 'pointer',
             }}>
               ↓ 다운로드

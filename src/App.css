@@ -1,3 +1,18 @@
+/* ── Theme transition ────────────────────────────────────── */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.3s ease,
+    background 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
+
 /* ── Theme variables ─────────────────────────────────────── */
 :root {
   /* Canvas chrome */
@@ -14,6 +29,10 @@
   --t3: rgba(244,244,244,0.45);
   --t4: rgba(244,244,244,0.30);
   --t5: rgba(244,244,244,0.20);
+  /* Done/secondary button */
+  --btn-done-text: rgba(41,217,217,0.85);
+  --btn-done-bg: rgba(41,217,217,0.08);
+  --btn-done-border: rgba(41,217,217,0.3);
   /* Node surfaces */
   --node-bg: rgba(255,255,255,0.04);
   --node-prompt: rgba(0,0,0,0.25);
@@ -36,15 +55,20 @@
   --t1: #1E2456;
   --t2: rgba(30,36,86,0.78);
   --t3: rgba(30,36,86,0.50);
-  --t4: rgba(30,36,86,0.35);
-  --t5: rgba(30,36,86,0.20);
+  --t4: rgba(30,36,86,0.52);
+  --t5: rgba(30,36,86,0.38);
   /* Node surfaces */
-  --node-bg: rgba(255,255,255,0.75);
-  --node-prompt: rgba(228,232,252,0.60);
-  --node-input: rgba(228,232,252,0.55);
-  --node-section: rgba(255,255,255,0.55);
-  --sep: rgba(0,0,0,0.06);
-  --sep2: rgba(0,0,0,0.08);
+  /* Done/secondary button */
+  --btn-done-text: #0a7a7a;
+  --btn-done-bg: rgba(41,217,217,0.14);
+  --btn-done-border: rgba(41,217,217,0.55);
+  /* Node surfaces */
+  --node-bg: rgba(255,255,255,0.82);
+  --node-prompt: rgba(225,229,248,0.55);
+  --node-input: rgba(255,255,255,0.90);
+  --node-section: rgba(255,255,255,0.65);
+  --sep: rgba(30,36,86,0.10);
+  --sep2: rgba(30,36,86,0.16);
 }
 
 .react-flow {
@@ -153,8 +177,23 @@
   stroke-width: 1.5;
 }
 
+/* 라이트 모드 엣지 */
 :root[data-theme="light"] .react-flow__edge-path {
-  stroke: rgba(30, 36, 86, 0.25);
+  stroke: rgba(30, 36, 86, 0.2);
+}
+
+/* 데이터(점선) 엣지 */
+:root[data-theme="light"] .react-flow__edge.data-edge .react-flow__edge-path {
+  stroke: rgba(30, 36, 86, 0.3) !important;
+}
+
+/* approve/reject 엣지 레이블 */
+:root[data-theme="light"] .react-flow__edge-textwrapper text {
+  fill: #1E2456 !important;
+}
+
+:root[data-theme="light"] .react-flow__edge-textbg {
+  fill: rgba(220, 225, 250, 0.95) !important;
 }
 
 /* 소스 노드 flash (뱃지 클릭 시) */
@@ -215,7 +254,21 @@
 }
 
 :root[data-theme="light"] .react-flow__controls-button {
-  border-bottom-color: rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(30,36,86,0.10) !important;
+  fill: rgba(30,40,80,0.75) !important;
+}
+
+:root[data-theme="light"] .react-flow__controls-button:hover {
+  background: rgba(41,217,217,0.10) !important;
+  fill: #1a2050 !important;
+}
+
+:root[data-theme="light"] .react-flow__controls-button svg {
+  fill: rgba(30,40,80,0.75);
+}
+
+:root[data-theme="light"] .react-flow__controls-button:hover svg {
+  fill: #1a2050;
 }
 
 /* 라이트 모드: 슬라이더 트랙 */

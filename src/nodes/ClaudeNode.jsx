@@ -71,19 +71,19 @@ export default function ClaudeNode({ id, data, selected }) {
     padding: '8px 0',
     marginTop: 10,
     background: isLoading
-      ? 'rgba(31,65,176,0.1)'
+      ? 'var(--node-bg)'
       : isDone
-        ? 'rgba(41,217,217,0.08)'
+        ? 'var(--btn-done-bg)'
         : 'linear-gradient(135deg, #1F41B0 0%, rgba(41,65,200,0.85) 100%)',
     color: isLoading
       ? 'var(--t5)'
       : isDone
-        ? 'rgba(41,217,217,0.85)'
+        ? 'var(--btn-done-text)'
         : '#F4F4F4',
     border: isLoading
       ? '1px solid rgba(31,65,176,0.2)'
       : isDone
-        ? '1px solid rgba(41,217,217,0.3)'
+        ? '1px solid var(--btn-done-border)'
         : '1px solid rgba(31,65,176,0.55)',
     borderRadius: 7,
     cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -162,10 +162,10 @@ export default function ClaudeNode({ id, data, selected }) {
       {isDone && data.result && (
         <div style={{
           marginTop: 8, padding: '7px 9px',
-          background: 'rgba(41,217,217,0.05)',
+          background: 'var(--node-prompt)',
           border: '1px solid rgba(41,217,217,0.15)',
           borderRadius: 7, fontSize: 10,
-          color: 'rgba(244,244,244,0.5)',
+          color: 'var(--t3)',
           lineHeight: 1.55, maxHeight: 58, overflow: 'hidden',
         }}>
           {data.result.length > 120 ? data.result.slice(0, 120) + '…' : data.result}

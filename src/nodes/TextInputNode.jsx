@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
@@ -22,9 +22,19 @@ const nodeBase = {
   ].join(', '),
 }
 
+const MAX_HEIGHT = 220
+
 export default function TextInputNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
+  const textareaRef = useRef(null)
+
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + 'px'
+  }, [value])
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -48,20 +58,23 @@ export default function TextInputNode({ id, data, selected }) {
       </div>
 
       <textarea
+        ref={textareaRef}
         style={{
           width: '100%',
           minHeight: 80,
+          maxHeight: MAX_HEIGHT,
           background: 'var(--node-input)',
           border: '1px solid var(--sep)',
           borderRadius: 7,
           padding: '8px 10px',
           fontSize: 12,
           fontFamily: 'inherit',
-          resize: 'vertical',
+          resize: 'none',
           outline: 'none',
           color: 'var(--t2)',
           lineHeight: 1.6,
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}
         placeholder={data.placeholder ?? '내용을 입력하세요...'}
         value={value}

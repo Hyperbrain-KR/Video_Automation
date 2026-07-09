@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
@@ -23,26 +23,43 @@ const nodeBase = {
   ].join(', '),
 }
 
+const MAX_TA = 200
+
 const textareaStyle = {
   width: '100%',
   minHeight: 72,
+  maxHeight: MAX_TA,
   background: 'var(--node-input)',
   border: '1px solid var(--sep)',
   borderRadius: 7,
   padding: '7px 9px',
   fontSize: 11,
   fontFamily: 'inherit',
-  resize: 'vertical',
+  resize: 'none',
   outline: 'none',
   color: 'var(--t2)',
   lineHeight: 1.55,
   boxSizing: 'border-box',
+  overflowY: 'auto',
+}
+
+function useAutoResize(ref, value) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, MAX_TA) + 'px'
+  }, [value, ref])
 }
 
 export default function StyleAnchorInputNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const [imageAnchor, setImageAnchor] = useState(data.imageAnchor ?? '')
   const [videoAnchor, setVideoAnchor] = useState(data.videoAnchor ?? '')
+  const imgRef = useRef(null)
+  const vidRef = useRef(null)
+  useAutoResize(imgRef, imageAnchor)
+  useAutoResize(vidRef, videoAnchor)
 
   // ScriptImportNode에서 updateNodeData로 값이 주입되면 동기화
   useEffect(() => { if (data.imageAnchor !== undefined) setImageAnchor(data.imageAnchor) }, [data.imageAnchor])
@@ -78,6 +95,7 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
             letterSpacing: '0.06em' }}>IMAGE</span>
         </div>
         <textarea
+          ref={imgRef}
           style={textareaStyle}
           placeholder="이미지 스타일 앵커를 붙여넣으세요..."
           value={imageAnchor}
@@ -96,6 +114,7 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
             letterSpacing: '0.06em' }}>VIDEO</span>
         </div>
         <textarea
+          ref={vidRef}
           style={textareaStyle}
           placeholder="비디오 스타일 앵커를 붙여넣으세요..."
           value={videoAnchor}

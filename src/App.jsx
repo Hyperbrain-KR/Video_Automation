@@ -30,7 +30,30 @@ const nodeTypes = {
   referenceImage: ReferenceImageNode,
 }
 
-// ── Edge style helpers (theme-aware, computed inside FlowCanvas) ───
+// ── Edge style helpers ─────────────────────────────────────────────
+const approveLabel = {
+  labelStyle: { fill: '#F4F4F4', fontWeight: 700, fontSize: 11 },
+  labelBgStyle: { fill: 'rgba(5,10,25,0.92)' },
+  labelBgPadding: [5, 7],
+  labelBgBorderRadius: 5,
+  style: { stroke: '#29D9D9', strokeWidth: 1.5 },
+}
+
+const rejectLabel = {
+  labelStyle: { fill: '#F4F4F4', fontWeight: 700, fontSize: 11 },
+  labelBgStyle: { fill: 'rgba(5,10,25,0.92)' },
+  labelBgPadding: [5, 7],
+  labelBgBorderRadius: 5,
+}
+
+const dataEdge = {
+  style: { stroke: 'rgba(244,244,244,0.22)', strokeDasharray: '5,4', strokeWidth: 1.2 },
+  labelStyle: { fill: 'rgba(244,244,244,0.5)', fontSize: 10 },
+  labelBgStyle: { fill: 'rgba(5,10,25,0.85)' },
+  labelBgPadding: [3, 5],
+  labelBgBorderRadius: 4,
+  className: 'data-edge',
+}
 
 // ── Node templates for context menu ───────────────────────────────
 const nodeTemplates = {
@@ -439,27 +462,12 @@ function FlowCanvas() {
     localStorage.setItem('canvas-theme', theme)
   }, [theme])
 
-  const isLight = theme === 'light'
-  const approveLabel = {
-    labelStyle: { fill: isLight ? '#1E2456' : '#F4F4F4', fontWeight: 700, fontSize: 11 },
-    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.95)' : 'rgba(5,10,25,0.92)' },
-    labelBgPadding: [5, 7],
-    labelBgBorderRadius: 5,
-    style: { stroke: '#29D9D9', strokeWidth: 1.5 },
+  const toggleTheme = () => {
+    document.documentElement.classList.add('theme-transitioning')
+    setTheme(t => t === 'dark' ? 'light' : 'dark')
+    setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350)
   }
-  const rejectLabel = {
-    labelStyle: { fill: isLight ? '#1E2456' : '#F4F4F4', fontWeight: 700, fontSize: 11 },
-    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.95)' : 'rgba(5,10,25,0.92)' },
-    labelBgPadding: [5, 7],
-    labelBgBorderRadius: 5,
-  }
-  const dataEdge = {
-    style: { stroke: isLight ? 'rgba(30,36,86,0.28)' : 'rgba(244,244,244,0.22)', strokeDasharray: '5,4', strokeWidth: 1.2 },
-    labelStyle: { fill: isLight ? 'rgba(30,36,86,0.6)' : 'rgba(244,244,244,0.5)', fontSize: 10 },
-    labelBgStyle: { fill: isLight ? 'rgba(220,225,250,0.92)' : 'rgba(5,10,25,0.85)' },
-    labelBgPadding: [3, 5],
-    labelBgBorderRadius: 4,
-  }
+
 
   // ── Claude 프롬프트 생성 실행 엔진 ───────────────────────────
   const handleGenerate = useCallback(async (nodeId) => {
@@ -796,7 +804,7 @@ function FlowCanvas() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <button
-        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        onClick={toggleTheme}
         title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
         style={{
           position: 'fixed', bottom: 160, left: 12, zIndex: 10,
