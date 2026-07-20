@@ -723,9 +723,13 @@ function FlowCanvas() {
 
     if (!isVideo) {
       const selectedCharIds = node?.data?.selectedCharacterIds ?? []
+      const noCharRef = node?.data?.noCharRef ?? false
       const useDropdown = selectedCharIds.length > 0
       try {
-        if (useDropdown) {
+        if (noCharRef) {
+          // 참조 없음 — 엣지 기반 ref 포함 모든 캐릭터 참조 무시
+          referenceMediaIds = []
+        } else if (useDropdown) {
           // 드롭다운 선택 캐릭터 사용 (엣지 기반 ref 무시 → 이중 참조 방지)
           const charResults = await Promise.all(
             selectedCharIds.map(charId => {

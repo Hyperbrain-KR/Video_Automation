@@ -144,6 +144,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const [sound, setSound] = useState(data.sound ?? 'off')
   const [videoAspect, setVideoAspect] = useState(data.videoAspect ?? '1:1')
 
+  const noCharRef = data.noCharRef ?? false
+
   const status = data.status ?? 'idle'
   const cfg = statusConfigs[status] ?? statusConfigs.idle
   const isLoading = status === 'loading' || status === 'generating'
@@ -249,6 +251,38 @@ export default function HiggsfieldNode({ id, data, selected }) {
             letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
             캐릭터 참조
           </div>
+
+          {/* 참조 없음 옵션 — 엣지 기반 참조까지 모두 차단 */}
+          <label className="nopan nodrag" style={{
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
+            marginBottom: characters.length > 0 ? 4 : 0,
+            background: noCharRef ? 'rgba(227,64,84,0.07)' : 'transparent',
+            border: `1px solid ${noCharRef ? 'rgba(227,64,84,0.25)' : 'transparent'}`,
+          }}>
+            <input type="checkbox" checked={noCharRef} className="nopan nodrag"
+              onChange={() => {
+                const next = !noCharRef
+                updateNodeData(id, { noCharRef: next, ...(next ? { selectedCharacterIds: [] } : {}) })
+              }}
+              style={{ accentColor: '#E34054', width: 11, height: 11, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 10, fontWeight: 700, color: noCharRef ? '#E34054' : 'var(--t4)' }}>
+              참조 없음
+            </span>
+            {noCharRef && (
+              <span style={{ fontSize: 9, color: 'rgba(227,64,84,0.6)', marginLeft: 'auto' }}>
+                엣지도 무시
+              </span>
+            )}
+          </label>
+
+          {/* 구분선 */}
+          {characters.length > 0 && (
+            <div style={{ height: 1, background: 'var(--sep)', margin: '0 2px 5px' }} />
+          )}
+
+          {/* 캐릭터 목록 */}
           {characters.length === 0 ? (
             <div style={{ fontSize: 10, color: 'var(--t5)' }}>저장된 캐릭터 없음</div>
           ) : (
@@ -256,6 +290,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
               {characters.map(c => {
                 const checked = (data.selectedCharacterIds ?? []).includes(c.id)
                 const isConfirming = confirmDeleteId === c.id
+                const disabled = noCharRef
 
                 if (isConfirming) return (
                   <div key={c.id} style={{
@@ -285,23 +320,28 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
                 return (
                   <label key={c.id} className="nopan nodrag"
-                    onMouseEnter={() => setHoveredCharId(c.id)}
+                    onMouseEnter={() => !disabled && setHoveredCharId(c.id)}
                     onMouseLeave={() => setHoveredCharId(null)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      cursor: disabled ? 'not-allowed' : 'pointer',
                       padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
-                      background: checked ? 'rgba(41,217,217,0.07)' : 'transparent',
-                      border: `1px solid ${checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
+                      opacity: disabled ? 0.35 : 1,
+                      background: !disabled && checked ? 'rgba(41,217,217,0.07)' : 'transparent',
+                      border: `1px solid ${!disabled && checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
                     }}>
-                    <input type="checkbox" checked={checked} className="nopan nodrag"
+                    <input type="checkbox" checked={!disabled && checked} disabled={disabled}
+                      className="nopan nodrag"
                       onChange={() => {
                         const cur = data.selectedCharacterIds ?? []
                         const next = checked ? cur.filter(x => x !== c.id) : [...cur, c.id]
-                        updateNodeData(id, { selectedCharacterIds: next })
+                        // 캐릭터 체크 시 "참조 없음" 자동 해제
+                        updateNodeData(id, { selectedCharacterIds: next, noCharRef: false })
                       }}
                       style={{ accentColor: '#29D9D9', width: 11, height: 11, flexShrink: 0 }}
                     />
-                    <span style={{ fontSize: 10, color: checked ? 'var(--t1)' : 'var(--t3)', flex: 1,
+                    <span style={{ fontSize: 10, flex: 1,
+                      color: !disabled && checked ? 'var(--t1)' : 'var(--t3)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.name}
                     </span>
@@ -309,7 +349,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       <img src={c.resultUrl} alt={c.name}
                         style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
                     )}
-                    {hoveredCharId === c.id && (
+                    {!disabled && hoveredCharId === c.id && (
                       <button className="nopan nodrag"
                         onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
                         style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
