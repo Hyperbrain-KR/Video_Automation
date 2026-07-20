@@ -257,7 +257,7 @@ export default function ReviewGateNode({ id, data, selected }) {
     return (
       <div style={{
         textAlign: 'right', fontSize: 10, fontWeight: 700,
-        color: over ? C.red : len > charLimit * 0.9 ? '#f59e0b' : 'rgba(244,244,244,0.3)',
+        color: over ? C.red : len > charLimit * 0.9 ? '#f59e0b' : 'var(--t5)',
         marginTop: -6, marginBottom: 8,
         transition: 'color 0.2s',
       }}>
@@ -312,15 +312,15 @@ export default function ReviewGateNode({ id, data, selected }) {
         }}
       >
         {translating
-          ? <span style={{ color: 'rgba(244,244,244,0.3)' }}>번역 중…</span>
+          ? <span style={{ color: 'var(--t4)' }}>번역 중…</span>
           : (showKo ? koText : prompt)
         }
         <span style={{
           position: 'absolute', bottom: 6, right: 8,
           fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-          color: showKo ? C.cyan : 'rgba(244,244,244,0.2)',
-          background: showKo ? 'rgba(41,217,217,0.1)' : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${showKo ? 'rgba(41,217,217,0.3)' : 'rgba(255,255,255,0.08)'}`,
+          color: showKo ? C.cyan : 'var(--t4)',
+          background: showKo ? 'rgba(41,217,217,0.1)' : 'var(--node-section)',
+          border: `1px solid ${showKo ? 'rgba(41,217,217,0.3)' : 'var(--sep)'}`,
           borderRadius: 3, padding: '1px 5px',
           transition: 'all 0.2s',
         }}>

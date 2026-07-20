@@ -6,6 +6,7 @@ import {
 } from '@xyflow/react'
 import { generateHandlerRef } from './lib/generateHandlerRef'
 import { higgsfieldHandlerRef } from './lib/higgsfieldHandlerRef'
+import { CharactersContext } from './lib/CharactersContext'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -424,9 +425,7 @@ function buildScene(sceneIdx) {
     // 스타일 앵커 (공유)
     { id: `e-sa-ci-${u}`, source: 'styleAnchor', sourceHandle: 'image', target: `claudeImage-${u}`, targetHandle: 'anchor', label: '이미지 앵커', ...dataEdge },
     { id: `e-sa-cv-${u}`, source: 'styleAnchor', sourceHandle: 'video', target: `claudeVideo-${u}`, targetHandle: 'anchor', label: '비디오 앵커', ...dataEdge },
-    // 캐릭터 참조 (Step 01 출력 공유)
-    { id: `e-rcr-ci-${u}`, source: 'reviewCharResult', target: `claudeImage-${u}`, targetHandle: 'anchor', label: '캐릭터 참조', ...dataEdge },
-    { id: `e-rcr-hi-${u}`, source: 'reviewCharResult', target: `higgsfieldImage-${u}`, targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge },
+    // 캐릭터 참조는 드롭다운으로 선택 — 자동 엣지 없음
     // Step 02 흐름
     { id: `e-id-ci-${u}`, source: `imageDirection-${u}`, target: `claudeImage-${u}`, targetHandle: 'command' },
     { id: `e-ci-rip-${u}`, source: `claudeImage-${u}`, target: `reviewImagePrompt-${u}`, targetHandle: 'left' },
@@ -563,6 +562,26 @@ function FlowCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
   const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
   const sceneCountRef = useRef(1)
+
+  // ── 캐릭터 저장소 (localStorage 영속) ────────────────────
+  const [characters, setCharacters] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('canvas-characters') || '[]') } catch { return [] }
+  })
+  const saveCharacter = useCallback((name, resultUrl) => {
+    const char = { id: `char-${Date.now()}`, name, resultUrl }
+    setCharacters(prev => {
+      const next = [...prev, char]
+      localStorage.setItem('canvas-characters', JSON.stringify(next))
+      return next
+    })
+  }, [])
+  const deleteCharacter = useCallback((charId) => {
+    setCharacters(prev => {
+      const next = prev.filter(c => c.id !== charId)
+      localStorage.setItem('canvas-characters', JSON.stringify(next))
+      return next
+    })
+  }, [])
   const [contextMenu, setContextMenu] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
   useEffect(() => {
@@ -698,17 +717,39 @@ function FlowCanvas() {
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
-    // 이미지: 연결된 모든 참조를 mediaId로 변환 (병렬)
+    // 이미지: 참조 이미지 → mediaId 변환
     let referenceMediaIds = []
 
     if (!isVideo) {
+      const selectedCharIds = node?.data?.selectedCharacterIds ?? []
+      const useDropdown = selectedCharIds.length > 0
       try {
-        const results = await Promise.all(mediaSources.map(src => {
-          if (src.type === 'referenceImage') return uploadRefImage(src)
-          if (src.data?.resultUrl) return importRefUrl(src.data.resultUrl)
-          return Promise.resolve(null)
-        }))
-        results.forEach(id => { if (id) referenceMediaIds.push(id) })
+        if (useDropdown) {
+          // 드롭다운 선택 캐릭터 사용 (엣지 기반 ref 무시 → 이중 참조 방지)
+          const charResults = await Promise.all(
+            selectedCharIds.map(charId => {
+              const char = characters.find(c => c.id === charId)
+              if (!char?.resultUrl) return Promise.resolve(null)
+              return importRefUrl(char.resultUrl).catch(() => {
+                throw new Error(`캐릭터 "${char.name}" URL이 만료됐습니다. 재생성 후 다시 저장해주세요.`)
+              })
+            })
+          )
+          charResults.forEach(id => { if (id) referenceMediaIds.push(id) })
+          // referenceImage 노드 연결은 드롭다운과 병행 허용
+          const refImgResults = await Promise.all(
+            mediaSources.filter(s => s.type === 'referenceImage').map(uploadRefImage)
+          )
+          refImgResults.forEach(id => { if (id) referenceMediaIds.push(id) })
+        } else {
+          // 기존 엣지 기반 로직
+          const results = await Promise.all(mediaSources.map(src => {
+            if (src.type === 'referenceImage') return uploadRefImage(src)
+            if (src.data?.resultUrl) return importRefUrl(src.data.resultUrl)
+            return Promise.resolve(null)
+          }))
+          results.forEach(id => { if (id) referenceMediaIds.push(id) })
+        }
       } catch (err) {
         updateNodeData(nodeId, { status: 'error', error: err.message })
         return
@@ -822,7 +863,7 @@ function FlowCanvas() {
       console.error(`[생성 실패] (${ts()})`, err.message)
       updateNodeData(nodeId, { status: 'error', error: err.message })
     }
-  }, [getNodes, getEdges, updateNodeData])
+  }, [getNodes, getEdges, updateNodeData, characters])
 
   useEffect(() => {
     higgsfieldHandlerRef.current = handleHiggsfieldGenerate
@@ -928,21 +969,25 @@ function FlowCanvas() {
   // 이미지 드롭 → image 노드 생성
 
   return (
+    <CharactersContext.Provider value={{ characters, saveCharacter, deleteCharacter }}>
     <div style={{ width: '100vw', height: '100vh' }}>
       <button
+        disabled={!hasHiggsfieldAuthError}
         onClick={() => window.open('http://localhost:3002/auth/higgsfield/start', '_blank')}
-        title="Higgsfield 재연결"
+        title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
         style={{
           position: 'fixed', bottom: 244, left: 12, zIndex: 10,
           height: 32, paddingInline: 10, borderRadius: 7,
           border: `1px solid ${hasHiggsfieldAuthError ? 'rgba(245,158,11,0.55)' : 'var(--controls-border)'}`,
           background: hasHiggsfieldAuthError ? 'rgba(245,158,11,0.14)' : 'var(--controls-bg)',
           backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+          cursor: hasHiggsfieldAuthError ? 'pointer' : 'default',
+          display: 'flex', alignItems: 'center', gap: 5,
           fontSize: 11, fontWeight: 700,
           color: hasHiggsfieldAuthError ? '#F59E0B' : 'var(--t4)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           transition: 'all 0.2s',
+          opacity: hasHiggsfieldAuthError ? 1 : 0.5,
         }}
       >
         <span style={{
@@ -1033,6 +1078,7 @@ function FlowCanvas() {
         />
       )}
     </div>
+    </CharactersContext.Provider>
   )
 }
 

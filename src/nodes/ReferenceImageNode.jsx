@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { CharactersContext } from '../lib/CharactersContext'
 
 const C = {
   cyan: '#29D9D9',
@@ -25,10 +26,13 @@ const nodeBase = {
 
 export default function ReferenceImageNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
+  const { saveCharacter } = useContext(CharactersContext)
   const fileInputRef = useRef(null)
   const [tab, setTab] = useState('file') // 'file' | 'url'
   const [urlInput, setUrlInput] = useState(data.imageUrl ?? '')
   const [dragging, setDragging] = useState(false)
+  const [savingName, setSavingName] = useState('')
+  const [showSaveInput, setShowSaveInput] = useState(false)
 
   const preview = data.imageDataUrl || data.imageUrl || null
 
@@ -169,6 +173,58 @@ export default function ReferenceImageNode({ id, data, selected }) {
               fontFamily: 'inherit', cursor: 'pointer',
             }}
           >✕ 제거</button>
+
+          {/* 캐릭터로 저장 */}
+          {showSaveInput ? (
+            <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+              <input
+                autoFocus
+                value={savingName}
+                onChange={e => setSavingName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && savingName.trim()) {
+                    saveCharacter(savingName.trim(), data.imageUrl || data.imageDataUrl)
+                    setSavingName(''); setShowSaveInput(false)
+                  }
+                  if (e.key === 'Escape') setShowSaveInput(false)
+                }}
+                placeholder="캐릭터 이름..."
+                className="nopan nodrag"
+                style={{
+                  flex: 1, background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                  borderRadius: 5, padding: '4px 7px', fontSize: 10,
+                  color: 'var(--t1)', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+              <button className="nopan nodrag"
+                onClick={() => {
+                  if (savingName.trim()) {
+                    saveCharacter(savingName.trim(), data.imageUrl || data.imageDataUrl)
+                    setSavingName(''); setShowSaveInput(false)
+                  }
+                }}
+                style={{ padding: '4px 8px', background: 'rgba(41,217,217,0.1)',
+                  border: '1px solid rgba(41,217,217,0.3)', borderRadius: 5,
+                  fontSize: 10, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}
+              >저장</button>
+              <button className="nopan nodrag"
+                onClick={() => setShowSaveInput(false)}
+                style={{ padding: '4px 7px', background: 'var(--node-bg)',
+                  border: '1px solid var(--sep)', borderRadius: 5,
+                  fontSize: 10, color: 'var(--t4)', cursor: 'pointer', fontFamily: 'inherit' }}
+              >✕</button>
+            </div>
+          ) : (
+            <button className="nopan nodrag"
+              onClick={() => setShowSaveInput(true)}
+              style={{
+                width: '100%', padding: '5px 0', marginTop: 6,
+                background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+                borderRadius: 5, fontSize: 10, fontWeight: 700,
+                color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >👤 캐릭터로 저장</button>
+          )}
         </div>
       )}
 

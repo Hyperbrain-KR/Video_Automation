@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { CharactersContext } from '../lib/CharactersContext'
 
 const C = {
   blue: '#1F41B0',
@@ -100,6 +101,9 @@ const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData, getEdges, setNodes } = useReactFlow()
+  const { characters, saveCharacter } = useContext(CharactersContext)
+  const [savingName, setSavingName] = useState('')
+  const [showSaveInput, setShowSaveInput] = useState(false)
 
   // 연결된 핸들 실시간 감지 (edges 변경 시 자동 갱신)
   const connectedHandleStr = useStore(s =>
@@ -232,6 +236,54 @@ export default function HiggsfieldNode({ id, data, selected }) {
           <SelectRow label="모델" value={model} onChange={handleModel} options={IMAGE_MODELS} />
           <SelectRow label="퀄리티" value={quality} onChange={handleQuality} options={model === 'gpt_image_2' ? GPT_QUALITY_OPTIONS : QUALITY_OPTIONS} />
           <SelectRow label="비율" value={aspectRatio} onChange={handleAspect} options={ASPECT_OPTIONS} />
+        </div>
+      )}
+
+      {/* 캐릭터 참조 선택 (이미지 씬 노드만) */}
+      {!isVideo && hasRef && (
+        <div style={{ marginBottom: 10, padding: '7px 9px',
+          background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
+            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+            캐릭터 참조
+          </div>
+          {characters.length === 0 ? (
+            <div style={{ fontSize: 10, color: 'var(--t5)' }}>저장된 캐릭터 없음</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {characters.map(c => {
+                const checked = (data.selectedCharacterIds ?? []).includes(c.id)
+                return (
+                  <label key={c.id} className="nopan nodrag" style={{
+                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                    padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
+                    background: checked ? 'rgba(41,217,217,0.07)' : 'transparent',
+                    border: `1px solid ${checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      className="nopan nodrag"
+                      onChange={() => {
+                        const cur = data.selectedCharacterIds ?? []
+                        const next = checked ? cur.filter(x => x !== c.id) : [...cur, c.id]
+                        updateNodeData(id, { selectedCharacterIds: next })
+                      }}
+                      style={{ accentColor: '#29D9D9', width: 11, height: 11, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 10, color: checked ? 'var(--t1)' : 'var(--t3)', flex: 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.name}
+                    </span>
+                    {c.resultUrl && (
+                      <img src={c.resultUrl} alt={c.name}
+                        style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -419,6 +471,60 @@ export default function HiggsfieldNode({ id, data, selected }) {
               ↓ 다운로드
             </div>
           </a>
+
+          {/* 캐릭터로 저장 (이미지만) */}
+          {!isVideo && (
+            showSaveInput ? (
+              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                <input
+                  autoFocus
+                  value={savingName}
+                  onChange={e => setSavingName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && savingName.trim()) {
+                      saveCharacter(savingName.trim(), data.resultUrl)
+                      setSavingName(''); setShowSaveInput(false)
+                    }
+                    if (e.key === 'Escape') setShowSaveInput(false)
+                  }}
+                  placeholder="캐릭터 이름..."
+                  className="nopan nodrag"
+                  style={{
+                    flex: 1, background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                    borderRadius: 5, padding: '4px 7px', fontSize: 10,
+                    color: 'var(--t1)', fontFamily: 'inherit', outline: 'none',
+                  }}
+                />
+                <button className="nopan nodrag"
+                  onClick={() => {
+                    if (savingName.trim()) {
+                      saveCharacter(savingName.trim(), data.resultUrl)
+                      setSavingName(''); setShowSaveInput(false)
+                    }
+                  }}
+                  style={{ padding: '4px 8px', background: 'rgba(41,217,217,0.1)',
+                    border: '1px solid rgba(41,217,217,0.3)', borderRadius: 5,
+                    fontSize: 10, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}
+                >저장</button>
+                <button className="nopan nodrag"
+                  onClick={() => setShowSaveInput(false)}
+                  style={{ padding: '4px 7px', background: 'var(--node-bg)',
+                    border: '1px solid var(--sep)', borderRadius: 5,
+                    fontSize: 10, color: 'var(--t4)', cursor: 'pointer', fontFamily: 'inherit' }}
+                >✕</button>
+              </div>
+            ) : (
+              <button className="nopan nodrag"
+                onClick={() => setShowSaveInput(true)}
+                style={{
+                  width: '100%', padding: '5px 0', marginTop: 6,
+                  background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+                  borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >👤 캐릭터로 저장</button>
+            )
+          )}
         </div>
       )}
 
