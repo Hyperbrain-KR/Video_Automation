@@ -19,6 +19,7 @@ import SectionBackgroundNode from './nodes/SectionBackgroundNode'
 import ScriptImportNode from './nodes/ScriptImportNode'
 import ReferenceImageNode from './nodes/ReferenceImageNode'
 import ContextMenu from './components/ContextMenu'
+import SceneNavBar from './components/SceneNavBar'
 
 const nodeTypes = {
   reviewGate: ReviewGateNode,
@@ -970,13 +971,15 @@ function FlowCanvas() {
 
   return (
     <CharactersContext.Provider value={{ characters, saveCharacter, deleteCharacter }}>
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
+      <SceneNavBar nodes={nodes} onAddScene={addScene} />
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
       <button
         disabled={!hasHiggsfieldAuthError}
         onClick={() => window.open('http://localhost:3002/auth/higgsfield/start', '_blank')}
         title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
         style={{
-          position: 'fixed', bottom: 244, left: 12, zIndex: 10,
+          position: 'fixed', bottom: 200, left: 12, zIndex: 10,
           height: 32, paddingInline: 10, borderRadius: 7,
           border: `1px solid ${hasHiggsfieldAuthError ? 'rgba(245,158,11,0.55)' : 'var(--controls-border)'}`,
           background: hasHiggsfieldAuthError ? 'rgba(245,158,11,0.14)' : 'var(--controls-bg)',
@@ -996,23 +999,6 @@ function FlowCanvas() {
           boxShadow: hasHiggsfieldAuthError ? '0 0 6px #F59E0B' : '0 0 6px #22c55e',
         }} />
         {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
-      </button>
-      <button
-        onClick={addScene}
-        title="씬 추가"
-        style={{
-          position: 'fixed', bottom: 200, left: 12, zIndex: 10,
-          height: 32, paddingInline: 10, borderRadius: 7,
-          border: '1px solid rgba(41,217,217,0.35)',
-          background: 'rgba(41,217,217,0.10)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-          fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
-          color: '#29D9D9',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> 씬 추가
       </button>
       <button
         onClick={toggleTheme}
@@ -1077,6 +1063,7 @@ function FlowCanvas() {
           onClose={() => setContextMenu(null)}
         />
       )}
+      </div>
     </div>
     </CharactersContext.Provider>
   )
