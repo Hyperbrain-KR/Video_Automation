@@ -156,6 +156,15 @@ async function callHiggsfieldMCP(toolName, args, timeoutMs = 180_000) {
   throw new Error('Higgsfield MCP 응답 파싱 실패')
 }
 
+function isHiggsfieldAuthError(msg) {
+  const m = msg.toLowerCase()
+  return m.includes('invalid or expired token')
+    || m.includes('session has expired')
+    || m.includes('no longer valid')
+    || m.includes('re-authorize')
+    || m.includes('unauthorized')
+}
+
 function extractJobId(result) {
   for (const c of (result.content ?? [])) {
     if (c.type !== 'text') continue
@@ -240,15 +249,15 @@ app.post('/api/higgsfield/image', async (req, res) => {
   const runImage = async () => callHiggsfieldMCP('generate_image', args)
   try {
     let result = await runImage()
-    // 토큰 만료 시 자동 갱신 후 재시도
+    // 인증 오류 시 자동 갱신 후 재시도
     if (result.isError) {
       const msg = result.content?.[0]?.text || ''
-      if (msg.toLowerCase().includes('invalid or expired token')) {
+      console.error('[higgsfield/image] isError:', msg)
+      if (isHiggsfieldAuthError(msg)) {
         const refreshed = await refreshHiggsfieldToken()
         if (refreshed) result = await runImage()
         else return res.status(401).json({ error: 'Higgsfield 토큰 만료 — http://localhost:3002/auth/higgsfield/start 에서 재로그인' })
       } else {
-        console.error('[higgsfield/image] isError:', msg)
         return res.status(500).json({ error: msg })
       }
     }
@@ -329,7 +338,18 @@ app.post('/api/higgsfield/video', async (req, res) => {
 
     if (result.isError || rawContent.toLowerCase().includes('something went wrong')) {
       console.error('[higgsfield/video] 에러 응답:', rawContent)
-      return res.status(500).json({ error: rawContent || 'generate_video 실패' })
+      if (isHiggsfieldAuthError(rawContent)) {
+        const refreshed = await refreshHiggsfieldToken()
+        if (refreshed) {
+          result = await callHiggsfieldMCP('generate_video', args)
+          rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+          if (result.isError) return res.status(500).json({ error: rawContent || 'generate_video 실패' })
+        } else {
+          return res.status(401).json({ error: 'Higgsfield 토큰 만료 — http://localhost:3002/auth/higgsfield/start 에서 재로그인' })
+        }
+      } else {
+        return res.status(500).json({ error: rawContent || 'generate_video 실패' })
+      }
     }
     const jobId = extractJobId(result)
     console.log(`[higgsfield/video] ③ jobId: ${jobId} (${ts()})`)

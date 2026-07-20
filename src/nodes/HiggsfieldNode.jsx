@@ -64,6 +64,7 @@ const statusConfigs = {
   generating: { dot: '#29D9D9', text: '생성 중…', glow: '0 0 8px rgba(41,217,217,0.8)' },
   done:       { dot: '#29D9D9', text: '완료',     glow: '0 0 8px rgba(41,217,217,0.8)' },
   error:      { dot: '#E34054', text: '오류',     glow: '0 0 8px rgba(227,64,84,0.8)' },
+  auth_error: { dot: '#F59E0B', text: '재인증 필요', glow: '0 0 8px rgba(245,158,11,0.8)' },
 }
 
 const selectStyle = {
@@ -141,6 +142,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const cfg = statusConfigs[status] ?? statusConfigs.idle
   const isLoading = status === 'loading' || status === 'generating'
   const isDone = status === 'done'
+  const isAuthError = status === 'auth_error'
 
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef(null)
@@ -381,6 +383,17 @@ export default function HiggsfieldNode({ id, data, selected }) {
           border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.5,
         }}>
           ⚠ {data.error}
+        </div>
+      )}
+
+      {/* 인증 만료 안내 */}
+      {isAuthError && (
+        <div style={{
+          marginTop: 8, fontSize: 10, color: '#F59E0B', lineHeight: 1.5,
+          padding: '5px 8px', background: 'rgba(245,158,11,0.07)',
+          border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6,
+        }}>
+          🔑 세션 만료 — 왼쪽 재연결 버튼을 눌러주세요
         </div>
       )}
 

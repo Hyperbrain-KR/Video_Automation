@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Panel,
   useNodesState, useEdgesState, useReactFlow,
@@ -119,7 +119,7 @@ const nodes0 = [
     position: { x: 350, y: 558 },
     data: {
       width: 945, height: 482,
-      step: 'Step 02', label: '이미지 생성',
+      step: 'Step 02 · 씬 1', label: '이미지 생성',
       bg: 'rgba(41,217,217,0.05)',
       border: 'rgba(41,217,217,0.32)',
       accent: '#29D9D9',
@@ -133,7 +133,7 @@ const nodes0 = [
     position: { x: 350, y: 1110 },
     data: {
       width: 945, height: 492,
-      step: 'Step 03', label: '비디오 생성',
+      step: 'Step 03 · 씬 1', label: '비디오 생성',
       bg: 'rgba(100,40,200,0.08)',
       border: 'rgba(130,60,230,0.38)',
       accent: 'rgba(170,110,255,1)',
@@ -341,6 +341,113 @@ const edges0 = [
   { id: 'e-rvr-rvp', source: 'reviewVideoResult', target: 'reviewVideoPrompt', targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
 ]
 
+// ── 씬 복제 팩토리 ────────────────────────────────────────────────────
+// 씬 1은 nodes0/edges0에 하드코딩. 씬 2부터 이 함수로 동적 생성.
+const SCENE_X_STEP = 1000  // 씬 간 X 간격 (섹션 폭 945 + 여백 55)
+
+function buildScene(sceneIdx) {
+  const uid = `sc${Date.now()}`
+  const x = 350 + (sceneIdx - 1) * SCENE_X_STEP  // 씬 1: x=350, 씬 2: x=1350, ...
+
+  const nodes = [
+    // ── 섹션 배경 ──────────────────────────────────────
+    {
+      id: `bg-s2-${uid}`, type: 'sectionBackground',
+      position: { x, y: 558 },
+      data: { width: 945, height: 482, step: `Step 02 · 씬 ${sceneIdx}`, label: '이미지 생성',
+        bg: 'rgba(41,217,217,0.05)', border: 'rgba(41,217,217,0.32)', accent: '#29D9D9' },
+      selectable: false, draggable: false, focusable: false, zIndex: -1,
+    },
+    {
+      id: `bg-s3-${uid}`, type: 'sectionBackground',
+      position: { x, y: 1110 },
+      data: { width: 945, height: 492, step: `Step 03 · 씬 ${sceneIdx}`, label: '비디오 생성',
+        bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)' },
+      selectable: false, draggable: false, focusable: false, zIndex: -1,
+    },
+    // ── Step 02: 이미지 생성 ───────────────────────────
+    {
+      id: `imageDirection-${uid}`, type: 'textInput',
+      position: { x: x + 20, y: 580 },
+      data: { label: `이미지 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 장면을 설명해주세요...' },
+    },
+    {
+      id: `claudeImage-${uid}`, type: 'claudeNode',
+      position: { x: x + 310, y: 580 },
+      data: { label: '이미지 프롬프트 생성', description: '캐릭터 참조 + 이미지 연출 → 첫 프레임 이미지 프롬프트', promptType: 'claudeImage' },
+    },
+    {
+      id: `reviewImagePrompt-${uid}`, type: 'reviewGate',
+      position: { x: x + 630, y: 580 },
+      data: { label: '이미지 프롬프트 리뷰', prompt: '(Claude가 생성한 이미지 프롬프트)' },
+    },
+    {
+      id: `higgsfieldImage-${uid}`, type: 'higgsfieldNode',
+      position: { x: x + 310, y: 840 },
+      data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_pro' },
+    },
+    {
+      id: `reviewImageResult-${uid}`, type: 'reviewGate',
+      position: { x: x + 630, y: 840 },
+      data: { label: '이미지 리뷰', prompt: '(생성된 이미지 확인 후 비디오 단계로)' },
+    },
+    // ── Step 03: 비디오 생성 ───────────────────────────
+    {
+      id: `vidDirection-${uid}`, type: 'textInput',
+      position: { x: x + 20, y: 1130 },
+      data: { label: `비디오 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 영상 연출을 설명해주세요...' },
+    },
+    {
+      id: `claudeVideo-${uid}`, type: 'claudeNode',
+      position: { x: x + 310, y: 1130 },
+      data: { label: '비디오 프롬프트 생성', description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트', promptType: 'claudeVideo' },
+    },
+    {
+      id: `reviewVideoPrompt-${uid}`, type: 'reviewGate',
+      position: { x: x + 630, y: 1130 },
+      data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 },
+    },
+    {
+      id: `higgsfieldVideo-${uid}`, type: 'higgsfieldNode',
+      position: { x: x + 310, y: 1400 },
+      data: { label: '비디오 생성', type: 'video' },
+    },
+    {
+      id: `reviewVideoResult-${uid}`, type: 'reviewGate',
+      position: { x: x + 630, y: 1400 },
+      data: { label: '최종 비디오 리뷰', prompt: '(최종 비디오 확인 후 다운로드)' },
+    },
+  ]
+
+  const u = uid  // 짧은 별칭
+  const edges = [
+    // 스타일 앵커 (공유)
+    { id: `e-sa-ci-${u}`, source: 'styleAnchor', sourceHandle: 'image', target: `claudeImage-${u}`, targetHandle: 'anchor', label: '이미지 앵커', ...dataEdge },
+    { id: `e-sa-cv-${u}`, source: 'styleAnchor', sourceHandle: 'video', target: `claudeVideo-${u}`, targetHandle: 'anchor', label: '비디오 앵커', ...dataEdge },
+    // 캐릭터 참조 (Step 01 출력 공유)
+    { id: `e-rcr-ci-${u}`, source: 'reviewCharResult', target: `claudeImage-${u}`, targetHandle: 'anchor', label: '캐릭터 참조', ...dataEdge },
+    { id: `e-rcr-hi-${u}`, source: 'reviewCharResult', target: `higgsfieldImage-${u}`, targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge },
+    // Step 02 흐름
+    { id: `e-id-ci-${u}`, source: `imageDirection-${u}`, target: `claudeImage-${u}`, targetHandle: 'command' },
+    { id: `e-ci-rip-${u}`, source: `claudeImage-${u}`, target: `reviewImagePrompt-${u}`, targetHandle: 'left' },
+    { id: `e-rip-hi-${u}`, source: `reviewImagePrompt-${u}`, target: `higgsfieldImage-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
+    { id: `e-rip-ci-${u}`, source: `reviewImagePrompt-${u}`, target: `claudeImage-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+    { id: `e-hi-rir-${u}`, source: `higgsfieldImage-${u}`, target: `reviewImageResult-${u}`, targetHandle: 'left' },
+    { id: `e-rir-rip-${u}`, source: `reviewImageResult-${u}`, target: `reviewImagePrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+    // Step 02 → 03 첫 프레임
+    { id: `e-rir-hv-${u}`, source: `reviewImageResult-${u}`, target: `higgsfieldVideo-${u}`, targetHandle: 'image', label: '첫 프레임', ...dataEdge },
+    // Step 03 흐름
+    { id: `e-vd-cv-${u}`, source: `vidDirection-${u}`, target: `claudeVideo-${u}`, targetHandle: 'command' },
+    { id: `e-cv-rvp-${u}`, source: `claudeVideo-${u}`, target: `reviewVideoPrompt-${u}`, targetHandle: 'left' },
+    { id: `e-rvp-hv-${u}`, source: `reviewVideoPrompt-${u}`, target: `higgsfieldVideo-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
+    { id: `e-rvp-cv-${u}`, source: `reviewVideoPrompt-${u}`, target: `claudeVideo-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+    { id: `e-hv-rvr-${u}`, source: `higgsfieldVideo-${u}`, target: `reviewVideoResult-${u}`, targetHandle: 'left' },
+    { id: `e-rvr-rvp-${u}`, source: `reviewVideoResult-${u}`, target: `reviewVideoPrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+  ]
+
+  return { nodes, edges }
+}
+
 // ── FlowCanvas (uses useReactFlow — must be inside ReactFlowProvider) ──
 const CANVAS_API = 'http://localhost:3002'
 
@@ -455,6 +562,7 @@ function FlowCanvas() {
   const { screenToFlowPosition, getNodes, getEdges, updateNodeData } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
   const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
+  const sceneCountRef = useRef(1)
   const [contextMenu, setContextMenu] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
   useEffect(() => {
@@ -468,6 +576,14 @@ function FlowCanvas() {
     setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350)
   }
 
+
+  // ── 씬 추가 ──────────────────────────────────────────────────
+  const addScene = useCallback(() => {
+    sceneCountRef.current += 1
+    const { nodes: newNodes, edges: newEdges } = buildScene(sceneCountRef.current)
+    setNodes(nds => [...nds, ...newNodes])
+    setEdges(eds => [...eds, ...newEdges])
+  }, [setNodes, setEdges])
 
   // ── Claude 프롬프트 생성 실행 엔진 ───────────────────────────
   const handleGenerate = useCallback(async (nodeId) => {
@@ -661,6 +777,10 @@ function FlowCanvas() {
       })
       if (!genRes.ok) {
         const err = await genRes.json().catch(() => ({}))
+        if (genRes.status === 401) {
+          updateNodeData(nodeId, { status: 'auth_error', error: err.error })
+          return
+        }
         throw new Error(err.error || `서버 오류 ${genRes.status}`)
       }
       const genResData = await genRes.json()
@@ -712,6 +832,12 @@ function FlowCanvas() {
   const onConnect = useCallback((params) => {
     setEdges(eds => addEdge({ ...params, type: 'smoothstep' }, eds))
   }, [setEdges])
+
+  // ── Higgsfield 인증 오류 감지 ────────────────────────────
+  const hasHiggsfieldAuthError = useMemo(
+    () => nodes.some(n => n.data?.status === 'auth_error'),
+    [nodes]
+  )
 
   // ── 활성 노드 엣지 강조 ──────────────────────────────────
   const activeEdges = useMemo(() => {
@@ -803,6 +929,46 @@ function FlowCanvas() {
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
+      <button
+        onClick={() => window.open('http://localhost:3002/auth/higgsfield/start', '_blank')}
+        title="Higgsfield 재연결"
+        style={{
+          position: 'fixed', bottom: 244, left: 12, zIndex: 10,
+          height: 32, paddingInline: 10, borderRadius: 7,
+          border: `1px solid ${hasHiggsfieldAuthError ? 'rgba(245,158,11,0.55)' : 'var(--controls-border)'}`,
+          background: hasHiggsfieldAuthError ? 'rgba(245,158,11,0.14)' : 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+          fontSize: 11, fontWeight: 700,
+          color: hasHiggsfieldAuthError ? '#F59E0B' : 'var(--t4)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          transition: 'all 0.2s',
+        }}
+      >
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+          background: hasHiggsfieldAuthError ? '#F59E0B' : '#22c55e',
+          boxShadow: hasHiggsfieldAuthError ? '0 0 6px #F59E0B' : '0 0 6px #22c55e',
+        }} />
+        {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
+      </button>
+      <button
+        onClick={addScene}
+        title="씬 추가"
+        style={{
+          position: 'fixed', bottom: 200, left: 12, zIndex: 10,
+          height: 32, paddingInline: 10, borderRadius: 7,
+          border: '1px solid rgba(41,217,217,0.35)',
+          background: 'rgba(41,217,217,0.10)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+          fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
+          color: '#29D9D9',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> 씬 추가
+      </button>
       <button
         onClick={toggleTheme}
         title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
