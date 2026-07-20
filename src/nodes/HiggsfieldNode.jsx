@@ -101,9 +101,11 @@ const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData, getEdges, setNodes } = useReactFlow()
-  const { characters, saveCharacter } = useContext(CharactersContext)
+  const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [hoveredCharId, setHoveredCharId] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   // 연결된 핸들 실시간 감지 (edges 변경 시 자동 갱신)
   const connectedHandleStr = useStore(s =>
@@ -253,17 +255,45 @@ export default function HiggsfieldNode({ id, data, selected }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {characters.map(c => {
                 const checked = (data.selectedCharacterIds ?? []).includes(c.id)
-                return (
-                  <label key={c.id} className="nopan nodrag" style={{
-                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                    padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
-                    background: checked ? 'rgba(41,217,217,0.07)' : 'transparent',
-                    border: `1px solid ${checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
+                const isConfirming = confirmDeleteId === c.id
+
+                if (isConfirming) return (
+                  <div key={c.id} style={{
+                    padding: '5px 7px', borderRadius: 4,
+                    background: 'rgba(227,64,84,0.07)',
+                    border: '1px solid rgba(227,64,84,0.22)',
                   }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      className="nopan nodrag"
+                    <div style={{ fontSize: 9, color: '#E34054', marginBottom: 5, lineHeight: 1.4 }}>
+                      ⚠ 다시 쓸 캐릭터라면 먼저 저장해두세요.<br/>삭제 시 복구할 수 없습니다.
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="nopan nodrag"
+                        onClick={() => setConfirmDeleteId(null)}
+                        style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                          background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+                          borderRadius: 4, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >취소</button>
+                      <button className="nopan nodrag"
+                        onClick={() => { deleteCharacter(c.id); setConfirmDeleteId(null) }}
+                        style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                          background: 'rgba(227,64,84,0.12)', border: '1px solid rgba(227,64,84,0.35)',
+                          borderRadius: 4, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >삭제</button>
+                    </div>
+                  </div>
+                )
+
+                return (
+                  <label key={c.id} className="nopan nodrag"
+                    onMouseEnter={() => setHoveredCharId(c.id)}
+                    onMouseLeave={() => setHoveredCharId(null)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                      padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
+                      background: checked ? 'rgba(41,217,217,0.07)' : 'transparent',
+                      border: `1px solid ${checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
+                    }}>
+                    <input type="checkbox" checked={checked} className="nopan nodrag"
                       onChange={() => {
                         const cur = data.selectedCharacterIds ?? []
                         const next = checked ? cur.filter(x => x !== c.id) : [...cur, c.id]
@@ -278,6 +308,15 @@ export default function HiggsfieldNode({ id, data, selected }) {
                     {c.resultUrl && (
                       <img src={c.resultUrl} alt={c.name}
                         style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                    )}
+                    {hoveredCharId === c.id && (
+                      <button className="nopan nodrag"
+                        onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
+                        style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
+                          background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
+                          borderRadius: 3, fontSize: 9, color: '#E34054',
+                          cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
+                      >✕</button>
                     )}
                   </label>
                 )
