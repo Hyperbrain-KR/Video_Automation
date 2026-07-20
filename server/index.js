@@ -14,8 +14,8 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6'
+const anthropic = new Anthropic({ apiKey: globalThis.process?.env?.ANTHROPIC_API_KEY })
+const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
 
 // ── Higgsfield OAuth ──────────────────────────────────────
 const OAUTH_CLIENT_ID = 'HLFkiErFzYPuRQxm'
