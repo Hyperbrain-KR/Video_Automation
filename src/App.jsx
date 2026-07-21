@@ -7,6 +7,7 @@ import {
 import { generateHandlerRef } from './lib/generateHandlerRef'
 import { higgsfieldHandlerRef } from './lib/higgsfieldHandlerRef'
 import { CharactersContext } from './lib/CharactersContext'
+import { useProjects, loadSavedProject, getActiveProjectId } from './hooks/useProjects'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -558,11 +559,105 @@ const GENERIC_PROMPT = {
   user: (anchor, command) => `앵커:\n${anchor || '(없음)'}\n\n입력:\n${command || '(없음)'}`,
 }
 
+// 저장된 노드 로드 시 진행 중 상태 초기화
+function resetInProgressNodes(nodes) {
+  return nodes.map(n => {
+    if (n.data?.status === 'loading' || n.data?.status === 'generating') {
+      return { ...n, data: { ...n.data, status: 'idle', error: undefined } }
+    }
+    return n
+  })
+}
+
 function FlowCanvas() {
   const { screenToFlowPosition, getNodes, getEdges, updateNodeData } = useReactFlow()
-  const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
+
+  // 최초 마운트 시 localStorage에서 프로젝트 데이터 로드
+  const initDataRef = useRef(null)
+  if (initDataRef.current === null) {
+    const saved = loadSavedProject(getActiveProjectId())
+    initDataRef.current = saved
+      ? { nodes: resetInProgressNodes(saved.nodes), edges: saved.edges }
+      : { nodes: nodes0, edges: edges0 }
+  }
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initDataRef.current.nodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initDataRef.current.edges)
   const sceneCountRef = useRef(1)
+
+  // ── 프로젝트 관리 ──────────────────────────────────────────────────────
+  const {
+    projects, activeId, activeProject,
+    saveProject, createProject, switchProject, deleteProject, renameProject,
+  } = useProjects()
+
+  const [saveState, setSaveState] = useState('idle') // 'idle' | 'pending' | 'saved'
+  const [savedAt, setSavedAt]     = useState(null)
+  const saveTimerRef = useRef(null)
+  const isMountedRef = useRef(false)
+
+  // 노드/엣지 변경 시 auto-save (마운트 직후 첫 렌더는 skip)
+  useEffect(() => {
+    if (!isMountedRef.current) { isMountedRef.current = true; return }
+    setSaveState('pending')
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      const currentNodes = getNodes()
+      const currentEdges = getEdges()
+      if (activeId) {
+        saveProject(activeId, currentNodes, currentEdges)
+      } else {
+        // 활성 프로젝트 없으면 자동으로 첫 프로젝트 생성
+        createProject('내 프로젝트', currentNodes, currentEdges)
+      }
+      setSaveState('saved')
+      setSavedAt(new Date())
+    }, 1500)
+    return () => clearTimeout(saveTimerRef.current)
+  }, [nodes, edges])
+
+  const handleSwitchProject = useCallback((id) => {
+    // 현재 즉시 저장 후 전환
+    clearTimeout(saveTimerRef.current)
+    if (activeId) saveProject(activeId, getNodes(), getEdges())
+    const data = switchProject(id)
+    if (data) {
+      setNodes(resetInProgressNodes(data.nodes))
+      setEdges(data.edges)
+    }
+    setSaveState('idle')
+    setSavedAt(null)
+    isMountedRef.current = false
+  }, [activeId, saveProject, switchProject, setNodes, setEdges, getNodes, getEdges])
+
+  const handleDeleteProject = useCallback((id) => {
+    clearTimeout(saveTimerRef.current)
+    const remaining = deleteProject(id)
+    if (id === activeId) {
+      if (remaining.length > 0) {
+        const data = switchProject(remaining[0].id)
+        if (data) { setNodes(resetInProgressNodes(data.nodes)); setEdges(data.edges) }
+      } else {
+        setNodes(nodes0)
+        setEdges(edges0)
+      }
+      setSaveState('idle')
+      setSavedAt(null)
+      isMountedRef.current = false
+    }
+  }, [activeId, deleteProject, switchProject, setNodes, setEdges])
+
+  const handleCreateProject = useCallback((name) => {
+    // 현재 즉시 저장 후 새 프로젝트(기본 캔버스)로 전환
+    clearTimeout(saveTimerRef.current)
+    if (activeId) saveProject(activeId, getNodes(), getEdges())
+    createProject(name, nodes0, edges0)
+    setNodes(nodes0)
+    setEdges(edges0)
+    setSaveState('idle')
+    setSavedAt(null)
+    isMountedRef.current = false
+  }, [activeId, saveProject, createProject, setNodes, setEdges, getNodes, getEdges])
 
   // ── 캐릭터 저장소 (localStorage 영속) ────────────────────
   const [characters, setCharacters] = useState(() => {
@@ -976,7 +1071,18 @@ function FlowCanvas() {
   return (
     <CharactersContext.Provider value={{ characters, saveCharacter, deleteCharacter }}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
-      <SceneNavBar nodes={nodes} onAddScene={addScene} />
+      <SceneNavBar
+        nodes={nodes}
+        onAddScene={addScene}
+        projects={projects}
+        activeProject={activeProject}
+        saveState={saveState}
+        savedAt={savedAt}
+        onSwitchProject={handleSwitchProject}
+        onCreateProject={handleCreateProject}
+        onDeleteProject={handleDeleteProject}
+        onRenameProject={renameProject}
+      />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
       <button
         disabled={!hasHiggsfieldAuthError}

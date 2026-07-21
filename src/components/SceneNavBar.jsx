@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
 
 const STATUS_DOT = {
@@ -20,6 +20,12 @@ function sceneStatus(imgStatus, vidStatus) {
   return 'idle'
 }
 
+const fmtTime = (d) => d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+const fmtDate = (iso) => {
+  const d = new Date(iso)
+  return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+}
+
 const STYLES = `
   @keyframes sceneDotPulse {
     0%, 100% { opacity: 1;    transform: scale(1);    }
@@ -31,19 +37,19 @@ const STYLES = `
   }
 
   /* ─────────────────────────────────────────────────────
-     상단 바
-     overflow-x: clip  → 가로 클리핑(스크롤 없음)
-     overflow-y: visible → 카드가 아래로 바깥 레이어에 나타남
-     CSS 스펙: overflow-x가 clip 일 때 overflow-y: visible 유지 가능
-             (auto/scroll/hidden 일 때만 visible→auto 강제됨)
+     상단 바 레이아웃
+     bar = flex row; left = project area; right = scrollable scenes
+     overflow: visible on bar → cards drop below freely
+     overflow-x: clip on scenes area → horizontal clip only
   ───────────────────────────────────────────────────── */
   .scene-nav-bar {
     height: 72px;
     flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
     position: relative;
-    z-index: 10;               /* 캔버스(z-index: auto)보다 위 */
-    overflow-x: clip;
-    overflow-y: visible;
+    z-index: 10;
+    overflow: visible;
     backdrop-filter: blur(28px) saturate(190%);
     -webkit-backdrop-filter: blur(28px) saturate(190%);
   }
@@ -60,7 +66,27 @@ const STYLES = `
     box-shadow: 0 2px 20px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.95);
   }
 
-  /* 가로 스크롤용 내부 행 */
+  /* ── 왼쪽 프로젝트 영역 ── */
+  .scene-nav-left {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    min-width: 160px;
+    position: relative;
+  }
+  [data-theme="dark"]  .scene-nav-left { border-right: 1px solid rgba(255,255,255,0.07); }
+  [data-theme="light"] .scene-nav-left { border-right: 1px solid rgba(0,0,0,0.07); }
+
+  /* ── 오른쪽 씬 스크롤 영역 ── */
+  .scene-nav-scenes {
+    flex: 1;
+    overflow-x: clip;
+    overflow-y: visible;
+    position: relative;
+  }
+
+  /* 씬 내부 행 */
   .scene-nav-inner {
     display: flex;
     align-items: flex-start;
@@ -70,7 +96,7 @@ const STYLES = `
     width: max-content;
   }
 
-  /* ── 래퍼: flex 레이아웃 담당 → 넓어지면 옆 카드 밀려남 ── */
+  /* ── 씬 카드 래퍼: flex 레이아웃 담당 ── */
   .scene-card-wrap {
     flex-shrink: 0;
     width: 94px;
@@ -78,12 +104,9 @@ const STYLES = `
     position: relative;
     transition: width 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+  .scene-card-wrap:hover { width: 110px; }
 
-  .scene-card-wrap:hover {
-    width: 110px;
-  }
-
-  /* ── 카드: absolute → 래퍼 너비 따라가고, 아래로 overflow ── */
+  /* ── 씬 카드: absolute → 아래로 overflow ── */
   .scene-card {
     position: absolute;
     top: 0; left: 0; right: 0;
@@ -98,36 +121,27 @@ const STYLES = `
       box-shadow   0.22s ease,
       border-color 0.15s ease;
   }
-
-  /* 호버 시 80px → 72px 바 경계를 넘어 아래로 14px 돌출 */
-  .scene-card-wrap:hover .scene-card {
-    height: 80px;
-    z-index: 20;
-  }
+  .scene-card-wrap:hover .scene-card { height: 80px; z-index: 20; }
 
   [data-theme="dark"] .scene-card {
     background: rgba(255,255,255,0.07);
     border: 1px solid rgba(255,255,255,0.12);
     box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.09);
   }
-
   [data-theme="dark"] .scene-card-wrap:hover .scene-card {
     border-color: rgba(41,217,217,0.55);
     box-shadow: 0 12px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(41,217,217,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
   }
-
   [data-theme="light"] .scene-card {
     background: rgba(255,255,255,0.88);
     border: 1px solid rgba(0,0,0,0.09);
     box-shadow: 0 2px 10px rgba(0,0,0,0.09), inset 0 1px 0 rgba(255,255,255,1);
   }
-
   [data-theme="light"] .scene-card-wrap:hover .scene-card {
     border-color: rgba(41,217,217,0.6);
     box-shadow: 0 12px 32px rgba(0,0,0,0.16), 0 0 0 1px rgba(41,217,217,0.35);
   }
 
-  /* 빈 카드 배경 */
   .scene-card-empty {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
@@ -135,7 +149,6 @@ const STYLES = `
   [data-theme="dark"]  .scene-card-empty { background: rgba(20, 28, 50, 0.7); }
   [data-theme="light"] .scene-card-empty { background: rgba(215, 224, 245, 0.6); }
 
-  /* 하단 레이블 */
   .scene-card-label {
     position: absolute;
     bottom: 0; left: 0; right: 0;
@@ -164,7 +177,6 @@ const STYLES = `
       border-color 0.15s ease;
   }
   .scene-add-btn:hover { height: 80px; }
-
   [data-theme="dark"] .scene-add-btn {
     border: 1.5px dashed rgba(41,217,217,0.38);
     background: rgba(41,217,217,0.06);
@@ -183,8 +195,318 @@ const STYLES = `
     background: rgba(41,217,217,0.08); border-color: rgba(41,217,217,0.8);
     box-shadow: 0 8px 20px rgba(41,217,217,0.1), 0 0 0 1px rgba(41,217,217,0.25);
   }
+
+  /* ── 프로젝트 드롭다운 ── */
+  .proj-trigger {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; cursor: pointer;
+    padding: 4px 6px; border-radius: 6px;
+    font-family: inherit;
+    width: 100%;
+    transition: background 0.12s;
+  }
+  .proj-trigger:hover { background: rgba(255,255,255,0.06); }
+  [data-theme="light"] .proj-trigger:hover { background: rgba(0,0,0,0.04); }
+
+  .proj-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 210px;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 200;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+  [data-theme="dark"]  .proj-dropdown { background: rgba(14, 20, 40, 0.96); border: 1px solid rgba(255,255,255,0.09); }
+  [data-theme="light"] .proj-dropdown { background: rgba(240, 245, 255, 0.97); border: 1px solid rgba(0,0,0,0.09); }
+
+  .proj-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border: none; background: none; width: 100%;
+    font-family: inherit; text-align: left;
+    transition: background 0.1s;
+  }
+  .proj-item:hover { background: rgba(41,217,217,0.07); }
+  .proj-item.active { background: rgba(41,217,217,0.09); }
+
+  .proj-sep { height: 1px; margin: 4px 10px; }
+  [data-theme="dark"]  .proj-sep { background: rgba(255,255,255,0.07); }
+  [data-theme="light"] .proj-sep { background: rgba(0,0,0,0.07); }
+
+  .proj-new-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    width: 100%; border: none; background: none;
+    cursor: pointer; font-family: inherit; text-align: left;
+    font-size: 12px; font-weight: 700; color: #29D9D9;
+    transition: background 0.1s;
+  }
+  .proj-new-btn:hover { background: rgba(41,217,217,0.07); }
 `
 
+// ── ProjectSelector ────────────────────────────────────────────────────────
+function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch, onCreate, onDelete, onRename }) {
+  const [open, setOpen]             = useState(false)
+  const [creating, setCreating]     = useState(false)
+  const [newName, setNewName]       = useState('')
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameName, setRenameName] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
+  // 트리거에서 직접 이름 편집 중인지
+  const [editingTrigger, setEditingTrigger] = useState(false)
+  const [triggerName, setTriggerName]       = useState('')
+  const dropRef    = useRef()
+  const triggerInputRef = useRef()
+
+  // Click outside → close
+  useEffect(() => {
+    if (!open && !editingTrigger) return
+    const handler = (e) => {
+      if (!dropRef.current?.contains(e.target)) {
+        setOpen(false)
+        setCreating(false)
+        setRenamingId(null)
+        setDeletingId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open, editingTrigger])
+
+  // 트리거 이름 편집 시작
+  const startTriggerEdit = (e) => {
+    e.stopPropagation()
+    if (!activeProject) return
+    setTriggerName(activeProject.name)
+    setEditingTrigger(true)
+    setOpen(false)
+    setTimeout(() => triggerInputRef.current?.select(), 0)
+  }
+
+  const commitTriggerEdit = () => {
+    if (triggerName.trim() && activeProject) onRename(activeProject.id, triggerName.trim())
+    setEditingTrigger(false)
+  }
+
+  const handleCreate = () => {
+    const name = newName.trim() || `프로젝트 ${projects.length + 1}`
+    onCreate(name)
+    setCreating(false)
+    setNewName('')
+    setOpen(false)
+  }
+
+  const handleRename = (id) => {
+    if (renameName.trim()) onRename(id, renameName.trim())
+    setRenamingId(null)
+    setRenameName('')
+  }
+
+  return (
+    <div ref={dropRef} className="scene-nav-left">
+      <div style={{ width: '100%' }}>
+        {/* 트리거 */}
+        {editingTrigger ? (
+          // 이름 인라인 편집 모드
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 6px' }}>
+            <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
+            <input
+              ref={triggerInputRef}
+              autoFocus
+              value={triggerName}
+              onChange={e => setTriggerName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') commitTriggerEdit()
+                if (e.key === 'Escape') setEditingTrigger(false)
+              }}
+              onBlur={commitTriggerEdit}
+              style={{
+                flex: 1, background: 'transparent',
+                border: 'none', borderBottom: '1.5px solid rgba(41,217,217,0.6)',
+                fontSize: 12, fontWeight: 700, color: 'var(--t1)',
+                outline: 'none', fontFamily: 'inherit', padding: '1px 2px',
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            className="proj-trigger"
+            onClick={() => { setOpen(o => !o); setCreating(false); setRenamingId(null) }}
+          >
+            <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
+            {/* 이름 부분: 더블클릭으로 편집 */}
+            <span
+              style={{
+                fontSize: 12, fontWeight: 700, color: 'var(--t1)',
+                maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                flex: 1, textAlign: 'left',
+              }}
+              onDoubleClick={startTriggerEdit}
+              title="더블클릭으로 이름 변경"
+            >
+              {activeProject?.name ?? '새 프로젝트'}
+            </span>
+            <span style={{ fontSize: 8, color: 'var(--t4)', flexShrink: 0 }}>▾</span>
+          </button>
+        )}
+
+        {/* 저장 상태 */}
+        <div style={{ fontSize: 9, color: 'var(--t5)', paddingLeft: 7, marginTop: 1 }}>
+          {saveState === 'pending' && '저장 중…'}
+          {saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
+        </div>
+      </div>
+
+      {/* 드롭다운 */}
+      {open && (
+        <div className="proj-dropdown">
+          {projects.length === 0 && (
+            <div style={{ padding: '9px 14px', fontSize: 11, color: 'var(--t5)' }}>
+              저장된 프로젝트 없음
+            </div>
+          )}
+          {projects.map(p => (
+            <div key={p.id}>
+              {renamingId === p.id ? (
+                <div style={{ display: 'flex', gap: 6, padding: '6px 10px' }}>
+                  <input
+                    autoFocus
+                    value={renameName}
+                    onChange={e => setRenameName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleRename(p.id)
+                      if (e.key === 'Escape') setRenamingId(null)
+                    }}
+                    style={{
+                      flex: 1, background: 'var(--node-input)',
+                      border: '1px solid rgba(41,217,217,0.35)',
+                      borderRadius: 5, padding: '3px 7px',
+                      fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
+                    }}
+                  />
+                  <button onClick={() => handleRename(p.id)} style={{
+                    background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
+                    borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 700,
+                    color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit',
+                  }}>✓</button>
+                </div>
+              ) : deletingId === p.id ? (
+                // 삭제 확인
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '7px 12px', gap: 8,
+                  background: 'rgba(227,64,84,0.08)',
+                }}>
+                  <span style={{ fontSize: 11, color: '#E34054', fontWeight: 600 }}>
+                    「{p.name}」 삭제할까요?
+                  </span>
+                  <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                    <button onClick={() => setDeletingId(null)} style={{
+                      background: 'none', border: '1px solid var(--sep2)',
+                      borderRadius: 5, padding: '3px 8px', fontSize: 11,
+                      color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>취소</button>
+                    <button onClick={() => { onDelete(p.id); setDeletingId(null) }} style={{
+                      background: 'rgba(227,64,84,0.15)', border: '1px solid rgba(227,64,84,0.4)',
+                      borderRadius: 5, padding: '3px 8px', fontSize: 11, fontWeight: 700,
+                      color: '#E34054', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>삭제</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    className={`proj-item${p.id === activeProject?.id ? ' active' : ''}`}
+                    style={{ flex: 1 }}
+                    onClick={() => { if (p.id !== activeProject?.id) onSwitch(p.id); setOpen(false) }}
+                  >
+                    <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>
+                      {p.id === activeProject?.id ? '✓' : ''}
+                    </span>
+                    <span style={{
+                      fontSize: 12, fontWeight: p.id === activeProject?.id ? 700 : 500,
+                      color: 'var(--t1)', flex: 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {p.name}
+                    </span>
+                    <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 6 }}>
+                      {fmtDate(p.updatedAt)}
+                    </span>
+                  </button>
+                  {/* 이름 변경 */}
+                  <button
+                    title="이름 변경"
+                    onClick={e => { e.stopPropagation(); setRenamingId(p.id); setRenameName(p.name) }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 11, color: 'var(--t4)', padding: '0 7px',
+                      flexShrink: 0, transition: 'color 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+                  >✎</button>
+                  {/* 삭제 */}
+                  <button
+                    title="삭제"
+                    onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 11, color: 'var(--t4)', padding: '0 10px 0 4px',
+                      flexShrink: 0, transition: 'color 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+                  >🗑</button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className="proj-sep" />
+
+          {creating ? (
+            <div style={{ display: 'flex', gap: 6, padding: '6px 10px 8px' }}>
+              <input
+                autoFocus
+                value={newName}
+                placeholder={`프로젝트 ${projects.length + 1}`}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleCreate()
+                  if (e.key === 'Escape') setCreating(false)
+                }}
+                style={{
+                  flex: 1, background: 'var(--node-input)',
+                  border: '1px solid rgba(41,217,217,0.35)',
+                  borderRadius: 5, padding: '4px 8px',
+                  fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <button onClick={handleCreate} style={{
+                background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
+                borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit',
+              }}>확인</button>
+            </div>
+          ) : (
+            <button className="proj-new-btn" onClick={() => setCreating(true)}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>
+              새 프로젝트
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── SceneCard ──────────────────────────────────────────────────────────────
 function SceneCard({ scene, onClick }) {
   const { imgStatus, vidStatus, imgResultUrl } = scene
   const overallStatus = sceneStatus(imgStatus, vidStatus)
@@ -234,16 +556,20 @@ function SceneCard({ scene, onClick }) {
   )
 }
 
-export default function SceneNavBar({ nodes, onAddScene }) {
+// ── SceneNavBar ────────────────────────────────────────────────────────────
+export default function SceneNavBar({
+  nodes, onAddScene,
+  projects, activeProject, saveState, savedAt,
+  onSwitchProject, onCreateProject, onDeleteProject, onRenameProject,
+}) {
   const { fitBounds } = useReactFlow()
-  const barRef  = useRef()
-  const innerRef = useRef()
+  const scenesRef = useRef()
+  const innerRef  = useRef()
   const [scrollX, setScrollX] = useState(0)
 
-  // overflow-x: clip이므로 네이티브 스크롤 없음 → 휠로 직접 처리
   const handleWheel = useCallback((e) => {
     const innerW = innerRef.current?.scrollWidth ?? 0
-    const barW   = barRef.current?.offsetWidth   ?? 0
+    const barW   = scenesRef.current?.offsetWidth ?? 0
     const maxScroll = Math.max(0, innerW - barW)
     if (maxScroll === 0) return
     e.preventDefault()
@@ -279,21 +605,38 @@ export default function SceneNavBar({ nodes, onAddScene }) {
   return (
     <>
       <style>{STYLES}</style>
-      <div ref={barRef} className="scene-nav-bar" onWheel={handleWheel}>
-        <div
-          ref={innerRef}
-          className="scene-nav-inner"
-          style={{ transform: `translateX(-${scrollX}px)` }}
-        >
-          {scenes.map(scene => (
-            <SceneCard key={scene.index} scene={scene} onClick={() => goToScene(scene)} />
-          ))}
+      <div className="scene-nav-bar">
 
-          <button className="scene-add-btn" onClick={onAddScene}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-            씬 추가
-          </button>
+        {/* 왼쪽: 프로젝트 선택기 */}
+        <ProjectSelector
+          projects={projects}
+          activeProject={activeProject}
+          saveState={saveState}
+          savedAt={savedAt}
+          onSwitch={onSwitchProject}
+          onCreate={onCreateProject}
+          onDelete={onDeleteProject}
+          onRename={onRenameProject}
+        />
+
+        {/* 오른쪽: 씬 카드 스크롤 영역 */}
+        <div ref={scenesRef} className="scene-nav-scenes" onWheel={handleWheel}>
+          <div
+            ref={innerRef}
+            className="scene-nav-inner"
+            style={{ transform: `translateX(-${scrollX}px)` }}
+          >
+            {scenes.map(scene => (
+              <SceneCard key={scene.index} scene={scene} onClick={() => goToScene(scene)} />
+            ))}
+
+            <button className="scene-add-btn" onClick={onAddScene}>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+              씬 추가
+            </button>
+          </div>
         </div>
+
       </div>
     </>
   )
