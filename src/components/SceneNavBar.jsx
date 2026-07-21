@@ -78,13 +78,20 @@ const STYLES = `
   [data-theme="dark"]  .scene-nav-left { border-right: 1px solid rgba(255,255,255,0.07); }
   [data-theme="light"] .scene-nav-left { border-right: 1px solid rgba(0,0,0,0.07); }
 
-  /* ── 오른쪽 씬 스크롤 영역 ── */
-  .scene-nav-scenes {
+  /* ── 오른쪽 씬 스크롤 래퍼 (flex 아이템, 72px) ── */
+  .scene-nav-scenes-wrap {
     flex: 1;
-    overflow-x: auto;
-    overflow-y: clip;         /* clip이지만 스크롤 컨테이너는 아님 → overflow-x: auto 유지 가능 */
-    overflow-clip-margin: 30px; /* 클립 경계를 30px 아래로 확장 → 카드 호버 확장(80px) 노출 */
     position: relative;
+    overflow: visible;
+  }
+
+  /* ── 실제 스크롤 컨테이너 (absolute, 96px = 72px 보이는 영역 + 24px 카드 확장 여유) ── */
+  .scene-nav-scenes {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 96px;
+    overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
   }
   .scene-nav-scenes::-webkit-scrollbar { display: none; }
@@ -742,6 +749,7 @@ export default function SceneNavBar({
         />
 
         {/* 오른쪽: 씬 카드 스크롤 영역 */}
+        <div className="scene-nav-scenes-wrap">
         <div ref={scenesRef} className="scene-nav-scenes">
           {/* 왼쪽 스크롤 화살표 */}
           {scrollX > 0 && (
@@ -763,6 +771,7 @@ export default function SceneNavBar({
           {scrollX < maxScroll && (
             <button className="scene-scroll-arrow scene-scroll-arrow-right" onClick={() => scrollBy(1)}>▶</button>
           )}
+        </div>
         </div>
 
       </div>
