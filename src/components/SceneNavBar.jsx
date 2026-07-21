@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect, Fragment } from 'react'
 import { useReactFlow } from '@xyflow/react'
 
 const STATUS_DOT = {
@@ -161,6 +161,33 @@ const STYLES = `
   .scene-label-text { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; }
   [data-theme="dark"]  .scene-label-text { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
   [data-theme="light"] .scene-label-text { color: rgba(20,30,70,0.82); }
+
+  /* ── 씬 삭제 버튼 ── */
+  .scene-delete-btn {
+    position: absolute; top: 4px; right: 4px; z-index: 30;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: none; cursor: pointer; font-size: 9px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s;
+    pointer-events: none;
+    background: rgba(227,64,84,0.85);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .scene-card-wrap:hover .scene-delete-btn {
+    opacity: 1; pointer-events: auto;
+  }
+  .scene-delete-btn:hover { transform: scale(1.15); background: #E34054; }
+
+  /* ── 씬 삭제 확인 오버레이 ── */
+  .scene-confirm-overlay {
+    position: absolute; inset: 0; z-index: 25; border-radius: 8px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    backdrop-filter: blur(4px);
+  }
+  [data-theme="dark"]  .scene-confirm-overlay { background: rgba(10,15,30,0.88); }
+  [data-theme="light"] .scene-confirm-overlay { background: rgba(220,228,248,0.92); }
 
   /* ── + 씬 추가 버튼 ── */
   .scene-add-btn {
@@ -507,16 +534,18 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch
 }
 
 // ── SceneCard ──────────────────────────────────────────────────────────────
-function SceneCard({ scene, onClick }) {
+function SceneCard({ scene, onClick, onDelete }) {
   const { imgStatus, vidStatus, imgResultUrl } = scene
   const overallStatus = sceneStatus(imgStatus, vidStatus)
   const dot = STATUS_DOT[overallStatus] ?? STATUS_DOT.idle
   const isVidDone    = vidStatus === 'done'
   const isGenerating = overallStatus === 'generating' || overallStatus === 'loading'
+  const [confirm, setConfirm] = useState(false)
+  const canDelete = scene.uid !== null  // 씬 1은 삭제 불가
 
   return (
     <div className="scene-card-wrap">
-      <button className="scene-card" onClick={onClick}>
+      <button className="scene-card" onClick={confirm ? undefined : onClick}>
         {imgResultUrl ? (
           <>
             <img
@@ -551,14 +580,44 @@ function SceneCard({ scene, onClick }) {
             animation: dot.pulse ? 'sceneDotPulse 1.2s ease-in-out infinite' : 'none',
           }} />
         </div>
+
+        {/* 삭제 확인 오버레이 */}
+        {confirm && (
+          <div className="scene-confirm-overlay" onClick={e => e.stopPropagation()}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.04em' }}>씬 삭제?</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                onClick={e => { e.stopPropagation(); setConfirm(false) }}
+                style={{ fontSize: 9, fontWeight: 700, padding: '3px 7px', borderRadius: 4,
+                  border: '1px solid var(--sep2)', background: 'var(--node-section)',
+                  color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}
+              >취소</button>
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(scene.uid) }}
+                style={{ fontSize: 9, fontWeight: 700, padding: '3px 7px', borderRadius: 4,
+                  border: '1px solid rgba(227,64,84,0.4)', background: 'rgba(227,64,84,0.15)',
+                  color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}
+              >삭제</button>
+            </div>
+          </div>
+        )}
       </button>
+
+      {/* 씬 1 제외 삭제 버튼 */}
+      {canDelete && !confirm && (
+        <button
+          className="scene-delete-btn"
+          onClick={e => { e.stopPropagation(); setConfirm(true) }}
+          title="씬 삭제"
+        >✕</button>
+      )}
     </div>
   )
 }
 
 // ── SceneNavBar ────────────────────────────────────────────────────────────
 export default function SceneNavBar({
-  nodes, onAddScene,
+  nodes, onAddScene, onDeleteScene,
   projects, activeProject, saveState, savedAt,
   onSwitchProject, onCreateProject, onDeleteProject, onRenameProject,
 }) {
@@ -587,6 +646,7 @@ export default function SceneNavBar({
         const vidNode = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
         return {
           index: i + 1,
+          uid,
           bgX: bg.position.x,
           imgStatus:    imgNode?.data?.status    ?? 'idle',
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
@@ -627,7 +687,7 @@ export default function SceneNavBar({
             style={{ transform: `translateX(-${scrollX}px)` }}
           >
             {scenes.map(scene => (
-              <SceneCard key={scene.index} scene={scene} onClick={() => goToScene(scene)} />
+              <SceneCard key={scene.uid ?? 'scene1'} scene={scene} onClick={() => goToScene(scene)} onDelete={onDeleteScene} />
             ))}
 
             <button className="scene-add-btn" onClick={onAddScene}>

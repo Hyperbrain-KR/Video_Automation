@@ -7,6 +7,8 @@ import {
 import { generateHandlerRef } from './lib/generateHandlerRef'
 import { higgsfieldHandlerRef } from './lib/higgsfieldHandlerRef'
 import { CharactersContext } from './lib/CharactersContext'
+import { ProjectContext } from './lib/ProjectContext'
+import { deleteProjectImages } from './lib/imageDB'
 import { useProjects, loadSavedProject, getActiveProjectId } from './hooks/useProjects'
 import '@xyflow/react/dist/style.css'
 import './App.css'
@@ -588,7 +590,6 @@ function FlowCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initDataRef.current.edges)
   // 캐릭터는 프로젝트별 저장 — 새 프로젝트 생성 시 빈 배열로 초기화됨
   const [characters, setCharacters] = useState(initDataRef.current.characters)
-  const sceneCountRef = useRef(1)
 
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
   const {
@@ -650,6 +651,7 @@ function FlowCanvas() {
 
   const handleDeleteProject = useCallback((id) => {
     clearTimeout(saveTimerRef.current)
+    deleteProjectImages(id).catch(() => {})
     const remaining = deleteProject(id)
     if (id === activeId) {
       if (remaining.length > 0) {
@@ -704,13 +706,20 @@ function FlowCanvas() {
   }
 
 
+  // ── 씬 삭제 ──────────────────────────────────────────────────
+  const deleteScene = useCallback((uid) => {
+    if (!uid) return  // 씬 1 보호
+    setNodes(nds => nds.filter(n => !n.id.endsWith(`-${uid}`)))
+    setEdges(eds => eds.filter(e => !e.id.endsWith(`-${uid}`)))
+  }, [setNodes, setEdges])
+
   // ── 씬 추가 ──────────────────────────────────────────────────
   const addScene = useCallback(() => {
-    sceneCountRef.current += 1
-    const { nodes: newNodes, edges: newEdges } = buildScene(sceneCountRef.current)
+    const sceneIdx = getNodes().filter(n => n.data?.step?.includes('Step 02')).length + 1
+    const { nodes: newNodes, edges: newEdges } = buildScene(sceneIdx)
     setNodes(nds => [...nds, ...newNodes])
     setEdges(eds => [...eds, ...newEdges])
-  }, [setNodes, setEdges])
+  }, [getNodes, setNodes, setEdges])
 
   // ── Claude 프롬프트 생성 실행 엔진 ───────────────────────────
   const handleGenerate = useCallback(async (nodeId) => {
@@ -1090,10 +1099,12 @@ function FlowCanvas() {
 
   return (
     <CharactersContext.Provider value={{ characters, saveCharacter, deleteCharacter }}>
+    <ProjectContext.Provider value={activeId}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
       <SceneNavBar
         nodes={nodes}
         onAddScene={addScene}
+        onDeleteScene={deleteScene}
         projects={projects}
         activeProject={activeProject}
         saveState={saveState}
@@ -1195,6 +1206,7 @@ function FlowCanvas() {
       )}
       </div>
     </div>
+    </ProjectContext.Provider>
     </CharactersContext.Provider>
   )
 }

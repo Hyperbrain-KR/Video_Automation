@@ -1,6 +1,8 @@
-import { useRef, useState, useContext } from 'react'
+import { useRef, useState, useEffect, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { CharactersContext } from '../lib/CharactersContext'
+import { useProjectId } from '../lib/ProjectContext'
+import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 
 const C = {
   cyan: '#29D9D9',
@@ -27,14 +29,24 @@ const nodeBase = {
 export default function ReferenceImageNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const { saveCharacter } = useContext(CharactersContext)
+  const projectId = useProjectId()
   const fileInputRef = useRef(null)
   const [tab, setTab] = useState('file') // 'file' | 'url'
   const [urlInput, setUrlInput] = useState(data.imageUrl ?? '')
   const [dragging, setDragging] = useState(false)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [localPreview, setLocalPreview] = useState(null)
 
-  const preview = data.imageDataUrl || data.imageUrl || null
+  const dbKey = `${projectId ?? 'default'}-${id}`
+
+  // 마운트 시 IndexedDB에서 이미지 복원
+  useEffect(() => {
+    if (!data.hasLocalImage) { setLocalPreview(null); return }
+    loadImage(dbKey).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
+  }, [dbKey, data.hasLocalImage])
+
+  const preview = localPreview || data.imageUrl || null
 
   const selectedGlow = selected ? {
     border: '1px solid #29D9D9',
@@ -48,12 +60,16 @@ export default function ReferenceImageNode({ id, data, selected }) {
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
+      const dataUrl = e.target.result
+      await saveImage(dbKey, dataUrl)
+      setLocalPreview(dataUrl)
       updateNodeData(id, {
-        imageDataUrl: e.target.result,
+        hasLocalImage: true,
         filename: file.name,
         contentType: file.type,
         imageUrl: null,
+        imageDataUrl: null,
       })
     }
     reader.readAsDataURL(file)
@@ -61,7 +77,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
 
   const handleUrlConfirm = () => {
     if (!urlInput.trim()) return
-    updateNodeData(id, { imageUrl: urlInput.trim(), imageDataUrl: null, filename: null })
+    updateNodeData(id, { imageUrl: urlInput.trim(), hasLocalImage: false, imageDataUrl: null, filename: null })
   }
 
   const onDrop = (e) => {
@@ -164,7 +180,11 @@ export default function ReferenceImageNode({ id, data, selected }) {
               border: '1px solid rgba(41,217,217,0.2)' }}
           />
           <button
-            onClick={() => updateNodeData(id, { imageDataUrl: null, imageUrl: null, filename: null })}
+            onClick={() => {
+              deleteImage(dbKey).catch(() => {})
+              setLocalPreview(null)
+              updateNodeData(id, { imageDataUrl: null, imageUrl: null, hasLocalImage: false, filename: null })
+            }}
             style={{
               marginTop: 5, width: '100%', padding: '4px 0',
               background: 'rgba(227,64,84,0.08)',
@@ -181,9 +201,10 @@ export default function ReferenceImageNode({ id, data, selected }) {
                 autoFocus
                 value={savingName}
                 onChange={e => setSavingName(e.target.value)}
-                onKeyDown={e => {
+                onKeyDown={async e => {
                   if (e.key === 'Enter' && savingName.trim()) {
-                    saveCharacter(savingName.trim(), data.imageUrl || data.imageDataUrl)
+                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImage(dbKey) : null)
+                    saveCharacter(savingName.trim(), imgSrc)
                     setSavingName(''); setShowSaveInput(false)
                   }
                   if (e.key === 'Escape') setShowSaveInput(false)
@@ -197,9 +218,10 @@ export default function ReferenceImageNode({ id, data, selected }) {
                 }}
               />
               <button className="nopan nodrag"
-                onClick={() => {
+                onClick={async () => {
                   if (savingName.trim()) {
-                    saveCharacter(savingName.trim(), data.imageUrl || data.imageDataUrl)
+                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImage(dbKey) : null)
+                    saveCharacter(savingName.trim(), imgSrc)
                     setSavingName(''); setShowSaveInput(false)
                   }
                 }}
