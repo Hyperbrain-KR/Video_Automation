@@ -177,6 +177,36 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [koText, setKoText] = useState(null)
   const [translating, setTranslating] = useState(false)
 
+  const [editTab, setEditTab] = useState('direct')   // 'direct' | 'ai'
+  const [feedback, setFeedback] = useState('')
+  const [regenerating, setRegenerating] = useState(false)
+
+  const regenerate = async () => {
+    if (!feedback.trim() || regenerating) return
+    setRegenerating(true)
+    try {
+      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt: 'You are refining an AI image/video generation prompt based on user feedback. Preserve the original structure and what works well — apply only the requested changes. Output the revised English prompt only, no explanations, no preamble.',
+          userMessage: `Original prompt:\n${prompt}\n\nUser feedback:\n${feedback.trim()}`,
+          maxTokens: charLimit ? charLimit + 300 : 2000,
+        }),
+      })
+      if (!res.ok) throw new Error('재생성 실패')
+      const { text } = await res.json()
+      setPrompt(text)
+      updateNodeData(id, { prompt: text })
+      setFeedback('')
+      setStatus('pending')   // 결과 확인을 위해 검토 대기로
+    } catch (err) {
+      console.error('[regenerate]', err.message)
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
   // Claude 생성 완료 시 외부에서 data.prompt가 업데이트되면 동기화
   useEffect(() => {
     if (data.prompt && data.prompt !== '(프롬프트 없음)') {
@@ -268,28 +298,103 @@ export default function ReviewGateNode({ id, data, selected }) {
   }
 
   if (status === 'editing') {
+    const isAi = editTab === 'ai'
     return (
       <div style={{ ...styles.node, ...selectedGlow }}>
         {handles}
         <div style={styles.statusBadge}>✏ 수정 중</div>
         <div style={styles.label}>{data.label}</div>
-        <textarea
-          style={styles.textarea}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <CharCount text={prompt} />
-        <div style={styles.row}>
-          <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>
-            취소
-          </button>
-          <button style={styles.btnApprove} onClick={() => {
-            updateNodeData(id, { prompt })
-            setStatus('approved')
-          }}>
-            수정 후 승인
-          </button>
+
+        {/* 탭 전환 */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 10,
+          background: 'var(--node-prompt)', borderRadius: 6, padding: 3 }}>
+          {[['direct', '직접 수정'], ['ai', '✦ AI 재생성']].map(([key, label]) => (
+            <button key={key} onClick={() => setEditTab(key)}
+              className="nopan nodrag"
+              style={{
+                flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
+                borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s',
+                background: editTab === key
+                  ? key === 'ai' ? 'rgba(41,217,217,0.15)' : 'rgba(255,255,255,0.08)'
+                  : 'transparent',
+                color: editTab === key
+                  ? key === 'ai' ? C.cyan : C.light
+                  : C.textMuted,
+              }}>{label}</button>
+          ))}
         </div>
+
+        {/* 직접 수정 */}
+        {!isAi && (
+          <>
+            <textarea style={styles.textarea} value={prompt}
+              onChange={e => setPrompt(e.target.value)} />
+            <CharCount text={prompt} />
+            <div style={styles.row}>
+              <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>취소</button>
+              <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { prompt }); setStatus('approved') }}>
+                수정 후 승인
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* AI 재생성 */}
+        {isAi && (
+          <>
+            {/* 원본 프롬프트 (읽기 전용) */}
+            <div style={{
+              ...styles.prompt, fontSize: 10, color: 'var(--t4)',
+              maxHeight: 72, overflow: 'hidden', position: 'relative', marginBottom: 8,
+              userSelect: 'none',
+            }}>
+              <span style={{
+                position: 'absolute', top: 5, right: 7, fontSize: 9,
+                color: 'var(--t5)', background: 'var(--node-section)',
+                border: '1px solid var(--sep)', borderRadius: 3, padding: '1px 5px',
+              }}>원본</span>
+              {prompt}
+            </div>
+
+            {/* 피드백 입력 */}
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t4)', marginBottom: 5 }}>
+              수정 요청
+            </div>
+            <textarea
+              autoFocus
+              placeholder={'예) 카메라를 더 가까이\n조명을 따뜻하게\n배경을 실내로 바꿔줘'}
+              value={feedback}
+              onChange={e => setFeedback(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) regenerate() }}
+              className="nopan nodrag"
+              style={{
+                ...styles.textarea, minHeight: 72,
+                border: '1.5px solid rgba(41,217,217,0.45)',
+              }}
+            />
+
+            <div style={{ fontSize: 9, color: 'var(--t5)', marginBottom: 8, textAlign: 'right' }}>
+              ⌘↵ 로 재생성
+            </div>
+
+            <div style={styles.row}>
+              <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>취소</button>
+              <button
+                onClick={regenerate}
+                disabled={regenerating || !feedback.trim()}
+                className="nopan nodrag"
+                style={{
+                  ...styles.btnApprove,
+                  opacity: regenerating || !feedback.trim() ? 0.55 : 1,
+                  cursor: regenerating || !feedback.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {regenerating ? '⚙ 재생성 중…' : '↺ 재생성'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     )
   }
@@ -330,7 +435,7 @@ export default function ReviewGateNode({ id, data, selected }) {
 
       <CharCount text={prompt} />
       <div style={styles.row}>
-        <button style={styles.btnSecondary} onClick={() => setStatus('editing')}>
+        <button style={styles.btnSecondary} onClick={() => { setEditTab('direct'); setFeedback(''); setStatus('editing') }}>
           수정
         </button>
         <button style={styles.btnApprove} onClick={() => setStatus('approved')}>

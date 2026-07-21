@@ -95,10 +95,20 @@ app.post('/api/claude/generate', async (req, res) => {
     const message = await anthropic.messages.create({
       model: MODEL,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      // system을 배열로 변경 + cache_control → 동일 시스템 프롬프트 반복 호출 시 캐시 히트
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     })
     const text = message.content[0]?.text ?? ''
+
+    const u = message.usage
+    const hit  = u?.cache_read_input_tokens   ?? 0
+    const miss = u?.cache_creation_input_tokens ?? 0
+    console.log(
+      `[claude] ${hit > 0 ? '✅ 캐시 히트' : '🔄 캐시 생성'} | ` +
+      `입력 ${u?.input_tokens ?? '?'} tok | 캐시 읽기 ${hit} | 캐시 생성 ${miss}`
+    )
+
     res.json({ text })
   } catch (err) {
     console.error('[claude] 오류:', err.message)
