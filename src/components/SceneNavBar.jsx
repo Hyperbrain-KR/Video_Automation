@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback, useEffect, Fragment } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
 
 const STATUS_DOT = {
@@ -81,10 +81,13 @@ const STYLES = `
   /* ── 오른쪽 씬 스크롤 영역 ── */
   .scene-nav-scenes {
     flex: 1;
-    overflow-x: clip;
-    overflow-y: visible;
+    overflow-x: auto;
+    overflow-y: clip;         /* clip이지만 스크롤 컨테이너는 아님 → overflow-x: auto 유지 가능 */
+    overflow-clip-margin: 30px; /* 클립 경계를 30px 아래로 확장 → 카드 호버 확장(80px) 노출 */
     position: relative;
+    scrollbar-width: none;
   }
+  .scene-nav-scenes::-webkit-scrollbar { display: none; }
 
   /* 씬 내부 행 */
   .scene-nav-inner {
@@ -94,6 +97,7 @@ const STYLES = `
     padding-inline: 14px;
     gap: 7px;
     width: max-content;
+    min-height: 100%;
   }
 
   /* ── 씬 카드 래퍼: flex 레이아웃 담당 ── */
@@ -188,6 +192,34 @@ const STYLES = `
   }
   [data-theme="dark"]  .scene-confirm-overlay { background: rgba(10,15,30,0.88); }
   [data-theme="light"] .scene-confirm-overlay { background: rgba(220,228,248,0.92); }
+
+  /* ── 씬 스크롤 화살표 ── */
+  .scene-scroll-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    z-index: 15; height: 40px; width: 26px;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+    transition: opacity 0.15s;
+    pointer-events: auto;
+  }
+  .scene-scroll-arrow-left  { left: 0;  border-radius: 0 6px 6px 0; }
+  .scene-scroll-arrow-right { right: 0; border-radius: 6px 0 0 6px; }
+  [data-theme="dark"]  .scene-scroll-arrow {
+    background: linear-gradient(90deg, rgba(8,13,28,0.92) 60%, transparent 100%);
+    color: rgba(255,255,255,0.55);
+  }
+  [data-theme="dark"]  .scene-scroll-arrow-right {
+    background: linear-gradient(270deg, rgba(8,13,28,0.92) 60%, transparent 100%);
+  }
+  [data-theme="light"] .scene-scroll-arrow {
+    background: linear-gradient(90deg, rgba(238,244,255,0.95) 60%, transparent 100%);
+    color: rgba(0,0,0,0.4);
+  }
+  [data-theme="light"] .scene-scroll-arrow-right {
+    background: linear-gradient(270deg, rgba(238,244,255,0.95) 60%, transparent 100%);
+  }
+  .scene-scroll-arrow:hover { opacity: 0.75; }
 
   /* ── + 씬 추가 버튼 ── */
   .scene-add-btn {
@@ -623,18 +655,48 @@ export default function SceneNavBar({
 }) {
   const { fitBounds } = useReactFlow()
   const scenesRef = useRef()
-  const innerRef  = useRef()
-  const [scrollX, setScrollX] = useState(0)
+  const [scrollX, setScrollX]     = useState(0)
+  const [maxScroll, setMaxScroll] = useState(0)
 
-  const handleWheel = useCallback((e) => {
-    const innerW = innerRef.current?.scrollWidth ?? 0
-    const barW   = scenesRef.current?.offsetWidth ?? 0
-    const maxScroll = Math.max(0, innerW - barW)
-    if (maxScroll === 0) return
-    e.preventDefault()
-    const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY
-    setScrollX(prev => Math.max(0, Math.min(maxScroll, prev + delta)))
+  // 스크롤 위치 동기화 (네이티브 scroll 이벤트)
+  useEffect(() => {
+    const el = scenesRef.current
+    if (!el) return
+    const sync = () => {
+      setScrollX(el.scrollLeft)
+      setMaxScroll(Math.max(0, el.scrollWidth - el.clientWidth))
+    }
+    el.addEventListener('scroll', sync, { passive: true })
+    return () => el.removeEventListener('scroll', sync)
   }, [])
+
+  // 콘텐츠 너비 변경 시 maxScroll 재계산
+  useEffect(() => {
+    const el = scenesRef.current
+    if (!el) return
+    requestAnimationFrame(() => {
+      setMaxScroll(Math.max(0, el.scrollWidth - el.clientWidth))
+    })
+  }, [nodes])
+
+  // non-passive wheel → 페이지 스크롤 방지 후 씬 영역만 스크롤
+  useEffect(() => {
+    const el = scenesRef.current
+    if (!el) return
+    const handler = (e) => {
+      if (el.scrollWidth <= el.clientWidth) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaX !== 0 ? e.deltaX : e.deltaY
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [])
+
+  const scrollBy = (dir) => {
+    const el = scenesRef.current
+    if (!el) return
+    el.scrollLeft += dir * 200
+  }
 
   const scenes = useMemo(() => {
     return nodes
@@ -680,12 +742,13 @@ export default function SceneNavBar({
         />
 
         {/* 오른쪽: 씬 카드 스크롤 영역 */}
-        <div ref={scenesRef} className="scene-nav-scenes" onWheel={handleWheel}>
-          <div
-            ref={innerRef}
-            className="scene-nav-inner"
-            style={{ transform: `translateX(-${scrollX}px)` }}
-          >
+        <div ref={scenesRef} className="scene-nav-scenes">
+          {/* 왼쪽 스크롤 화살표 */}
+          {scrollX > 0 && (
+            <button className="scene-scroll-arrow scene-scroll-arrow-left" onClick={() => scrollBy(-1)}>◀</button>
+          )}
+
+          <div className="scene-nav-inner">
             {scenes.map(scene => (
               <SceneCard key={scene.uid ?? 'scene1'} scene={scene} onClick={() => goToScene(scene)} onDelete={onDeleteScene} />
             ))}
@@ -695,6 +758,11 @@ export default function SceneNavBar({
               씬 추가
             </button>
           </div>
+
+          {/* 오른쪽 스크롤 화살표 */}
+          {scrollX < maxScroll && (
+            <button className="scene-scroll-arrow scene-scroll-arrow-right" onClick={() => scrollBy(1)}>▶</button>
+          )}
         </div>
 
       </div>
