@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
@@ -168,6 +168,23 @@ const styles = {
 
 const CANVAS_API = 'http://localhost:3002'
 
+function CharCount({ text, charLimit }) {
+  if (!charLimit) return null
+  const len = text.length
+  const over = len > charLimit
+  return (
+    <div style={{
+      textAlign: 'right', fontSize: 10, fontWeight: 700,
+      color: over ? C.red : len > charLimit * 0.9 ? '#f59e0b' : 'var(--t5)',
+      marginTop: -6, marginBottom: 8,
+      transition: 'color 0.2s',
+    }}>
+      {len.toLocaleString()} / {charLimit.toLocaleString()}
+      {over && ' ⚠'}
+    </div>
+  )
+}
+
 export default function ReviewGateNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const [isEditing, setIsEditing] = useState(false)
@@ -180,7 +197,7 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [editTab, setEditTab] = useState('direct')   // 'direct' | 'ai'
   const [feedback, setFeedback] = useState('')
   const [regenerating, setRegenerating] = useState(false)
-  const isFirstPromptRender = useRef(true)
+
 
   // data.approved가 소스 오브 트루스 — status는 파생값
   const status = data.approved && !isEditing ? 'approved' : isEditing ? 'editing' : 'pending'
@@ -211,16 +228,18 @@ export default function ReviewGateNode({ id, data, selected }) {
     }
   }
 
-  // 외부 prompt 변경(Claude 생성·프로젝트 전환) 시 텍스트 동기화 — 마운트 시 skip
-  useEffect(() => {
-    if (isFirstPromptRender.current) { isFirstPromptRender.current = false; return }
+  // 외부 prompt 변경(Claude 생성·프로젝트 전환) 시 텍스트 동기화
+  // syncedDataPrompt가 data.prompt로 초기화되므로 첫 렌더는 조건이 false — skip 자동 처리
+  const [syncedDataPrompt, setSyncedDataPrompt] = useState(data.prompt)
+  if (syncedDataPrompt !== data.prompt) {
+    setSyncedDataPrompt(data.prompt)
     if (data.prompt && data.prompt !== '(프롬프트 없음)') {
       setPrompt(data.prompt)
       setIsEditing(false)
       setShowKo(false)
       setKoText(null)
     }
-  }, [data.prompt])
+  }
 
   const toggleTranslation = async () => {
     if (showKo) { setShowKo(false); return }
@@ -281,23 +300,6 @@ export default function ReviewGateNode({ id, data, selected }) {
             되돌리기
           </button>
         </div>
-      </div>
-    )
-  }
-
-  const CharCount = ({ text }) => {
-    if (!charLimit) return null
-    const len = text.length
-    const over = len > charLimit
-    return (
-      <div style={{
-        textAlign: 'right', fontSize: 10, fontWeight: 700,
-        color: over ? C.red : len > charLimit * 0.9 ? '#f59e0b' : 'var(--t5)',
-        marginTop: -6, marginBottom: 8,
-        transition: 'color 0.2s',
-      }}>
-        {len.toLocaleString()} / {charLimit.toLocaleString()}
-        {over && ' ⚠'}
       </div>
     )
   }

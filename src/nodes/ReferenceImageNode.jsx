@@ -42,11 +42,11 @@ export default function ReferenceImageNode({ id, data, selected }) {
 
   // 마운트 시 IndexedDB에서 이미지 복원
   useEffect(() => {
-    if (!data.hasLocalImage) { setLocalPreview(null); return }
+    if (!data.hasLocalImage) return
     loadImage(dbKey).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
   }, [dbKey, data.hasLocalImage])
 
-  const preview = localPreview || data.imageUrl || null
+  const preview = (data.hasLocalImage ? localPreview : null) || data.imageUrl || null
 
   const selectedGlow = selected ? {
     border: '1px solid #29D9D9',

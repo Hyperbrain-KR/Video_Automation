@@ -210,16 +210,18 @@ Output ONLY the Korean scene direction — no labels, no explanations.`
 export default function TextInputNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
+  const [syncedDataValue, setSyncedDataValue] = useState(data.value)
   const [showModal, setShowModal] = useState(false)
   const textareaRef = useRef(null)
 
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
 
-  // 프로젝트 전환 시 노드 data가 교체되면 로컬 state도 동기화
-  useEffect(() => {
+  // 프로젝트 전환 시 노드 data가 교체되면 로컬 state도 동기화 (render-phase 조정)
+  if (syncedDataValue !== data.value) {
+    setSyncedDataValue(data.value)
     setValue(data.value ?? data.defaultValue ?? '')
-  }, [data.value])
+  }
 
   useEffect(() => {
     const el = textareaRef.current
