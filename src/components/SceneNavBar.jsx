@@ -724,12 +724,26 @@ export default function SceneNavBar({
       })
   }, [nodes])
 
-  const goToScene = (scene) => {
+  const goToScene = useCallback((scene) => {
     fitBounds(
       { x: scene.bgX, y: 540, width: 950, height: 1260 },
       { duration: 420, padding: 0.05 },
     )
-  }
+  }, [fitBounds])
+
+  // 키보드 단축키: 1~9 → 씬 1~9, 0 → 씬 10, Shift+1~9 → 씬 11~19, Shift+0 → 씬 20
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return
+      if (!e.code.startsWith('Digit')) return
+      const digit = parseInt(e.code.replace('Digit', ''), 10)
+      const idx = e.shiftKey ? (digit === 0 ? 20 : digit + 10) : (digit === 0 ? 10 : digit)
+      const scene = scenes[idx - 1]
+      if (scene) goToScene(scene)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [scenes, goToScene])
 
   return (
     <>
