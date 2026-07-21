@@ -2,6 +2,17 @@ import { useState, useEffect, useRef, useContext } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
+import { loadImage as loadImageDB } from '../lib/imageDB'
+
+function CharacterThumb({ char }) {
+  const [src, setSrc] = useState(() => char.hasLocalImage ? null : (char.resultUrl ?? null))
+  useEffect(() => {
+    if (!char.hasLocalImage) return
+    loadImageDB(`char-${char.id}`).then(url => setSrc(url ?? null)).catch(() => setSrc(null))
+  }, [char.id, char.hasLocalImage])
+  if (!src) return null
+  return <img src={src} alt={char.name} style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+}
 
 const C = {
   blue: '#1F41B0',
@@ -345,10 +356,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.name}
                     </span>
-                    {c.resultUrl && (
-                      <img src={c.resultUrl} alt={c.name}
-                        style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                    )}
+                    <CharacterThumb char={c} />
                     {!disabled && hoveredCharId === c.id && (
                       <button className="nopan nodrag"
                         onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
@@ -510,10 +518,21 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {status === 'error' && data.error && (
         <div style={{
           marginTop: 8, fontSize: 10, color: C.red,
-          padding: '5px 8px', background: 'rgba(227,64,84,0.08)',
-          border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.5,
+          padding: '7px 8px', background: 'rgba(227,64,84,0.08)',
+          border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.6,
         }}>
-          ⚠ {data.error}
+          <div style={{ marginBottom: 6 }}>⚠ {data.error}</div>
+          <button
+            className="nopan nodrag"
+            onClick={() => higgsfieldHandlerRef.current?.(id)}
+            style={{
+              width: '100%', padding: '4px 0',
+              background: 'rgba(227,64,84,0.12)',
+              border: '1px solid rgba(227,64,84,0.3)',
+              borderRadius: 5, fontSize: 10, fontWeight: 700,
+              color: C.red, fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >↺ 다시 시도</button>
         </div>
       )}
 

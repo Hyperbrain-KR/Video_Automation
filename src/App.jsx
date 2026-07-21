@@ -8,7 +8,7 @@ import { generateHandlerRef } from './lib/generateHandlerRef'
 import { higgsfieldHandlerRef } from './lib/higgsfieldHandlerRef'
 import { CharactersContext } from './lib/CharactersContext'
 import { ProjectContext } from './lib/ProjectContext'
-import { deleteProjectImages } from './lib/imageDB'
+import { deleteProjectImages, saveImage as saveImageDB, loadImage as loadImageDB, deleteImage as deleteImageDB } from './lib/imageDB'
 import { useProjects, loadSavedProject, getActiveProjectId } from './hooks/useProjects'
 import '@xyflow/react/dist/style.css'
 import './App.css'
@@ -33,6 +33,25 @@ const nodeTypes = {
   sectionBackground: SectionBackgroundNode,
   scriptImport: ScriptImportNode,
   referenceImage: ReferenceImageNode,
+}
+
+// ── 오류 메시지 사용자 친화적 변환 ─────────────────────────────────
+function friendlyError(msg) {
+  if (!msg) return '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.'
+  if (/HTTP 520/.test(msg)) return 'Higgsfield 서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.'
+  if (/HTTP 5\d\d/.test(msg)) return 'Higgsfield 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+  // Higgsfield API가 직접 반환하는 5xx 오류 (e.g. "status 503 Service Unavailable")
+  if (/status 5\d\d|Service Unavailable|Error starting generation/i.test(msg)) return 'Higgsfield 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.'
+  if (/타임아웃|timeout/i.test(msg)) return '요청 시간이 초과됐습니다. 다시 시도해주세요.'
+  if (/something went wrong/i.test(msg)) return 'Higgsfield에서 오류를 반환했습니다. 설정을 바꿔 다시 시도해주세요.'
+  if (/jobId/.test(msg)) return '생성 요청에 실패했습니다. 잠시 후 다시 시도해주세요.'
+  if (/결과 URL/.test(msg)) return '생성 시간이 초과됐습니다. 다시 시도해주세요.'
+  if (/상태 조회 오류/.test(msg)) return '생성 상태 확인에 실패했습니다. 잠시 후 다시 시도해주세요.'
+  if (/이미지 업로드 실패/.test(msg)) return '이미지 업로드에 실패했습니다. 다시 시도해주세요.'
+  if (/레퍼런스 업로드 실패/.test(msg)) return '참조 이미지 업로드에 실패했습니다. 다시 시도해주세요.'
+  if (/서버 오류/.test(msg)) return '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+  if (/Failed to fetch|NetworkError|network/i.test(msg)) return '네트워크 연결을 확인해주세요.'
+  return msg
 }
 
 // ── Edge style helpers ─────────────────────────────────────────────
@@ -686,11 +705,17 @@ function FlowCanvas() {
 
   // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
   const saveCharacter = useCallback((name, resultUrl) => {
-    const char = { id: `char-${Date.now()}`, name, resultUrl }
-    setCharacters(prev => [...prev, char])
+    const id = `char-${Date.now()}`
+    if (resultUrl?.startsWith('data:')) {
+      saveImageDB(`char-${id}`, resultUrl).catch(e => console.warn('캐릭터 이미지 저장 실패:', e))
+      setCharacters(prev => [...prev, { id, name, hasLocalImage: true }])
+    } else {
+      setCharacters(prev => [...prev, { id, name, resultUrl }])
+    }
   }, [])
   const deleteCharacter = useCallback((charId) => {
     setCharacters(prev => prev.filter(c => c.id !== charId))
+    deleteImageDB(`char-${charId}`).catch(() => {})
   }, [])
   const [contextMenu, setContextMenu] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
@@ -773,7 +798,7 @@ function FlowCanvas() {
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { prompt: finalText, approved: false }))
     } catch (err) {
-      updateNodeData(nodeId, { status: 'error', error: err.message })
+      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
   }, [getNodes, getEdges, updateNodeData])
 
@@ -856,11 +881,15 @@ function FlowCanvas() {
         } else if (useDropdown) {
           // 드롭다운 선택 캐릭터 사용 (엣지 기반 ref 무시 → 이중 참조 방지)
           const charResults = await Promise.all(
-            selectedCharIds.map(charId => {
+            selectedCharIds.map(async charId => {
               const char = characters.find(c => c.id === charId)
-              if (!char?.resultUrl) return Promise.resolve(null)
-              return importRefUrl(char.resultUrl).catch(() => {
-                throw new Error(`캐릭터 "${char.name}" URL이 만료됐습니다. 재생성 후 다시 저장해주세요.`)
+              if (!char) return null
+              const src = char.hasLocalImage
+                ? await loadImageDB(`char-${charId}`)
+                : char.resultUrl
+              if (!src) return null
+              return importRefUrl(src).catch(() => {
+                throw new Error(`캐릭터 "${char.name}" 이미지를 불러올 수 없습니다.`)
               })
             })
           )
@@ -880,7 +909,7 @@ function FlowCanvas() {
           results.forEach(id => { if (id) referenceMediaIds.push(id) })
         }
       } catch (err) {
-        updateNodeData(nodeId, { status: 'error', error: err.message })
+        updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
         return
       }
     }
@@ -914,7 +943,7 @@ function FlowCanvas() {
         console.log(`[미디어 임포트 완료] firstFrameMediaId: ${firstFrameMediaId}, endFrameMediaId: ${endFrameMediaId} (${ts()})`)
       } catch (err) {
         console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
-        updateNodeData(nodeId, { status: 'error', error: err.message })
+        updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
         return
       }
     }
@@ -971,7 +1000,11 @@ function FlowCanvas() {
         const statusData = await statusRes.json()
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         console.log(`[폴링 #${pollCount}] (${ts()})`, statusData.resultUrl ? `✅ URL: ${statusData.resultUrl.slice(0, 60)}` : `⏳ 대기 중`, statusData.error ? `❌ ${statusData.error}` : '', '\n  Higgsfield 응답:', rawStatus)
-        if (!statusRes.ok) throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
+        if (!statusRes.ok) {
+          // 5xx 일시적 오류(520 등)는 폴링 계속, 그 외는 중단
+          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
+        }
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
@@ -990,7 +1023,7 @@ function FlowCanvas() {
 
     } catch (err) {
       console.error(`[생성 실패] (${ts()})`, err.message)
-      updateNodeData(nodeId, { status: 'error', error: err.message })
+      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
   }, [getNodes, getEdges, updateNodeData, characters])
 
