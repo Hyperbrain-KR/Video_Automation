@@ -771,7 +771,7 @@ function FlowCanvas() {
 
       // 연결된 ReviewGate 노드에 결과 주입 (재생성 루프 엣지 제외)
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
-        .forEach(e => updateNodeData(e.target, { prompt: finalText }))
+        .forEach(e => updateNodeData(e.target, { prompt: finalText, approved: false }))
     } catch (err) {
       updateNodeData(nodeId, { status: 'error', error: err.message })
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 const C = {
@@ -170,7 +170,7 @@ const CANVAS_API = 'http://localhost:3002'
 
 export default function ReviewGateNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
-  const [status, setStatus] = useState('pending')
+  const [isEditing, setIsEditing] = useState(false)
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
   const charLimit = data.charLimit ?? (data.label?.includes('비디오 프롬프트') ? 2500 : null)
   const [showKo, setShowKo] = useState(false)
@@ -180,6 +180,10 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [editTab, setEditTab] = useState('direct')   // 'direct' | 'ai'
   const [feedback, setFeedback] = useState('')
   const [regenerating, setRegenerating] = useState(false)
+  const isFirstPromptRender = useRef(true)
+
+  // data.approved가 소스 오브 트루스 — status는 파생값
+  const status = data.approved && !isEditing ? 'approved' : isEditing ? 'editing' : 'pending'
 
   const regenerate = async () => {
     if (!feedback.trim() || regenerating) return
@@ -197,9 +201,9 @@ export default function ReviewGateNode({ id, data, selected }) {
       if (!res.ok) throw new Error('재생성 실패')
       const { text } = await res.json()
       setPrompt(text)
-      updateNodeData(id, { prompt: text })
+      updateNodeData(id, { prompt: text, approved: false })
       setFeedback('')
-      setStatus('pending')   // 결과 확인을 위해 검토 대기로
+      setIsEditing(false)
     } catch (err) {
       console.error('[regenerate]', err.message)
     } finally {
@@ -207,11 +211,12 @@ export default function ReviewGateNode({ id, data, selected }) {
     }
   }
 
-  // Claude 생성 완료 시 외부에서 data.prompt가 업데이트되면 동기화
+  // 외부 prompt 변경(Claude 생성·프로젝트 전환) 시 텍스트 동기화 — 마운트 시 skip
   useEffect(() => {
+    if (isFirstPromptRender.current) { isFirstPromptRender.current = false; return }
     if (data.prompt && data.prompt !== '(프롬프트 없음)') {
       setPrompt(data.prompt)
-      setStatus('pending')
+      setIsEditing(false)
       setShowKo(false)
       setKoText(null)
     }
@@ -272,7 +277,7 @@ export default function ReviewGateNode({ id, data, selected }) {
             <span style={styles.approvedDot} />
             {data.label} — 승인됨
           </div>
-          <button style={styles.resetBtn} onClick={() => setStatus('pending')}>
+          <button style={styles.resetBtn} onClick={() => updateNodeData(id, { approved: false })}>
             되돌리기
           </button>
         </div>
@@ -332,8 +337,8 @@ export default function ReviewGateNode({ id, data, selected }) {
               onChange={e => setPrompt(e.target.value)} />
             <CharCount text={prompt} />
             <div style={styles.row}>
-              <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>취소</button>
-              <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { prompt }); setStatus('approved') }}>
+              <button style={styles.btnSecondary} onClick={() => { setIsEditing(false); setPrompt(data.prompt ?? '(프롬프트 없음)') }}>취소</button>
+              <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { prompt, approved: true }); setIsEditing(false) }}>
                 수정 후 승인
               </button>
             </div>
@@ -379,7 +384,7 @@ export default function ReviewGateNode({ id, data, selected }) {
             </div>
 
             <div style={styles.row}>
-              <button style={styles.btnSecondary} onClick={() => setStatus('pending')}>취소</button>
+              <button style={styles.btnSecondary} onClick={() => setIsEditing(false)}>취소</button>
               <button
                 onClick={regenerate}
                 disabled={regenerating || !feedback.trim()}
@@ -435,10 +440,10 @@ export default function ReviewGateNode({ id, data, selected }) {
 
       <CharCount text={prompt} />
       <div style={styles.row}>
-        <button style={styles.btnSecondary} onClick={() => { setEditTab('direct'); setFeedback(''); setStatus('editing') }}>
+        <button style={styles.btnSecondary} onClick={() => { setEditTab('direct'); setFeedback(''); setIsEditing(true) }}>
           수정
         </button>
-        <button style={styles.btnApprove} onClick={() => setStatus('approved')}>
+        <button style={styles.btnApprove} onClick={() => updateNodeData(id, { approved: true })}>
           승인
         </button>
       </div>
