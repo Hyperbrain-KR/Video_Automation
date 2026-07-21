@@ -97,6 +97,8 @@ function FlowCanvas() {
       }
     }, 1500)
     return () => clearTimeout(saveTimerRef.current)
+  // activeId/saveProject/createProject는 timeout 내에서 스냅샷으로 사용 — deps에 추가하면 프로젝트 전환 시 잘못된 저장 유발
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, characters])
 
   const handleSwitchProject = useCallback((id) => {
