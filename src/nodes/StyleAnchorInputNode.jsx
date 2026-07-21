@@ -62,8 +62,8 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
   useAutoResize(vidRef, videoAnchor)
 
   // ScriptImportNode에서 updateNodeData로 값이 주입되면 동기화
-  useEffect(() => { if (data.imageAnchor !== undefined) setImageAnchor(data.imageAnchor) }, [data.imageAnchor])
-  useEffect(() => { if (data.videoAnchor !== undefined) setVideoAnchor(data.videoAnchor) }, [data.videoAnchor])
+  useEffect(() => { setImageAnchor(data.imageAnchor ?? '') }, [data.imageAnchor])
+  useEffect(() => { setVideoAnchor(data.videoAnchor ?? '') }, [data.videoAnchor])
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',

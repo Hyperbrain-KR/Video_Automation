@@ -576,13 +576,18 @@ function FlowCanvas() {
   const initDataRef = useRef(null)
   if (initDataRef.current === null) {
     const saved = loadSavedProject(getActiveProjectId())
+    // 구형 저장 데이터 호환: canvas-characters fallback
+    const initChars = saved?.characters
+      ?? (() => { try { return JSON.parse(localStorage.getItem('canvas-characters') || '[]') } catch { return [] } })()
     initDataRef.current = saved
-      ? { nodes: resetInProgressNodes(saved.nodes), edges: saved.edges }
-      : { nodes: nodes0, edges: edges0 }
+      ? { nodes: resetInProgressNodes(saved.nodes), edges: saved.edges, characters: initChars }
+      : { nodes: nodes0, edges: edges0, characters: [] }
   }
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initDataRef.current.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initDataRef.current.edges)
+  // 캐릭터는 프로젝트별 저장 — 새 프로젝트 생성 시 빈 배열로 초기화됨
+  const [characters, setCharacters] = useState(initDataRef.current.characters)
   const sceneCountRef = useRef(1)
 
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
@@ -596,39 +601,52 @@ function FlowCanvas() {
   const saveTimerRef = useRef(null)
   const isMountedRef = useRef(false)
 
+  // base64 imageDataUrl은 localStorage 용량 한도 초과 방지를 위해 저장에서 제외
+  const stripLargeData = (nodes) => nodes.map(n => {
+    if (!n.data?.imageDataUrl) return n
+    return { ...n, data: { ...n.data, imageDataUrl: null } }
+  })
+
   // 노드/엣지 변경 시 auto-save (마운트 직후 첫 렌더는 skip)
   useEffect(() => {
     if (!isMountedRef.current) { isMountedRef.current = true; return }
     setSaveState('pending')
     clearTimeout(saveTimerRef.current)
+    // nodes/edges/characters를 클로저에 직접 캡처 (getNodes()는 remount 중 stale 가능)
+    const snapNodes = stripLargeData(nodes)
+    const snapEdges = edges
+    const snapChars = characters
+    const snapActiveId = activeId
     saveTimerRef.current = setTimeout(() => {
-      const currentNodes = getNodes()
-      const currentEdges = getEdges()
-      if (activeId) {
-        saveProject(activeId, currentNodes, currentEdges)
-      } else {
-        // 활성 프로젝트 없으면 자동으로 첫 프로젝트 생성
-        createProject('내 프로젝트', currentNodes, currentEdges)
+      try {
+        if (snapActiveId) {
+          saveProject(snapActiveId, snapNodes, snapEdges, snapChars)
+        } else {
+          createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
+        }
+        setSaveState('saved')
+        setSavedAt(new Date())
+      } catch (e) {
+        console.warn('캔버스 저장 실패 (저장공간 부족):', e)
+        setSaveState('idle')
       }
-      setSaveState('saved')
-      setSavedAt(new Date())
     }, 1500)
     return () => clearTimeout(saveTimerRef.current)
-  }, [nodes, edges])
+  }, [nodes, edges, characters])
 
   const handleSwitchProject = useCallback((id) => {
-    // 현재 즉시 저장 후 전환
     clearTimeout(saveTimerRef.current)
-    if (activeId) saveProject(activeId, getNodes(), getEdges())
+    if (activeId) saveProject(activeId, stripLargeData(nodes), edges, characters)
     const data = switchProject(id)
     if (data) {
       setNodes(resetInProgressNodes(data.nodes))
       setEdges(data.edges)
+      setCharacters(data.characters ?? [])
     }
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, saveProject, switchProject, setNodes, setEdges, getNodes, getEdges])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters])
 
   const handleDeleteProject = useCallback((id) => {
     clearTimeout(saveTimerRef.current)
@@ -636,47 +654,41 @@ function FlowCanvas() {
     if (id === activeId) {
       if (remaining.length > 0) {
         const data = switchProject(remaining[0].id)
-        if (data) { setNodes(resetInProgressNodes(data.nodes)); setEdges(data.edges) }
+        if (data) {
+          setNodes(resetInProgressNodes(data.nodes))
+          setEdges(data.edges)
+          setCharacters(data.characters ?? [])
+        }
       } else {
         setNodes(nodes0)
         setEdges(edges0)
+        setCharacters([])
       }
       setSaveState('idle')
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, deleteProject, switchProject, setNodes, setEdges])
+  }, [activeId, deleteProject, switchProject, setNodes, setEdges, setCharacters])
 
   const handleCreateProject = useCallback((name) => {
-    // 현재 즉시 저장 후 새 프로젝트(기본 캔버스)로 전환
     clearTimeout(saveTimerRef.current)
-    if (activeId) saveProject(activeId, getNodes(), getEdges())
-    createProject(name, nodes0, edges0)
+    if (activeId) saveProject(activeId, stripLargeData(nodes), edges, characters)
+    createProject(name, nodes0, edges0, [])
     setNodes(nodes0)
     setEdges(edges0)
+    setCharacters([])
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, saveProject, createProject, setNodes, setEdges, getNodes, getEdges])
+  }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters])
 
-  // ── 캐릭터 저장소 (localStorage 영속) ────────────────────
-  const [characters, setCharacters] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('canvas-characters') || '[]') } catch { return [] }
-  })
+  // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
   const saveCharacter = useCallback((name, resultUrl) => {
     const char = { id: `char-${Date.now()}`, name, resultUrl }
-    setCharacters(prev => {
-      const next = [...prev, char]
-      localStorage.setItem('canvas-characters', JSON.stringify(next))
-      return next
-    })
+    setCharacters(prev => [...prev, char])
   }, [])
   const deleteCharacter = useCallback((charId) => {
-    setCharacters(prev => {
-      const next = prev.filter(c => c.id !== charId)
-      localStorage.setItem('canvas-characters', JSON.stringify(next))
-      return next
-    })
+    setCharacters(prev => prev.filter(c => c.id !== charId))
   }, [])
   const [contextMenu, setContextMenu] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
@@ -789,14 +801,22 @@ function FlowCanvas() {
     }
 
     // 헬퍼: 이전 생성 결과 URL → Higgsfield mediaId (media_import_url 경유)
-    const importRefUrl = async (url) => {
+    const importRefUrl = async (urlOrBase64) => {
+      // base64 data URL은 fileBase64 파라미터로 업로드, 일반 URL은 url 파라미터로 임포트
+      const isBase64 = urlOrBase64?.startsWith('data:')
+      const contentType = isBase64
+        ? (urlOrBase64.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
+        : null
+      const body = isBase64
+        ? { fileBase64: urlOrBase64, filename: 'reference.jpg', contentType }
+        : { url: urlOrBase64 }
       const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!res.ok || !data.mediaId) throw new Error(data.error || 'URL 임포트 실패')
+      if (!res.ok || !data.mediaId) throw new Error(data.error || '레퍼런스 업로드 실패')
       return data.mediaId
     }
 

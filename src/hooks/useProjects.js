@@ -33,17 +33,17 @@ export function useProjects() {
     setProjects(list)
   }
 
-  const saveProject = useCallback((id, nodes, edges) => {
+  const saveProject = useCallback((id, nodes, edges, characters) => {
     if (!id) return
-    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges }))
+    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges, characters }))
     _saveList(readList().map(p =>
       p.id === id ? { ...p, updatedAt: new Date().toISOString() } : p
     ))
   }, [])
 
-  const createProject = useCallback((name, nodes, edges) => {
+  const createProject = useCallback((name, nodes, edges, characters) => {
     const id = genId()
-    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges }))
+    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges, characters }))
     _saveList([...readList(), { id, name, updatedAt: new Date().toISOString() }])
     _setActive(id)
     return id

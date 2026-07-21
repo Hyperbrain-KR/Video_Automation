@@ -216,6 +216,11 @@ export default function TextInputNode({ id, data, selected }) {
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
 
+  // 프로젝트 전환 시 노드 data가 교체되면 로컬 state도 동기화
+  useEffect(() => {
+    setValue(data.value ?? data.defaultValue ?? '')
+  }, [data.value])
+
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
