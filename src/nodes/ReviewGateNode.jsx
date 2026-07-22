@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { ProjectContext } from '../lib/ProjectContext'
 
 const C = {
   blue: '#1F41B0',
@@ -190,6 +191,7 @@ function CharCount({ text, charLimit }) {
 
 export default function ReviewGateNode({ id, data, selected }) {
   const { updateNodeData, getEdges, getNodes } = useReactFlow()
+  const projectId = useContext(ProjectContext)
   const [isEditing, setIsEditing] = useState(false)
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
   const charLimit = data.charLimit ?? (data.label?.includes('비디오 프롬프트') ? 2500 : null)
@@ -226,6 +228,7 @@ export default function ReviewGateNode({ id, data, selected }) {
           systemPrompt: 'You are refining an AI image/video generation prompt based on user feedback. Preserve the original structure and what works well — apply only the requested changes. Output the revised English prompt only, no explanations, no preamble.',
           userMessage: `Original prompt:\n${prompt}\n\nUser feedback:\n${feedback.trim()}`,
           maxTokens: charLimit ? charLimit + 300 : 2000,
+          projectId: projectId ?? undefined,
         }),
       })
       if (!res.ok) throw new Error('재생성 실패')
@@ -266,6 +269,7 @@ export default function ReviewGateNode({ id, data, selected }) {
           systemPrompt: 'Translate the following English AI image/video generation prompt into natural Korean. Output Korean translation only — no explanations, no English.',
           userMessage: prompt,
           maxTokens: 4000,
+          projectId: projectId ?? undefined,
         }),
       })
       const data2 = await res.json()

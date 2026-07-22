@@ -1,9 +1,16 @@
 {
   "__default__": {
-    "inputTokens": 2886,
-    "outputTokens": 2585,
+    "inputTokens": 4048,
+    "outputTokens": 4203,
     "cacheReadTokens": 0,
     "cacheWriteTokens": 0,
-    "cost": 0.047433
+    "cost": 0.075189
+  },
+  "proj_1784677402556": {
+    "inputTokens": 8486,
+    "outputTokens": 4964,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cost": 0.099918
   }
 }

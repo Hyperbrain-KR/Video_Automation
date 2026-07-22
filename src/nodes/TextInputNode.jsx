@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { ProjectContext } from '../lib/ProjectContext'
 
 const C = {
   cyan: '#29D9D9',
@@ -27,7 +28,7 @@ const CANVAS_API = 'http://localhost:3002'
 const MAX_HEIGHT = 220
 
 // ── 제안 모달 ─────────────────────────────────────────────────────────────
-function SuggestionModal({ isVideo, onClose, onApply }) {
+function SuggestionModal({ isVideo, onClose, onApply, projectId }) {
   const [narration, setNarration] = useState('')
   const [intent, setIntent] = useState('')
   const [suggesting, setSuggesting] = useState('')  // '' | 'loading' | error msg
@@ -52,7 +53,7 @@ Output ONLY the Korean scene direction — no labels, no explanations.`
       const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemPrompt, userMessage, maxTokens: 600 }),
+        body: JSON.stringify({ systemPrompt, userMessage, maxTokens: 600, projectId: projectId ?? undefined }),
       })
       if (!res.ok) throw new Error('서버 오류')
       const { text } = await res.json()
@@ -209,6 +210,7 @@ Output ONLY the Korean scene direction — no labels, no explanations.`
 // ── 메인 노드 ─────────────────────────────────────────────────────────────
 export default function TextInputNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
+  const projectId = useContext(ProjectContext)
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
   const [showModal, setShowModal] = useState(false)
@@ -326,6 +328,7 @@ export default function TextInputNode({ id, data, selected }) {
           isVideo={isVideo}
           onClose={() => setShowModal(false)}
           onApply={handleApply}
+          projectId={projectId}
         />
       )}
     </div>

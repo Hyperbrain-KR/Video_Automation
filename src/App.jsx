@@ -26,18 +26,20 @@ import ContextMenu from './components/ContextMenu'
 import SceneNavBar from './components/SceneNavBar'
 
 function SlotDigit({ char }) {
-  if (!/\d/.test(char)) return <span>{char}</span>
+  if (!/\d/.test(char)) {
+    return <span style={{ display: 'inline-flex', alignItems: 'center', height: '1em' }}>{char}</span>
+  }
   const n = parseInt(char, 10)
   return (
-    <span style={{ display: 'inline-block', overflow: 'hidden', height: '1.2em', verticalAlign: 'bottom' }}>
+    <span style={{ display: 'inline-block', overflow: 'hidden', height: '1em', lineHeight: '1em' }}>
       <span style={{
         display: 'flex', flexDirection: 'column',
-        transform: `translateY(${-n * 1.2}em)`,
+        transform: `translateY(${-n}em)`,
         transition: 'transform 0.45s cubic-bezier(0.22,1,0.36,1)',
         willChange: 'transform',
       }}>
         {[0,1,2,3,4,5,6,7,8,9].map(d => (
-          <span key={d} style={{ display: 'block', height: '1.2em', lineHeight: '1.2em' }}>{d}</span>
+          <span key={d} style={{ display: 'block', height: '1em', lineHeight: '1em', textAlign: 'center' }}>{d}</span>
         ))}
       </span>
     </span>
@@ -45,7 +47,11 @@ function SlotDigit({ char }) {
 }
 
 function SlotCounter({ value }) {
-  return <>{String(value).split('').map((ch, i) => <SlotDigit key={i} char={ch} />)}</>
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+      {String(value).split('').map((ch, i) => <SlotDigit key={i} char={ch} />)}
+    </span>
+  )
 }
 
 const nodeTypes = {
@@ -403,42 +409,40 @@ function FlowCanvas() {
         }} />
         {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
       </button>
-      {/* Higgsfield 크레딧 표시 */}
-      <button
-        onClick={fetchHfCredits}
-        title={hfCreditsRaw ?? '클릭하여 새로고침'}
-        style={{
-          position: 'fixed', top: 82, right: 16, zIndex: 10,
-          height: 32, paddingInline: 14, borderRadius: 8,
-          border: '1px solid var(--controls-border)',
-          background: 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          fontSize: 12, fontWeight: 700,
-          color: hfCredits === 'error' ? '#E34054' : 'var(--t1)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        💎 <SlotCounter value={hfCredits === 'error' ? '오류' : hfCredits === null ? '...' : String(hfCredits)} />
-      </button>
-      {/* Claude 사용량 표시 */}
-      <button
-        onClick={fetchClaudeCost}
-        title="이 프로젝트의 Claude API 누적 비용 (클릭하여 새로고침)"
-        style={{
-          position: 'fixed', top: 122, right: 16, zIndex: 10,
-          height: 32, paddingInline: 14, borderRadius: 8,
-          border: '1px solid var(--controls-border)',
-          background: 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-          fontSize: 12, fontWeight: 700,
-          color: claudeCost === 'error' ? '#E34054' : 'var(--t1)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        🤖 <SlotCounter value={claudeCost === 'error' ? '오류' : claudeCost === null ? '...' : `$${claudeCost.toFixed(4)}`} />
-      </button>
+      {/* 크레딧 / 사용량 카드 */}
+      <div style={{ position: 'fixed', top: 82, right: 16, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {[
+          {
+            label: '💎 Higgsfield Credit',
+            value: hfCredits === 'error' ? 'Error' : hfCredits === null ? '——' : String(hfCredits),
+            isError: hfCredits === 'error',
+            onClick: fetchHfCredits,
+            title: hfCreditsRaw ?? '클릭하여 새로고침',
+          },
+          {
+            label: '🤖 Claude API usage',
+            value: claudeCost === 'error' ? 'Error' : claudeCost === null ? '——' : `$ ${claudeCost.toFixed(4)}`,
+            isError: claudeCost === 'error',
+            onClick: fetchClaudeCost,
+            title: '이 프로젝트의 Claude API 누적 비용',
+          },
+        ].map(({ label, value, isError, onClick, title }) => (
+          <button key={label} onClick={onClick} title={title} style={{
+            width: 164, padding: '9px 13px', borderRadius: 11, textAlign: 'left',
+            border: '1px solid var(--controls-border)',
+            background: 'var(--controls-bg)',
+            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
+          }}>
+            <div style={{ fontSize: 10, color: 'var(--t1)', opacity: 0.45, marginBottom: 5, letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              {label}
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1, color: isError ? '#E34054' : 'var(--t1)', letterSpacing: '-0.02em' }}>
+              <SlotCounter value={value} />
+            </div>
+          </button>
+        ))}
+      </div>
       <button
         onClick={toggleTheme}
         title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
