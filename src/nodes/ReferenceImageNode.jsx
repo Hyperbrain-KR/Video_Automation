@@ -1,8 +1,7 @@
 import { useRef, useState, useEffect, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { CharactersContext } from '../lib/CharactersContext'
-import { useProjectId } from '../lib/ProjectContext'
-import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
+import { saveImage, loadImageByNodeId, deleteImage } from '../lib/imageDB'
 
 const C = {
   cyan: '#29D9D9',
@@ -29,7 +28,6 @@ const nodeBase = {
 export default function ReferenceImageNode({ id, data, selected }) {
   const { updateNodeData } = useReactFlow()
   const { saveCharacter } = useContext(CharactersContext)
-  const projectId = useProjectId()
   const fileInputRef = useRef(null)
   const [tab, setTab] = useState('file') // 'file' | 'url'
   const [urlInput, setUrlInput] = useState(data.imageUrl ?? '')
@@ -38,13 +36,11 @@ export default function ReferenceImageNode({ id, data, selected }) {
   const [showSaveInput, setShowSaveInput] = useState(false)
   const [localPreview, setLocalPreview] = useState(null)
 
-  const dbKey = `${projectId ?? 'default'}-${id}`
-
   // 마운트 시 IndexedDB에서 이미지 복원
   useEffect(() => {
     if (!data.hasLocalImage) return
-    loadImage(dbKey).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
-  }, [dbKey, data.hasLocalImage])
+    loadImageByNodeId(id).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
+  }, [id, data.hasLocalImage])
 
   const preview = (data.hasLocalImage ? localPreview : null) || data.imageUrl || null
 
@@ -62,7 +58,9 @@ export default function ReferenceImageNode({ id, data, selected }) {
     const reader = new FileReader()
     reader.onload = async (e) => {
       const dataUrl = e.target.result
-      await saveImage(dbKey, dataUrl)
+      await saveImage(id, dataUrl).catch(err =>
+        console.error('[ReferenceImageNode] IndexedDB 저장 실패:', err)
+      )
       setLocalPreview(dataUrl)
       updateNodeData(id, {
         hasLocalImage: true,
@@ -181,7 +179,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
           />
           <button
             onClick={() => {
-              deleteImage(dbKey).catch(() => {})
+              deleteImage(id).catch(() => {})
               setLocalPreview(null)
               updateNodeData(id, { imageDataUrl: null, imageUrl: null, hasLocalImage: false, filename: null })
             }}
@@ -203,7 +201,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
                 onChange={e => setSavingName(e.target.value)}
                 onKeyDown={async e => {
                   if (e.key === 'Enter' && savingName.trim()) {
-                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImage(dbKey) : null)
+                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImageByNodeId(id) : null)
                     saveCharacter(savingName.trim(), imgSrc)
                     setSavingName(''); setShowSaveInput(false)
                   }
@@ -220,7 +218,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
               <button className="nopan nodrag"
                 onClick={async () => {
                   if (savingName.trim()) {
-                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImage(dbKey) : null)
+                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImageByNodeId(id) : null)
                     saveCharacter(savingName.trim(), imgSrc)
                     setSavingName(''); setShowSaveInput(false)
                   }

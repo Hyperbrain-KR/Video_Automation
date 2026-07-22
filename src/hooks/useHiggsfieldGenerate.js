@@ -3,7 +3,7 @@ import { useReactFlow } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
 import { CANVAS_API } from '../lib/config'
-import { loadImage as loadImageDB } from '../lib/imageDB'
+import { loadImageByNodeId } from '../lib/imageDB'
 
 export function useHiggsfieldGenerate(characters) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
@@ -20,12 +20,17 @@ export function useHiggsfieldGenerate(characters) {
     const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
 
     const uploadRefImage = async (srcNode) => {
-      const { imageDataUrl, imageUrl, filename, contentType } = srcNode.data ?? {}
-      if (!imageDataUrl && !imageUrl) return null
+      const { imageDataUrl, imageUrl, hasLocalImage, filename, contentType } = srcNode.data ?? {}
+      let fileBase64 = imageDataUrl || null
+      let url = imageUrl || null
+      if (hasLocalImage) {
+        fileBase64 = await loadImageByNodeId(srcNode.id) ?? null
+      }
+      if (!fileBase64 && !url) return null
       const uploadRes = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imageUrl || null, fileBase64: imageDataUrl || null, filename, contentType }),
+        body: JSON.stringify({ url, fileBase64, filename, contentType }),
       })
       const uploadData = await uploadRes.json()
       if (!uploadRes.ok || !uploadData.mediaId) throw new Error(uploadData.error || '이미지 업로드 실패')
@@ -77,7 +82,7 @@ export function useHiggsfieldGenerate(characters) {
               const char = characters.find(c => c.id === charId)
               if (!char) return null
               const src = char.hasLocalImage
-                ? await loadImageDB(`char-${charId}`)
+                ? await loadImageByNodeId(`char-${charId}`)
                 : char.resultUrl
               if (!src) return null
               return importRefUrl(src).catch(() => {
