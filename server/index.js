@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createClient } from '@supabase/supabase-js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ENV_PATH = path.join(__dirname, '.env')
@@ -17,18 +18,52 @@ app.use(express.json({ limit: '10mb' }))
 const anthropic = new Anthropic({ apiKey: globalThis.process?.env?.ANTHROPIC_API_KEY })
 const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
 
+// ── Supabase (service role — RLS 우회) ───────────────────
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null
+
+async function dbGetConfig(key) {
+  if (!supabase) return null
+  const { data } = await supabase.from('app_config').select('value').eq('key', key).single()
+  return data?.value ?? null
+}
+
+async function dbSetConfig(key, value) {
+  if (!supabase) return
+  await supabase.from('app_config').upsert({ key, value, updated_at: new Date().toISOString() })
+}
+
 // ── Higgsfield OAuth ──────────────────────────────────────
 const OAUTH_CLIENT_ID = 'HLFkiErFzYPuRQxm'
-const OAUTH_REDIRECT = 'http://localhost:3002/auth/callback'
+const OAUTH_REDIRECT = process.env.SERVER_URL
+  ? `${process.env.SERVER_URL}/auth/callback`
+  : 'http://localhost:3002/auth/callback'
 let _oauthPending = {}
 
 function updateEnvKey(key, value) {
-  let content = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : ''
-  const re = new RegExp(`^${key}=.*$`, 'm')
-  if (re.test(content)) content = content.replace(re, `${key}=${value}`)
-  else content += `\n${key}=${value}`
-  fs.writeFileSync(ENV_PATH, content)
+  // 로컬 .env 파일 업데이트 (개발 환경)
+  if (fs.existsSync(ENV_PATH)) {
+    let content = fs.readFileSync(ENV_PATH, 'utf8')
+    const re = new RegExp(`^${key}=.*$`, 'm')
+    if (re.test(content)) content = content.replace(re, `${key}=${value}`)
+    else content += `\n${key}=${value}`
+    fs.writeFileSync(ENV_PATH, content)
+  }
   process.env[key] = value
+  // Supabase에도 저장 (프로덕션 재시작 대비)
+  dbSetConfig(key, value).catch(e => console.warn('[config] Supabase 저장 실패:', e))
+}
+
+async function loadTokensFromSupabase() {
+  if (!supabase) return
+  const [apiKey, refreshToken] = await Promise.all([
+    dbGetConfig('HIGGSFIELD_API_KEY'),
+    dbGetConfig('HIGGSFIELD_REFRESH_TOKEN'),
+  ])
+  if (apiKey) process.env.HIGGSFIELD_API_KEY = apiKey
+  if (refreshToken) process.env.HIGGSFIELD_REFRESH_TOKEN = refreshToken
+  if (apiKey || refreshToken) console.log('[config] Supabase에서 Higgsfield 토큰 로드 완료')
 }
 
 async function refreshHiggsfieldToken() {
@@ -623,8 +658,12 @@ app.get('/api/download', async (req, res) => {
 })
 
 const PORT = process.env.PORT || 3002
-app.listen(PORT, () => {
-  console.log(`\n🎨 Canvas 서버 시작: http://localhost:${PORT}`)
-  console.log(`   Claude 모델: ${MODEL}`)
-  console.log(`   API 키: ${process.env.ANTHROPIC_API_KEY ? '✓ 설정됨' : '✗ 미설정 (.env 파일 확인 필요)'}`)
+
+loadTokensFromSupabase().finally(() => {
+  app.listen(PORT, () => {
+    console.log(`\n🎨 Canvas 서버 시작: http://localhost:${PORT}`)
+    console.log(`   Claude 모델: ${MODEL}`)
+    console.log(`   API 키: ${process.env.ANTHROPIC_API_KEY ? '✓ 설정됨' : '✗ 미설정 (.env 파일 확인 필요)'}`)
+    console.log(`   Supabase: ${supabase ? '✓ 연결됨' : '✗ 미설정 (토큰 영속성 없음)'}`)
+  })
 })
