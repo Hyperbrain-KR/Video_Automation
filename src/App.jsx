@@ -25,6 +25,29 @@ import ReferenceImageNode from './nodes/ReferenceImageNode'
 import ContextMenu from './components/ContextMenu'
 import SceneNavBar from './components/SceneNavBar'
 
+function SlotDigit({ char }) {
+  if (!/\d/.test(char)) return <span>{char}</span>
+  const n = parseInt(char, 10)
+  return (
+    <span style={{ display: 'inline-block', overflow: 'hidden', height: '1.2em', verticalAlign: 'bottom' }}>
+      <span style={{
+        display: 'flex', flexDirection: 'column',
+        transform: `translateY(${-n * 1.2}em)`,
+        transition: 'transform 0.45s cubic-bezier(0.22,1,0.36,1)',
+        willChange: 'transform',
+      }}>
+        {[0,1,2,3,4,5,6,7,8,9].map(d => (
+          <span key={d} style={{ display: 'block', height: '1.2em', lineHeight: '1.2em' }}>{d}</span>
+        ))}
+      </span>
+    </span>
+  )
+}
+
+function SlotCounter({ value }) {
+  return <>{String(value).split('').map((ch, i) => <SlotDigit key={i} char={ch} />)}</>
+}
+
 const nodeTypes = {
   reviewGate: ReviewGateNode,
   styleAnchorInput: StyleAnchorInputNode,
@@ -193,7 +216,7 @@ function FlowCanvas() {
     setEdges(eds => [...eds, ...newEdges])
   }, [getNodes, setNodes, setEdges])
 
-  useClaudeGenerate()
+  useClaudeGenerate(activeId)
   useHiggsfieldGenerate(characters)
 
   // 노드 연결
@@ -206,6 +229,47 @@ function FlowCanvas() {
     () => nodes.some(n => n.data?.status === 'auth_error'),
     [nodes]
   )
+
+  // ── Higgsfield 크레딧 조회 ───────────────────────────────
+  const [hfCredits, setHfCredits] = useState(null)
+  const [hfCreditsRaw, setHfCreditsRaw] = useState(null)
+  const fetchHfCredits = useCallback(() => {
+    fetch('http://localhost:3002/api/higgsfield/credits')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setHfCredits('error'); return }
+        setHfCredits(d.credits)
+        setHfCreditsRaw(d.raw ?? null)
+      })
+      .catch(() => setHfCredits('error'))
+  }, [])
+  useEffect(() => {
+    if (!hasHiggsfieldAuthError) fetchHfCredits()
+  }, [hasHiggsfieldAuthError, fetchHfCredits])
+  useEffect(() => {
+    const handler = () => setTimeout(fetchHfCredits, 3000)
+    window.addEventListener('higgsfield-generate-done', handler)
+    return () => window.removeEventListener('higgsfield-generate-done', handler)
+  }, [fetchHfCredits])
+
+  // ── Claude 사용량 조회 ───────────────────────────────────
+  const [claudeCost, setClaudeCost] = useState(null)
+  const fetchClaudeCost = useCallback(() => {
+    if (!activeId) return
+    fetch(`http://localhost:3002/api/usage/claude?projectId=${encodeURIComponent(activeId)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setClaudeCost('error'); return }
+        setClaudeCost(d.cost ?? 0)
+      })
+      .catch(() => setClaudeCost('error'))
+  }, [activeId])
+  useEffect(() => { fetchClaudeCost() }, [fetchClaudeCost])
+  useEffect(() => {
+    const handler = () => fetchClaudeCost()
+    window.addEventListener('claude-generate-done', handler)
+    return () => window.removeEventListener('claude-generate-done', handler)
+  }, [fetchClaudeCost])
 
   // ── 활성 노드 엣지 강조 ──────────────────────────────────
   const activeEdges = useMemo(() => {
@@ -338,6 +402,42 @@ function FlowCanvas() {
           boxShadow: hasHiggsfieldAuthError ? '0 0 6px #F59E0B' : '0 0 6px #22c55e',
         }} />
         {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
+      </button>
+      {/* Higgsfield 크레딧 표시 */}
+      <button
+        onClick={fetchHfCredits}
+        title={hfCreditsRaw ?? '클릭하여 새로고침'}
+        style={{
+          position: 'fixed', top: 82, right: 16, zIndex: 10,
+          height: 32, paddingInline: 14, borderRadius: 8,
+          border: '1px solid var(--controls-border)',
+          background: 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          fontSize: 12, fontWeight: 700,
+          color: hfCredits === 'error' ? '#E34054' : 'var(--t1)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        💎 <SlotCounter value={hfCredits === 'error' ? '오류' : hfCredits === null ? '...' : String(hfCredits)} />
+      </button>
+      {/* Claude 사용량 표시 */}
+      <button
+        onClick={fetchClaudeCost}
+        title="이 프로젝트의 Claude API 누적 비용 (클릭하여 새로고침)"
+        style={{
+          position: 'fixed', top: 122, right: 16, zIndex: 10,
+          height: 32, paddingInline: 14, borderRadius: 8,
+          border: '1px solid var(--controls-border)',
+          background: 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+          fontSize: 12, fontWeight: 700,
+          color: claudeCost === 'error' ? '#E34054' : 'var(--t1)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        🤖 <SlotCounter value={claudeCost === 'error' ? '오류' : claudeCost === null ? '...' : `$${claudeCost.toFixed(4)}`} />
       </button>
       <button
         onClick={toggleTheme}

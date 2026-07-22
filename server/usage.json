@@ -1,0 +1,9 @@
+{
+  "__default__": {
+    "inputTokens": 2886,
+    "outputTokens": 2585,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cost": 0.047433
+  }
+}

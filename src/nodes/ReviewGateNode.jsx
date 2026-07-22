@@ -189,7 +189,7 @@ function CharCount({ text, charLimit }) {
 }
 
 export default function ReviewGateNode({ id, data, selected }) {
-  const { updateNodeData } = useReactFlow()
+  const { updateNodeData, getEdges, getNodes } = useReactFlow()
   const [isEditing, setIsEditing] = useState(false)
   const [prompt, setPrompt] = useState(data.prompt ?? '(프롬프트 없음)')
   const charLimit = data.charLimit ?? (data.label?.includes('비디오 프롬프트') ? 2500 : null)
@@ -201,6 +201,16 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [feedback, setFeedback] = useState('')
   const [regenerating, setRegenerating] = useState(false)
 
+
+  // 승인된 프롬프트를 상위 ClaudeNode에 역전파
+  const syncToClaudeNode = (approvedPrompt) => {
+    const upstreamEdge = getEdges().find(e => e.target === id)
+    if (!upstreamEdge) return
+    const upstreamNode = getNodes().find(n => n.id === upstreamEdge.source)
+    if (upstreamNode?.type === 'claudeNode') {
+      updateNodeData(upstreamEdge.source, { result: approvedPrompt })
+    }
+  }
 
   // data.approved가 소스 오브 트루스 — status는 파생값
   const status = data.approved && !isEditing ? 'approved' : isEditing ? 'editing' : 'pending'
@@ -343,7 +353,7 @@ export default function ReviewGateNode({ id, data, selected }) {
             <CharCount text={prompt} />
             <div style={styles.row}>
               <button style={styles.btnSecondary} onClick={() => { setIsEditing(false); setPrompt(data.prompt ?? '(프롬프트 없음)') }}>취소</button>
-              <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { prompt, approved: true }); setIsEditing(false) }}>
+              <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { prompt, approved: true }); setIsEditing(false); syncToClaudeNode(prompt) }}>
                 수정 후 승인
               </button>
             </div>
@@ -448,7 +458,7 @@ export default function ReviewGateNode({ id, data, selected }) {
         <button style={styles.btnSecondary} onClick={() => { setEditTab('direct'); setFeedback(''); setIsEditing(true) }}>
           수정
         </button>
-        <button style={styles.btnApprove} onClick={() => updateNodeData(id, { approved: true })}>
+        <button style={styles.btnApprove} onClick={() => { updateNodeData(id, { approved: true }); syncToClaudeNode(prompt) }}>
           승인
         </button>
       </div>

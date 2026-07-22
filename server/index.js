@@ -85,9 +85,46 @@ app.get('/auth/callback', async (req, res) => {
 // ── Health ────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
 
+// ── Claude 사용량 누적 ─────────────────────────────────────
+const USAGE_PATH = path.join(__dirname, 'usage.json')
+
+function readUsage() {
+  try { return JSON.parse(fs.readFileSync(USAGE_PATH, 'utf8')) } catch { return {} }
+}
+
+function writeUsage(data) {
+  fs.writeFileSync(USAGE_PATH, JSON.stringify(data, null, 2))
+}
+
+function accumulateUsage(projectId, u) {
+  const pid = projectId || '__default__'
+  // claude-sonnet-4-6 pricing (USD per token)
+  const INPUT_PRICE     = 3    / 1_000_000
+  const OUTPUT_PRICE    = 15   / 1_000_000
+  const CACHE_READ      = 0.30 / 1_000_000
+  const CACHE_WRITE     = 3.75 / 1_000_000
+  const inp  = u?.input_tokens              ?? 0
+  const out  = u?.output_tokens             ?? 0
+  const cr   = u?.cache_read_input_tokens   ?? 0
+  const cw   = u?.cache_creation_input_tokens ?? 0
+  const cost = inp * INPUT_PRICE + out * OUTPUT_PRICE + cr * CACHE_READ + cw * CACHE_WRITE
+
+  const all = readUsage()
+  const cur = all[pid] ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, cost: 0 }
+  all[pid] = {
+    inputTokens:      cur.inputTokens      + inp,
+    outputTokens:     cur.outputTokens     + out,
+    cacheReadTokens:  cur.cacheReadTokens  + cr,
+    cacheWriteTokens: cur.cacheWriteTokens + cw,
+    cost:             parseFloat((cur.cost + cost).toFixed(6)),
+  }
+  writeUsage(all)
+  return cost
+}
+
 // ── Claude: 프롬프트 생성 ──────────────────────────────────
 app.post('/api/claude/generate', async (req, res) => {
-  const { systemPrompt, userMessage, maxTokens = 1500 } = req.body
+  const { systemPrompt, userMessage, maxTokens = 1500, projectId } = req.body
   if (!systemPrompt || !userMessage) {
     return res.status(400).json({ error: 'systemPrompt와 userMessage가 필요합니다' })
   }
@@ -104,9 +141,11 @@ app.post('/api/claude/generate', async (req, res) => {
     const u = message.usage
     const hit  = u?.cache_read_input_tokens   ?? 0
     const miss = u?.cache_creation_input_tokens ?? 0
+    const callCost = accumulateUsage(projectId, u)
     console.log(
       `[claude] ${hit > 0 ? '✅ 캐시 히트' : '🔄 캐시 생성'} | ` +
-      `입력 ${u?.input_tokens ?? '?'} tok | 캐시 읽기 ${hit} | 캐시 생성 ${miss}`
+      `입력 ${u?.input_tokens ?? '?'} tok | 캐시 읽기 ${hit} | 캐시 생성 ${miss} | ` +
+      `비용 $${callCost.toFixed(5)} (프로젝트: ${projectId ?? 'none'})`
     )
 
     res.json({ text })
@@ -116,7 +155,39 @@ app.post('/api/claude/generate', async (req, res) => {
   }
 })
 
+// ── Claude 사용량 조회 ─────────────────────────────────────
+app.get('/api/usage/claude', (req, res) => {
+  const { projectId } = req.query
+  const all = readUsage()
+  if (projectId) {
+    const entry = all[projectId] ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, cost: 0 }
+    return res.json(entry)
+  }
+  res.json(all)
+})
+
 // ── Higgsfield MCP 헬퍼 ───────────────────────────────────
+async function listHiggsfieldTools() {
+  const res = await fetch('https://mcp.higgsfield.ai/mcp', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/list', id: Date.now() }),
+  })
+  const text = await res.text()
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue
+    try {
+      const data = JSON.parse(line.slice(6))
+      if (data.result) return data.result.tools ?? []
+    } catch {}
+  }
+  return []
+}
+
 async function callHiggsfieldMCP(toolName, args, timeoutMs = 180_000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -370,6 +441,37 @@ app.post('/api/higgsfield/video', async (req, res) => {
     res.json({ jobId, content: result.content })
   } catch (err) {
     console.error(`[higgsfield/video] 실패 (${ts()}):`, err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Higgsfield: 사용 가능한 MCP 툴 목록 (디버그) ──────────
+app.get('/api/higgsfield/tools', async (req, res) => {
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  try {
+    const tools = await listHiggsfieldTools()
+    res.json({ tools: tools.map(t => ({ name: t.name, description: t.description })) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ── Higgsfield: 크레딧 조회 ────────────────────────────────
+app.get('/api/higgsfield/credits', async (req, res) => {
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  try {
+    const tools = await listHiggsfieldTools()
+    const toolNames = tools.map(t => t.name)
+    console.log('[higgsfield/credits] 사용 가능한 툴:', toolNames)
+
+    const result = await callHiggsfieldMCP('balance', {}, 10_000)
+    const text = result.content?.[0]?.text ?? ''
+    console.log('[higgsfield/credits] balance 응답:', text)
+    const match = text.match(/[\d,]+(\.\d+)?/)
+    const credits = match ? parseFloat(match[0].replace(/,/g, '')) : null
+    res.json({ credits, raw: text })
+  } catch (err) {
+    console.error('[higgsfield/credits]', err.message)
     res.status(500).json({ error: err.message })
   }
 })

@@ -225,6 +225,7 @@ export function useHiggsfieldGenerate(characters) {
       console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
 
       updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
+      window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))

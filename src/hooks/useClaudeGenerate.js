@@ -111,7 +111,7 @@ export const GENERIC_PROMPT = {
   user: (anchor, command) => `앵커:\n${anchor || '(없음)'}\n\n입력:\n${command || '(없음)'}`,
 }
 
-export function useClaudeGenerate() {
+export function useClaudeGenerate(projectId) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
 
   const handleGenerate = useCallback(async (nodeId) => {
@@ -147,6 +147,7 @@ export function useClaudeGenerate() {
         body: JSON.stringify({
           systemPrompt: cfg.system,
           userMessage: cfg.user(anchor, command),
+          projectId: projectId ?? undefined,
         }),
       })
       if (!res.ok) {
@@ -158,13 +159,14 @@ export function useClaudeGenerate() {
       const finalText = (anchor && prependAnchor) ? `${anchor}\n\n${text}` : text
 
       updateNodeData(nodeId, { status: 'done', result: finalText })
+      window.dispatchEvent(new CustomEvent('claude-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { prompt: finalText, approved: false }))
     } catch (err) {
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData])
+  }, [getNodes, getEdges, updateNodeData, projectId])
 
   useEffect(() => {
     generateHandlerRef.current = handleGenerate
