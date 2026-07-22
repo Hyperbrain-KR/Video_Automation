@@ -481,12 +481,25 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
 
   try {
-    const result = await callHiggsfieldMCP('job_status', {
-      jobId: req.params.jobId,
-    })
+    const result = await callHiggsfieldMCP('job_status', { jobId: req.params.jobId })
     const resultUrl = extractResultUrl(result)
-    const statusText = result.content?.[0]?.text?.slice(0, 120) ?? '(no text)'
-    console.log(`[higgsfield/status] ${req.params.jobId.slice(0, 8)}… → ${resultUrl ? '✅ URL 획득' : '⏳ 대기 중'} | ${statusText}`)
+    const statusText = result.content?.[0]?.text ?? '(no text)'
+    const lower = statusText.toLowerCase()
+
+    const isFailed =
+      result.isError ||
+      lower.includes('something went wrong') ||
+      lower.includes('failed') ||
+      lower.includes('error') ||
+      lower.includes('— failed') ||
+      lower.includes('status: failed')
+
+    console.log(`[higgsfield/status] ${req.params.jobId.slice(0, 8)}… → ${resultUrl ? '✅ URL' : isFailed ? '❌ 실패' : '⏳ 대기'} | ${statusText.slice(0, 120)}`)
+
+    if (isFailed && !resultUrl) {
+      return res.json({ jobId: req.params.jobId, resultUrl: null, error: '힉스필드 서버 오류. 힉스필드 웹에서 확인해보세요.', content: result.content })
+    }
+
     res.json({ jobId: req.params.jobId, resultUrl, content: result.content })
   } catch (err) {
     console.error('[higgsfield/status]', err.message)
