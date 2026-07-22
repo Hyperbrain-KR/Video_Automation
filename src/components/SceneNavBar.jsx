@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
 
 const STATUS_DOT = {
@@ -574,7 +574,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch
 
 // ── SceneCard ──────────────────────────────────────────────────────────────
 function SceneCard({ scene, onClick, onDelete }) {
-  const { imgStatus, vidStatus, imgResultUrl } = scene
+  const { imgStatus, vidStatus, imgResultUrl, vidResultUrl } = scene
   const overallStatus = sceneStatus(imgStatus, vidStatus)
   const dot = STATUS_DOT[overallStatus] ?? STATUS_DOT.idle
   const isVidDone    = vidStatus === 'done'
@@ -582,13 +582,45 @@ function SceneCard({ scene, onClick, onDelete }) {
   const [confirm, setConfirm] = useState(false)
   const canDelete = scene.uid !== null  // 씬 1은 삭제 불가
 
+  // 스텝2 이미지 없고 스텝3 비디오만 있을 때 첫 프레임을 캔버스로 추출
+  const [vidThumb, setVidThumb] = useState(null)
+  const thumbAttempted = React.useRef(false)
+  React.useEffect(() => {
+    if (imgResultUrl || !vidResultUrl || thumbAttempted.current) return
+    thumbAttempted.current = true
+    const video = document.createElement('video')
+    video.crossOrigin = 'anonymous'
+    video.muted = true
+    video.preload = 'metadata'
+    video.src = vidResultUrl
+    const capture = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth || 320
+        canvas.height = video.videoHeight || 180
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
+        setVidThumb(canvas.toDataURL('image/jpeg', 0.75))
+      } catch {
+        // CORS 등으로 추출 실패 시 video 엘리먼트로 폴백
+        setVidThumb('__video__')
+      }
+    }
+    video.addEventListener('seeked', capture, { once: true })
+    video.addEventListener('loadedmetadata', () => { video.currentTime = 0.01 }, { once: true })
+    video.addEventListener('error', () => setVidThumb('__video__'), { once: true })
+    video.load()
+  }, [imgResultUrl, vidResultUrl])
+
+  const thumbSrc = imgResultUrl || (vidThumb && vidThumb !== '__video__' ? vidThumb : null)
+  const showVideoFallback = !imgResultUrl && vidResultUrl && vidThumb === '__video__'
+
   return (
     <div className="scene-card-wrap">
       <button className="scene-card" onClick={confirm ? undefined : onClick}>
-        {imgResultUrl ? (
+        {thumbSrc ? (
           <>
             <img
-              src={imgResultUrl} alt={`씬 ${scene.index}`}
+              src={thumbSrc} alt={`씬 ${scene.index}`}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
             {isVidDone && (
@@ -600,6 +632,21 @@ function SceneCard({ scene, onClick, onDelete }) {
                 <span style={{ fontSize: 18, opacity: 0.9, filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.5))' }}>▶</span>
               </div>
             )}
+          </>
+        ) : showVideoFallback ? (
+          <>
+            <video
+              src={vidResultUrl} muted preload="metadata"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onLoadedMetadata={e => { e.target.currentTime = 0.01 }}
+            />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'rgba(70,20,150,0.50)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 18, opacity: 0.9, filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.5))' }}>▶</span>
+            </div>
           </>
         ) : (
           <div className="scene-card-empty">
@@ -720,6 +767,7 @@ export default function SceneNavBar({
           imgStatus:    imgNode?.data?.status    ?? 'idle',
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
+          vidResultUrl: vidNode?.data?.resultUrl ?? null,
         }
       })
   }, [nodes])
