@@ -1,26 +1,20 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
-const KEY_LIST   = 'canvas-projects'
 const KEY_ACTIVE = 'canvas-active-project'
-const dataKey    = id => `canvas-project-data-${id}`
-const genId      = () => `proj_${Date.now()}`
-
-function readList() {
-  try { return JSON.parse(localStorage.getItem(KEY_LIST) || '[]') } catch { return [] }
-}
-
-export function loadSavedProject(id) {
-  if (!id) return null
-  try { return JSON.parse(localStorage.getItem(dataKey(id)) || 'null') } catch { return null }
-}
+const genId = () => `proj_${Date.now()}`
 
 export function getActiveProjectId() {
   return localStorage.getItem(KEY_ACTIVE) || null
 }
 
-export function useProjects() {
-  const [projects, setProjects] = useState(readList)
-  const [activeId, setActiveId] = useState(getActiveProjectId)
+// 더 이상 사용 안 함 — 데이터는 Supabase에서 비동기 로드
+export function loadSavedProject() { return null }
+
+export function useProjects(user) {
+  const [projects, setProjects] = useState([])
+  const [activeId, setActiveId] = useState(() => localStorage.getItem(KEY_ACTIVE))
+  const [loading, setLoading] = useState(true)
 
   const _setActive = (id) => {
     if (id) localStorage.setItem(KEY_ACTIVE, id)
@@ -28,47 +22,78 @@ export function useProjects() {
     setActiveId(id)
   }
 
-  const _saveList = (list) => {
-    localStorage.setItem(KEY_LIST, JSON.stringify(list))
-    setProjects(list)
-  }
+  useEffect(() => {
+    if (!user) return
+    supabase.from('projects')
+      .select('id, name, updated_at')
+      .order('updated_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error('[projects] 로드 실패:', error)
+        if (data) setProjects(data.map(p => ({ id: p.id, name: p.name, updatedAt: p.updated_at })))
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error('[projects] 쿼리 실패:', err)
+        setLoading(false)
+      })
+  }, [user])
 
-  const saveProject = useCallback((id, nodes, edges, characters) => {
-    if (!id) return
-    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges, characters }))
-    _saveList(readList().map(p =>
+  const loadProject = useCallback(async (id) => {
+    if (!id) return null
+    const { data, error } = await supabase.from('projects')
+      .select('nodes, edges, characters')
+      .eq('id', id)
+      .single()
+    if (error) { console.error('[loadProject]', error); return null }
+    return data
+  }, [])
+
+  const saveProject = useCallback(async (id, nodes, edges, characters) => {
+    if (!id || !user) return
+    const { error } = await supabase.from('projects').upsert({
+      id, user_id: user.id, nodes, edges, characters,
+      updated_at: new Date().toISOString(),
+    })
+    if (error) { console.error('[saveProject]', error); throw error }
+    setProjects(prev => prev.map(p =>
       p.id === id ? { ...p, updatedAt: new Date().toISOString() } : p
     ))
-  }, [])
+  }, [user])
 
-  const createProject = useCallback((name, nodes, edges, characters) => {
+  const createProject = useCallback(async (name, nodes, edges, characters) => {
+    if (!user) return null
     const id = genId()
-    localStorage.setItem(dataKey(id), JSON.stringify({ nodes, edges, characters }))
-    _saveList([...readList(), { id, name, updatedAt: new Date().toISOString() }])
+    const { error } = await supabase.from('projects').insert({
+      id, user_id: user.id, name, nodes, edges, characters,
+    })
+    if (error) { console.error('[createProject]', error); return null }
+    setProjects(prev => [{ id, name, updatedAt: new Date().toISOString() }, ...prev])
     _setActive(id)
     return id
-  }, [])
+  }, [user])
 
-  const switchProject = useCallback((id) => {
+  const switchProject = useCallback(async (id) => {
     _setActive(id)
-    return loadSavedProject(id)
-  }, [])
+    return loadProject(id)
+  }, [loadProject])
 
-  const deleteProject = useCallback((id) => {
-    localStorage.removeItem(dataKey(id))
-    const list = readList().filter(p => p.id !== id)
-    _saveList(list)
+  const deleteProject = useCallback(async (id) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) console.error('[deleteProject]', error)
+    const list = projects.filter(p => p.id !== id)
+    setProjects(list)
     return list
-  }, [])
+  }, [projects])
 
-  const renameProject = useCallback((id, name) => {
-    _saveList(readList().map(p => p.id === id ? { ...p, name } : p))
+  const renameProject = useCallback(async (id, name) => {
+    await supabase.from('projects').update({ name }).eq('id', id)
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p))
   }, [])
 
   const activeProject = projects.find(p => p.id === activeId) ?? null
 
   return {
-    projects, activeId, activeProject,
-    saveProject, createProject, switchProject, deleteProject, renameProject,
+    projects, activeId, activeProject, loading,
+    loadProject, saveProject, createProject, switchProject, deleteProject, renameProject,
   }
 }

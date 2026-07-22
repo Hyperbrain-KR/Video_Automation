@@ -1,13 +1,16 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useAuth } from './lib/AuthContext'
+import LoginPage from './components/LoginPage'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
   useNodesState, useEdgesState, useReactFlow,
   addEdge, BackgroundVariant,
 } from '@xyflow/react'
+import { CANVAS_API } from './lib/config'
 import { CharactersContext } from './lib/CharactersContext'
 import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB } from './lib/imageDB'
-import { useProjects, loadSavedProject, getActiveProjectId } from './hooks/useProjects'
+import { useProjects } from './hooks/useProjects'
 import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes } from './lib/initialCanvas'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
@@ -67,76 +70,90 @@ const nodeTypes = {
 
 function FlowCanvas() {
   const { screenToFlowPosition, getNodes } = useReactFlow()
+  const { user } = useAuth()
 
-  // 최초 마운트 시 localStorage에서 프로젝트 데이터 로드 (lazy initializer로 한 번만 실행)
-  const [initData] = useState(() => {
-    const saved = loadSavedProject(getActiveProjectId())
-    // 구형 저장 데이터 호환: canvas-characters fallback
-    const initChars = saved?.characters
-      ?? (() => { try { return JSON.parse(localStorage.getItem('canvas-characters') || '[]') } catch { return [] } })()
-    return saved
-      ? { nodes: resetInProgressNodes(saved.nodes), edges: saved.edges, characters: initChars }
-      : { nodes: nodes0, edges: edges0, characters: [] }
-  })
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initData.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initData.edges)
-  // 캐릭터는 프로젝트별 저장 — 새 프로젝트 생성 시 빈 배열로 초기화됨
-  const [characters, setCharacters] = useState(initData.characters)
+  const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
+  const [characters, setCharacters] = useState([])
+  const [isDataReady, setIsDataReady] = useState(false)
 
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
   const {
-    projects, activeId, activeProject,
-    saveProject, createProject, switchProject, deleteProject, renameProject,
-  } = useProjects()
+    projects, activeId, activeProject, loading,
+    loadProject, saveProject, createProject, switchProject, deleteProject, renameProject,
+  } = useProjects(user)
 
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'pending' | 'saved'
   const [savedAt, setSavedAt]     = useState(null)
   const saveTimerRef = useRef(null)
   const isMountedRef = useRef(false)
+  const initialLoadDoneRef = useRef(false)
 
-  // base64 imageDataUrl은 localStorage 용량 한도 초과 방지를 위해 저장에서 제외
+  // base64 imageDataUrl은 용량 한도 초과 방지를 위해 저장에서 제외
   const stripLargeData = (nodes) => nodes.map(n => {
     if (!n.data?.imageDataUrl) return n
     return { ...n, data: { ...n.data, imageDataUrl: null } }
   })
+
+  // Supabase에서 최초 프로젝트 데이터 로드
+  useEffect(() => {
+    if (loading || initialLoadDoneRef.current) return
+    initialLoadDoneRef.current = true
+    const doLoad = async () => {
+      try {
+        if (activeId) {
+          const data = await loadProject(activeId)
+          if (data) {
+            isMountedRef.current = false  // 로드 후 auto-save skip
+            setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+            setEdges(data.edges ?? edges0)
+            setCharacters(data.characters ?? [])
+          }
+        }
+      } catch (e) {
+        console.error('[초기 로드 실패]', e)
+      }
+      setIsDataReady(true)
+    }
+    doLoad()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
 
   // 노드/엣지 변경 시 auto-save (마운트 직후 첫 렌더는 skip)
   useEffect(() => {
     if (!isMountedRef.current) { isMountedRef.current = true; return }
     setSaveState('pending')
     clearTimeout(saveTimerRef.current)
-    // nodes/edges/characters를 클로저에 직접 캡처 (getNodes()는 remount 중 stale 가능)
     const snapNodes = stripLargeData(nodes)
     const snapEdges = edges
     const snapChars = characters
     const snapActiveId = activeId
-    saveTimerRef.current = setTimeout(() => {
+    saveTimerRef.current = setTimeout(async () => {
       try {
         if (snapActiveId) {
-          saveProject(snapActiveId, snapNodes, snapEdges, snapChars)
+          await saveProject(snapActiveId, snapNodes, snapEdges, snapChars)
         } else {
-          createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
+          await createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
         }
         setSaveState('saved')
         setSavedAt(new Date())
       } catch (e) {
-        console.warn('캔버스 저장 실패 (저장공간 부족):', e)
+        console.warn('캔버스 저장 실패:', e)
         setSaveState('idle')
       }
     }, 1500)
     return () => clearTimeout(saveTimerRef.current)
-  // activeId/saveProject/createProject는 timeout 내에서 스냅샷으로 사용 — deps에 추가하면 프로젝트 전환 시 잘못된 저장 유발
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, characters])
 
-  const handleSwitchProject = useCallback((id) => {
+  const handleSwitchProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
-    if (activeId) saveProject(activeId, stripLargeData(nodes), edges, characters)
-    const data = switchProject(id)
+    if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
+    const data = await switchProject(id)
     if (data) {
-      setNodes(resetInProgressNodes(data.nodes))
-      setEdges(data.edges)
+      isMountedRef.current = false
+      setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+      setEdges(data.edges ?? edges0)
       setCharacters(data.characters ?? [])
     }
     setSaveState('idle')
@@ -144,16 +161,17 @@ function FlowCanvas() {
     isMountedRef.current = false
   }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters])
 
-  const handleDeleteProject = useCallback((id) => {
+  const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
     deleteProjectImages(id).catch(() => {})
-    const remaining = deleteProject(id)
+    const remaining = await deleteProject(id)
     if (id === activeId) {
       if (remaining.length > 0) {
-        const data = switchProject(remaining[0].id)
+        const data = await switchProject(remaining[0].id)
         if (data) {
-          setNodes(resetInProgressNodes(data.nodes))
-          setEdges(data.edges)
+          isMountedRef.current = false
+          setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+          setEdges(data.edges ?? edges0)
           setCharacters(data.characters ?? [])
         }
       } else {
@@ -167,16 +185,16 @@ function FlowCanvas() {
     }
   }, [activeId, deleteProject, switchProject, setNodes, setEdges, setCharacters])
 
-  const handleCreateProject = useCallback((name) => {
+  const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)
-    if (activeId) saveProject(activeId, stripLargeData(nodes), edges, characters)
-    createProject(name, nodes0, edges0, [])
+    if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
+    await createProject(name, nodes0, edges0, [])
+    isMountedRef.current = false
     setNodes(nodes0)
     setEdges(edges0)
     setCharacters([])
     setSaveState('idle')
     setSavedAt(null)
-    isMountedRef.current = false
   }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters])
 
   // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
@@ -240,7 +258,7 @@ function FlowCanvas() {
   const [hfCredits, setHfCredits] = useState(null)
   const [hfCreditsRaw, setHfCreditsRaw] = useState(null)
   const fetchHfCredits = useCallback(() => {
-    fetch('http://localhost:3002/api/higgsfield/credits')
+    fetch(`${CANVAS_API}/api/higgsfield/credits`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { setHfCredits('error'); return }
@@ -262,7 +280,7 @@ function FlowCanvas() {
   const [claudeCost, setClaudeCost] = useState(null)
   const fetchClaudeCost = useCallback(() => {
     if (!activeId) return
-    fetch(`http://localhost:3002/api/usage/claude?projectId=${encodeURIComponent(activeId)}`)
+    fetch(`${CANVAS_API}/api/usage/claude?projectId=${encodeURIComponent(activeId)}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { setClaudeCost('error'); return }
@@ -383,9 +401,20 @@ function FlowCanvas() {
         onRenameProject={renameProject}
       />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      {!isDataReady && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 9999,
+          background: 'var(--bg, #0A0A0F)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 12,
+        }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1, #F4F4F4)' }}>Canvas</div>
+          <div style={{ fontSize: 12, color: 'rgba(244,244,244,0.4)' }}>불러오는 중...</div>
+        </div>
+      )}
       <button
         disabled={!hasHiggsfieldAuthError}
-        onClick={() => window.open('http://localhost:3002/auth/higgsfield/start', '_blank')}
+        onClick={() => window.open(`${CANVAS_API}/auth/higgsfield/start`, '_blank')}
         title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
         style={{
           position: 'fixed', bottom: 200, left: 12, zIndex: 10,
@@ -514,6 +543,11 @@ function FlowCanvas() {
 }
 
 export default function App() {
+  const { user } = useAuth()
+
+  if (user === undefined) return null  // 로딩중
+  if (user === null) return <LoginPage />
+
   return (
     <ReactFlowProvider>
       <FlowCanvas />

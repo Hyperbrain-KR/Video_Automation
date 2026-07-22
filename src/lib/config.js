@@ -1,1 +1,1 @@
-export const CANVAS_API = 'http://localhost:3002'
+export const CANVAS_API = import.meta.env.VITE_API_URL ?? 'http://localhost:3002'
