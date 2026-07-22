@@ -374,6 +374,71 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
+      {/* 비디오 프레임 캐릭터 참조 */}
+      {isVideo && characters.length > 0 && (
+        <div style={{ marginBottom: 10, padding: '7px 9px',
+          background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
+            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+            프레임 캐릭터
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {characters.map(c => {
+              const frameIds = data.videoFrameCharIds ?? []
+              const slotIdx = frameIds.indexOf(c.id)
+              const isFirst = slotIdx === 0
+              const isEnd = slotIdx === 1
+              const isChecked = slotIdx >= 0
+              const accentColor = isFirst ? '#22c55e' : isEnd ? '#e040a0' : '#29D9D9'
+              return (
+                <label key={c.id} className="nopan nodrag"
+                  onMouseEnter={() => setHoveredCharId(c.id)}
+                  onMouseLeave={() => setHoveredCharId(null)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    cursor: 'pointer', padding: '3px 6px', borderRadius: 4,
+                    transition: 'all 0.15s',
+                    background: isFirst ? 'rgba(34,197,94,0.07)' : isEnd ? 'rgba(224,64,160,0.07)' : 'transparent',
+                    border: `1px solid ${isFirst ? 'rgba(34,197,94,0.22)' : isEnd ? 'rgba(224,64,160,0.22)' : 'transparent'}`,
+                  }}>
+                  <input type="checkbox" checked={isChecked} className="nopan nodrag"
+                    style={{ accentColor, width: 11, height: 11, flexShrink: 0 }}
+                    onChange={() => {
+                      const cur = data.videoFrameCharIds ?? []
+                      let next
+                      if (isChecked) {
+                        next = cur.filter(x => x !== c.id)
+                      } else if (cur.length < 2) {
+                        next = [...cur, c.id]
+                      } else {
+                        return
+                      }
+                      updateNodeData(id, { videoFrameCharIds: next })
+                    }}
+                  />
+                  <span style={{ fontSize: 10, flex: 1, color: isChecked ? 'var(--t1)' : 'var(--t3)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.name}
+                  </span>
+                  {isFirst && <span style={{ fontSize: 9, color: '#22c55e', fontWeight: 700, flexShrink: 0 }}>첫프레임</span>}
+                  {isEnd  && <span style={{ fontSize: 9, color: '#e040a0', fontWeight: 700, flexShrink: 0 }}>끝프레임</span>}
+                  <CharacterThumb char={c} />
+                  {hoveredCharId === c.id && !isChecked && (
+                    <button className="nopan nodrag"
+                      onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
+                      style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
+                        background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
+                        borderRadius: 3, fontSize: 9, color: '#E34054',
+                        cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
+                    >✕</button>
+                  )}
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 비디오 노드: Kling 3.0 컨트롤 */}
       {isVideo && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10,

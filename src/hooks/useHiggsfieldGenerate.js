@@ -113,6 +113,23 @@ export function useHiggsfieldGenerate(characters) {
     let endFrameMediaId = null
 
     if (isVideo) {
+      // 캐릭터 참조로 프레임 로드하는 헬퍼
+      const loadCharFrame = async (charId) => {
+        const char = characters.find(c => c.id === charId)
+        if (!char) return null
+        const src = char.hasLocalImage
+          ? await loadImageByNodeId(`char-${charId}`)
+          : char.resultUrl
+        if (!src) return null
+        return importRefUrl(src)
+      }
+
+      // videoFrameCharIds[0] → 첫프레임, [1] → 끝프레임
+      const videoFrameCharIds = node?.data?.videoFrameCharIds ?? []
+      const firstCharId = videoFrameCharIds[0] ?? null
+      const endCharId   = videoFrameCharIds[1] ?? null
+
+      // 엣지 기반 소스 (캐릭터 참조가 없을 때 폴백)
       const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
       const mediaEdge = refImgEdge ?? mediaEdges[0]
       const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
@@ -122,19 +139,19 @@ export function useHiggsfieldGenerate(characters) {
       const endEdge = endRefImgEdge ?? endEdges[0]
       const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
 
-      console.log(`[미디어 임포트] 첫프레임: ${mediaSrc?.type ?? '없음'}, 끝프레임: ${endSrc?.type ?? '없음'}`)
       try {
         const [fId, eId] = await Promise.all([
-          mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
+          firstCharId ? loadCharFrame(firstCharId)
+            : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
             : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
             : Promise.resolve(null),
-          endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
+          endCharId ? loadCharFrame(endCharId)
+            : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
             : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
             : Promise.resolve(null),
         ])
         if (fId) firstFrameMediaId = fId
         if (eId) endFrameMediaId = eId
-        console.log(`[미디어 임포트 완료] firstFrameMediaId: ${firstFrameMediaId}, endFrameMediaId: ${endFrameMediaId} (${ts()})`)
       } catch (err) {
         console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
         updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
