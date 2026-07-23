@@ -530,8 +530,10 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
     const statusText = result.content?.[0]?.text ?? '(no text)'
     const lower = statusText.toLowerCase()
 
+    const isSafety = lower.includes('flagged') || lower.includes('safety system')
     const isFailed =
       result.isError ||
+      isSafety ||
       lower.includes('something went wrong') ||
       lower.includes('failed') ||
       lower.includes('error') ||
@@ -541,7 +543,10 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
     console.log(`[higgsfield/status] ${req.params.jobId.slice(0, 8)}… → ${resultUrl ? '✅ URL' : isFailed ? '❌ 실패' : '⏳ 대기'} | ${statusText.slice(0, 120)}`)
 
     if (isFailed && !resultUrl) {
-      return res.json({ jobId: req.params.jobId, resultUrl: null, error: '힉스필드 서버 오류. 힉스필드 웹에서 확인해보세요.', content: result.content })
+      const errorMsg = isSafety
+        ? '안전 시스템에 의해 차단됐습니다. 다른 프롬프트나 이미지를 사용해보세요.'
+        : '힉스필드 서버 오류. 힉스필드 웹에서 확인해보세요.'
+      return res.json({ jobId: req.params.jobId, resultUrl: null, error: errorMsg, content: result.content })
     }
 
     res.json({ jobId: req.params.jobId, resultUrl, content: result.content })
