@@ -479,7 +479,11 @@ app.post('/api/higgsfield/video', async (req, res) => {
       console.log('[higgsfield/video] 재시도 content:', rawContent.slice(0, 300))
     }
 
-    if (result.isError || rawContent.toLowerCase().includes('something went wrong')) {
+    const rawLower = rawContent.toLowerCase()
+    if (rawLower.includes('media input not found') || rawLower.includes('media not found')) {
+      return res.status(500).json({ error: '참조 이미지를 Higgsfield에서 찾을 수 없습니다. 이미지가 콘텐츠 정책에 위반되거나 업로드에 실패했을 수 있습니다. 다른 이미지를 사용해보세요.' })
+    }
+    if (result.isError || rawLower.includes('something went wrong')) {
       console.error('[higgsfield/video] 에러 응답:', rawContent)
       if (isHiggsfieldAuthError(rawContent)) {
         const refreshed = await refreshHiggsfieldToken()
@@ -599,12 +603,16 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
       console.log(`[upload-ref] ① media_import_url 호출 중... (url: ${url.slice(0, 60)})`)
       const importResult = await callHiggsfieldMCP('media_import_url', { url, type: 'image' })
       const importText = importResult.content?.[0]?.text ?? ''
-      const importOk = !importResult.isError && !importText.toLowerCase().includes('something went wrong')
+      const importLower = importText.toLowerCase()
+      if (importLower.includes('violates') || importLower.includes('guidelines') || importLower.includes('not allowed')) {
+        throw new Error('이미지가 Higgsfield 콘텐츠 정책에 위반되어 사용할 수 없습니다. 다른 이미지를 사용해보세요.')
+      }
+      const importOk = !importResult.isError && !importLower.includes('something went wrong')
       if (importOk) {
         mediaId = extractMediaId(importResult)
         console.log(`[upload-ref] ② mediaId 획득: ${mediaId} (${ts()})`)
       } else {
-        console.warn(`[upload-ref] URL import 실패, 직접 다운로드 후 업로드로 fallback... (${ts()})`)
+        console.warn(`[upload-ref] URL import 실패 (${importText.slice(0, 80)}), 직접 다운로드 후 업로드로 fallback... (${ts()})`)
         const imgRes = await fetch(url)
         if (!imgRes.ok) throw new Error(`이미지 다운로드 실패: ${imgRes.status}`)
         const imgBuf = Buffer.from(await imgRes.arrayBuffer())
