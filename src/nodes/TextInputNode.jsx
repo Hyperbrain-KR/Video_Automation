@@ -28,7 +28,7 @@ const CANVAS_API = 'http://localhost:3002'
 const MAX_HEIGHT = 220
 
 // ── 제안 모달 ─────────────────────────────────────────────────────────────
-function SuggestionModal({ isVideo, onClose, onApply, projectId }) {
+function SuggestionModal({ isVideo, onClose, onApply, projectId, styleAnchor }) {
   const [narration, setNarration] = useState('')
   const [intent, setIntent] = useState('')
   const [suggesting, setSuggesting] = useState('')  // '' | 'loading' | error msg
@@ -37,15 +37,17 @@ function SuggestionModal({ isVideo, onClose, onApply, projectId }) {
     if (!narration.trim()) return
     setSuggesting('loading')
     try {
-      const isVid = isVideo
-      const systemPrompt = isVid
+      const anchorBlock = styleAnchor?.trim()
+        ? `\nStyle anchor (follow this visual style — do not contradict it):\n${styleAnchor.trim()}\n`
+        : ''
+      const systemPrompt = isVideo
         ? `You are a creative director helping write video scene directions in Korean.
 Given a narration/script excerpt and optional creative intent, suggest a concise Korean video direction.
-Focus on: camera movement (줌인, 트래킹, 패닝 등), character action, timing, and atmosphere.
+Focus on: camera movement (줌인, 트래킹, 패닝 등), character action, timing, and atmosphere.${anchorBlock}
 Output ONLY the Korean scene direction — no labels, no explanations.`
         : `You are a creative director helping write image scene directions in Korean.
 Given a narration/script excerpt and optional creative intent, suggest a concise Korean image direction.
-Focus on: character action and expression, spatial composition, mood and atmosphere.
+Focus on: character action and expression, spatial composition, mood and atmosphere.${anchorBlock}
 Output ONLY the Korean scene direction — no labels, no explanations.`
 
       const userMessage = `나레이션:\n${narration.trim()}${intent.trim() ? `\n\n의도:\n${intent.trim()}` : ''}`
@@ -209,7 +211,7 @@ Output ONLY the Korean scene direction — no labels, no explanations.`
 
 // ── 메인 노드 ─────────────────────────────────────────────────────────────
 export default function TextInputNode({ id, data, selected }) {
-  const { updateNodeData } = useReactFlow()
+  const { updateNodeData, getNodes } = useReactFlow()
   const projectId = useContext(ProjectContext)
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
@@ -218,6 +220,11 @@ export default function TextInputNode({ id, data, selected }) {
 
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
+
+  const styleAnchor = (() => {
+    const anchorNode = getNodes().find(n => n.id === 'styleAnchor')
+    return isVideo ? anchorNode?.data?.videoAnchor : anchorNode?.data?.imageAnchor
+  })()
 
   // 프로젝트 전환 시 노드 data가 교체되면 로컬 state도 동기화 (render-phase 조정)
   if (syncedDataValue !== data.value) {
@@ -329,6 +336,7 @@ export default function TextInputNode({ id, data, selected }) {
           onClose={() => setShowModal(false)}
           onApply={handleApply}
           projectId={projectId}
+          styleAnchor={styleAnchor}
         />
       )}
     </div>
