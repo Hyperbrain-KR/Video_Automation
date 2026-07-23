@@ -145,16 +145,13 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const hasMultiInput = isVideo || hasRef
   const promptTop = hasMultiInput ? '25%' : '50%'
 
-  const [model, setModel] = useState(data.model ?? 'nano_banana_pro')
-  const defaultQuality = (data.model ?? 'nano_banana_pro') === 'gpt_image_2' ? 'high' : '1k'
-  const [quality, setQuality] = useState(data.quality ?? defaultQuality)
-  const [aspectRatio, setAspectRatio] = useState(data.aspectRatio ?? 'auto')
-
-  // 비디오 전용 상태
-  const [duration, setDuration] = useState(Number(data.duration ?? 5))
-  const [videoMode, setVideoMode] = useState(data.videoMode ?? 'pro')
-  const [sound, setSound] = useState(data.sound ?? 'off')
-  const [videoAspect, setVideoAspect] = useState(data.videoAspect ?? '1:1')
+  const model       = data.model       ?? 'nano_banana_pro'
+  const quality     = data.quality     ?? (model === 'gpt_image_2' ? 'high' : '1k')
+  const aspectRatio = data.aspectRatio ?? 'auto'
+  const duration    = Number(data.duration  ?? 5)
+  const videoMode   = data.videoMode   ?? 'pro'
+  const sound       = data.sound       ?? 'off'
+  const videoAspect = data.videoAspect ?? '1:1'
 
   const noCharRef = data.noCharRef ?? false
 
@@ -192,15 +189,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const handleModel = (v) => {
     const newQuality = v === 'gpt_image_2' ? 'high' : '1k'
-    setModel(v); setQuality(newQuality)
     updateNodeData(id, { model: v, quality: newQuality })
   }
-  const handleQuality = (v) => { setQuality(v); updateNodeData(id, { quality: v }) }
-  const handleAspect = (v) => { setAspectRatio(v); updateNodeData(id, { aspectRatio: v }) }
-  const handleDuration = (v) => { const n = Number(v); setDuration(n); updateNodeData(id, { duration: String(n) }) }
-  const handleVideoMode = (v) => { setVideoMode(v); updateNodeData(id, { videoMode: v }) }
-  const handleSound = () => { const next = sound === 'on' ? 'off' : 'on'; setSound(next); updateNodeData(id, { sound: next }) }
-  const handleVideoAspect = (v) => { setVideoAspect(v); updateNodeData(id, { videoAspect: v }) }
+  const handleQuality = (v) => updateNodeData(id, { quality: v })
+  const handleAspect = (v) => updateNodeData(id, { aspectRatio: v })
+  const handleDuration = (v) => updateNodeData(id, { duration: String(Number(v)) })
+  const handleVideoMode = (v) => updateNodeData(id, { videoMode: v })
+  const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
+  const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
