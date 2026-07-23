@@ -203,6 +203,7 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [feedback, setFeedback] = useState('')
   const [feedbackImages, setFeedbackImages] = useState([]) // [{ data, mediaType, previewUrl }]
   const [regenerating, setRegenerating] = useState(false)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
 
 
   // 승인된 프롬프트를 상위 ClaudeNode에 역전파
@@ -400,6 +401,25 @@ export default function ReviewGateNode({ id, data, selected }) {
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t4)', marginBottom: 5 }}>
               수정 요청
             </div>
+            <div
+              className="nopan nodrag"
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true) }}
+              onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true) }}
+              onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false) }}
+              onDrop={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsDraggingOver(false)
+                const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'))
+                files.slice(0, 3 - feedbackImages.length).forEach(addFeedbackImage)
+              }}
+              style={{
+                borderRadius: 6,
+                border: isDraggingOver ? '1.5px dashed rgba(41,217,217,0.8)' : '1.5px solid transparent',
+                background: isDraggingOver ? 'rgba(41,217,217,0.06)' : 'transparent',
+                transition: 'all 0.15s',
+              }}
+            >
             <textarea
               autoFocus
               placeholder={'예) 카메라를 더 가까이\n조명을 따뜻하게\n배경을 실내로 바꿔줘'}
@@ -409,7 +429,7 @@ export default function ReviewGateNode({ id, data, selected }) {
               className="nopan nodrag"
               style={{
                 ...styles.textarea, minHeight: 72,
-                border: '1.5px solid rgba(41,217,217,0.45)',
+                border: isDraggingOver ? '1.5px solid rgba(41,217,217,0.6)' : '1.5px solid rgba(41,217,217,0.45)',
               }}
             />
 
@@ -455,6 +475,7 @@ export default function ReviewGateNode({ id, data, selected }) {
                 </label>
               )}
             </div>
+            </div>{/* drop zone end */}
 
             <div style={{ fontSize: 9, color: 'var(--t5)', marginBottom: 8, marginTop: 4, textAlign: 'right' }}>
               ⌘↵ 로 재생성
