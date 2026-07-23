@@ -84,13 +84,19 @@ async function refreshHiggsfieldToken() {
   } catch { return false }
 }
 
+// localhost:3002 is the only registered redirect_uri with Higgsfield OAuth.
+// On production, the re-auth button opens this endpoint on LOCAL server with ?relay=RAILWAY_URL,
+// so the local server handles OAuth and then forwards the token to Railway.
+const LOCAL_OAUTH_REDIRECT = 'http://localhost:3002/auth/callback'
+
 app.get('/auth/higgsfield/start', (req, res) => {
+  const relay = req.query.relay || null
   const verifier = crypto.randomBytes(32).toString('base64url')
   const challenge = crypto.createHash('sha256').update(verifier).digest('base64url')
   const state = crypto.randomBytes(16).toString('hex')
-  _oauthPending = { verifier, state }
+  _oauthPending = { verifier, state, relay }
   const url = `https://mcp.higgsfield.ai/oauth2/authorize?` + new URLSearchParams({
-    response_type: 'code', client_id: OAUTH_CLIENT_ID, redirect_uri: OAUTH_REDIRECT,
+    response_type: 'code', client_id: OAUTH_CLIENT_ID, redirect_uri: LOCAL_OAUTH_REDIRECT,
     scope: 'openid email offline_access', state, code_challenge: challenge, code_challenge_method: 'S256',
   })
   res.redirect(url)
@@ -104,17 +110,42 @@ app.get('/auth/callback', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        grant_type: 'authorization_code', code, redirect_uri: OAUTH_REDIRECT,
+        grant_type: 'authorization_code', code, redirect_uri: LOCAL_OAUTH_REDIRECT,
         client_id: OAUTH_CLIENT_ID, code_verifier: _oauthPending.verifier,
       }),
     })
     const t = await r.json()
     if (!t.access_token) return res.status(400).send(`<pre>실패: ${JSON.stringify(t)}</pre>`)
+
+    const relay = _oauthPending.relay
+    if (relay) {
+      // Forward token to production server instead of saving locally
+      const relayRes = await fetch(`${relay}/auth/receive-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: t.access_token, refresh_token: t.refresh_token }),
+      })
+      if (!relayRes.ok) return res.status(500).send(`<pre>Railway 전송 실패: ${await relayRes.text()}</pre>`)
+      console.log('[oauth] 토큰을 Railway로 전달 완료')
+      return res.send('<h2 style="font-family:sans-serif;color:green">✅ 재연결 완료! 이 탭을 닫으세요.</h2>')
+    }
+
     updateEnvKey('HIGGSFIELD_API_KEY', t.access_token)
     if (t.refresh_token) updateEnvKey('HIGGSFIELD_REFRESH_TOKEN', t.refresh_token)
     console.log('[oauth] Higgsfield 로그인 성공, 토큰 저장됨')
     res.send('<h2 style="font-family:sans-serif;color:green">✅ Higgsfield 로그인 완료! 이 탭을 닫으세요.</h2>')
   } catch (e) { res.status(500).send(e.message) }
+})
+
+app.post('/auth/receive-token', async (req, res) => {
+  const { access_token, refresh_token } = req.body
+  if (!access_token) return res.status(400).json({ error: 'access_token 필요' })
+  process.env.HIGGSFIELD_API_KEY = access_token
+  if (refresh_token) process.env.HIGGSFIELD_REFRESH_TOKEN = refresh_token
+  updateEnvKey('HIGGSFIELD_API_KEY', access_token)
+  if (refresh_token) updateEnvKey('HIGGSFIELD_REFRESH_TOKEN', refresh_token)
+  console.log('[oauth] Railway에서 토큰 수신 및 저장 완료')
+  res.json({ ok: true })
 })
 
 // ── Health ────────────────────────────────────────────────

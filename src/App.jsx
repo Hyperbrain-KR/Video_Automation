@@ -576,7 +576,15 @@ function FlowCanvas() {
 
       <button
         disabled={!hasHiggsfieldAuthError}
-        onClick={() => window.open(`${CANVAS_API}/auth/higgsfield/start`, '_blank')}
+        onClick={() => {
+          // localhost:3002 is the only redirect_uri registered with Higgsfield OAuth.
+          // On production, open local server with relay param so it forwards the token back.
+          const isLocal = CANVAS_API === 'http://localhost:3002'
+          const url = isLocal
+            ? 'http://localhost:3002/auth/higgsfield/start'
+            : `http://localhost:3002/auth/higgsfield/start?relay=${encodeURIComponent(CANVAS_API)}`
+          window.open(url, '_blank')
+        }}
         title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
         style={{
           position: 'fixed', bottom: 200, left: 12, zIndex: 10,
