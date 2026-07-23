@@ -391,6 +391,34 @@ export default function HiggsfieldNode({ id, data, selected }) {
               const isEnd = slotIdx === 1
               const isChecked = slotIdx >= 0
               const accentColor = isFirst ? '#22c55e' : isEnd ? '#e040a0' : '#29D9D9'
+              const isConfirming = confirmDeleteId === c.id
+
+              if (isConfirming) return (
+                <div key={c.id} style={{
+                  padding: '5px 7px', borderRadius: 4,
+                  background: 'rgba(227,64,84,0.07)',
+                  border: '1px solid rgba(227,64,84,0.22)',
+                }}>
+                  <div style={{ fontSize: 9, color: '#E34054', marginBottom: 5, lineHeight: 1.4 }}>
+                    ⚠ 삭제 시 복구할 수 없습니다.
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="nopan nodrag"
+                      onClick={() => setConfirmDeleteId(null)}
+                      style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                        background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+                        borderRadius: 4, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >취소</button>
+                    <button className="nopan nodrag"
+                      onClick={() => { deleteCharacter(c.id); setConfirmDeleteId(null) }}
+                      style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                        background: 'rgba(227,64,84,0.12)', border: '1px solid rgba(227,64,84,0.35)',
+                        borderRadius: 4, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >삭제</button>
+                  </div>
+                </div>
+              )
+
               return (
                 <label key={c.id} className="nopan nodrag"
                   onMouseEnter={() => setHoveredCharId(c.id)}
