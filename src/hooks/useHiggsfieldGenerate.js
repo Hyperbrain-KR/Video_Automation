@@ -42,8 +42,9 @@ export function useHiggsfieldGenerate(characters) {
       const contentType = isBase64
         ? (urlOrBase64.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
         : null
+      const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg'
       const body = isBase64
-        ? { fileBase64: urlOrBase64, filename: 'reference.jpg', contentType }
+        ? { fileBase64: urlOrBase64, filename: `reference.${ext}`, contentType }
         : { url: urlOrBase64 }
       const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
         method: 'POST',
@@ -77,20 +78,18 @@ export function useHiggsfieldGenerate(characters) {
         if (noCharRef) {
           referenceMediaIds = []
         } else if (useDropdown) {
-          const charResults = await Promise.all(
-            selectedCharIds.map(async charId => {
-              const char = characters.find(c => c.id === charId)
-              if (!char) return null
-              const src = char.hasLocalImage
-                ? await loadImageByNodeId(`char-${charId}`)
-                : char.resultUrl
-              if (!src) return null
-              return importRefUrl(src).catch(() => {
-                throw new Error(`캐릭터 "${char.name}" 이미지를 불러올 수 없습니다.`)
-              })
+          for (const charId of selectedCharIds) {
+            const char = characters.find(c => c.id === charId)
+            if (!char) continue
+            const src = char.hasLocalImage
+              ? await loadImageByNodeId(`char-${charId}`)
+              : char.resultUrl
+            if (!src) continue
+            const mediaId = await importRefUrl(src).catch(e => {
+              throw new Error(`캐릭터 "${char.name}" 이미지를 불러올 수 없습니다: ${e.message}`)
             })
-          )
-          charResults.forEach(id => { if (id) referenceMediaIds.push(id) })
+            if (mediaId) referenceMediaIds.push(mediaId)
+          }
           const refImgResults = await Promise.all(
             mediaSources.filter(s => s.type === 'referenceImage').map(uploadRefImage)
           )

@@ -8,6 +8,7 @@ export function friendlyError(msg) {
   if (/jobId/.test(msg)) return '생성 요청에 실패했습니다. 잠시 후 다시 시도해주세요.'
   if (/결과 URL/.test(msg)) return '생성 시간이 초과됐습니다. 다시 시도해주세요.'
   if (/상태 조회 오류/.test(msg)) return '생성 상태 확인에 실패했습니다. 잠시 후 다시 시도해주세요.'
+  if (/^terminated$/i.test(msg.trim())) return 'Higgsfield가 요청을 중단했습니다. 캐릭터 수를 줄이거나 다른 모델로 다시 시도해주세요.'
   if (/이미지 업로드 실패/.test(msg)) return '이미지 업로드에 실패했습니다. 다시 시도해주세요.'
   if (/레퍼런스 업로드 실패/.test(msg)) return '참조 이미지 업로드에 실패했습니다. 다시 시도해주세요.'
   if (/힉스필드 서버 오류/.test(msg)) return msg
