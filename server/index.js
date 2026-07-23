@@ -530,7 +530,7 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
     const statusText = result.content?.[0]?.text ?? '(no text)'
     const lower = statusText.toLowerCase()
 
-    const isSafety = lower.includes('flagged') || lower.includes('safety system')
+    const isSafety = lower.includes('flagged') || lower.includes('safety system') || lower.includes('nsfw')
     const isFailed =
       result.isError ||
       isSafety ||
