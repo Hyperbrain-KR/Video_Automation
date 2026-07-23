@@ -12,5 +12,12 @@
     "cacheReadTokens": 0,
     "cacheWriteTokens": 0,
     "cost": 0.135858
+  },
+  "proj_1784764961433": {
+    "inputTokens": 4712,
+    "outputTokens": 5814,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cost": 0.101346
   }
 }
