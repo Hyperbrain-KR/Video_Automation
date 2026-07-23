@@ -201,10 +201,11 @@ export function useHiggsfieldGenerate(characters) {
 
       updateNodeData(nodeId, { status: 'generating', jobId })
 
-      const deadlineMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
+      const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
       let pollCount = 0
-      while (Date.now() < deadlineMs) {
+      let warnedSlow = false
+      while (true) {
         pollCount++
         const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
@@ -217,8 +218,11 @@ export function useHiggsfieldGenerate(characters) {
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
-        if (Date.now() + 5000 < deadlineMs) await new Promise(r => setTimeout(r, 5000))
-        else break
+        if (!warnedSlow && Date.now() > warnAfterMs) {
+          warnedSlow = true
+          updateNodeData(nodeId, { status: 'slow', jobId })
+        }
+        await new Promise(r => setTimeout(r, 5000))
       }
 
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')

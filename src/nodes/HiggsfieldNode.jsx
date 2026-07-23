@@ -74,6 +74,7 @@ const statusConfigs = {
   idle:       { dot: 'var(--t5)', text: '대기 중',  glow: 'none' },
   loading:    { dot: '#29D9D9', text: '생성 중…', glow: '0 0 8px rgba(41,217,217,0.8)' },
   generating: { dot: '#29D9D9', text: '생성 중…', glow: '0 0 8px rgba(41,217,217,0.8)' },
+  slow:       { dot: '#F59E0B', text: '생성 중…', glow: '0 0 8px rgba(245,158,11,0.8)' },
   done:       { dot: '#29D9D9', text: '완료',     glow: '0 0 8px rgba(41,217,217,0.8)' },
   error:      { dot: '#E34054', text: '오류',     glow: '0 0 8px rgba(227,64,84,0.8)' },
   auth_error: { dot: '#F59E0B', text: '재인증 필요', glow: '0 0 8px rgba(245,158,11,0.8)' },
@@ -159,14 +160,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const status = data.status ?? 'idle'
   const cfg = statusConfigs[status] ?? statusConfigs.idle
-  const isLoading = status === 'loading' || status === 'generating'
+  const isLoading = status === 'loading' || status === 'generating' || status === 'slow'
   const isDone = status === 'done'
   const isAuthError = status === 'auth_error'
 
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef(null)
   useEffect(() => {
-    if (status !== 'generating') { startRef.current = null; return }
+    if (status !== 'generating' && status !== 'slow') { startRef.current = null; return }
     startRef.current = Date.now()
     const t = setInterval(() => {
       if (startRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
@@ -547,15 +548,26 @@ export default function HiggsfieldNode({ id, data, selected }) {
           animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : 'none',
         }} />
         {cfg.text}
-        {status === 'generating' && elapsed > 0 && (
+        {(status === 'generating' || status === 'slow') && elapsed > 0 && (
           <span style={{ fontWeight: 400, opacity: 0.7 }}>
             {` ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`}
           </span>
         )}
       </div>
 
+      {/* slow 경고 */}
+      {status === 'slow' && (
+        <div style={{
+          marginTop: 5, fontSize: 10, color: '#F59E0B',
+          padding: '6px 8px', background: 'rgba(245,158,11,0.08)',
+          border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, lineHeight: 1.5,
+        }}>
+          생성 시간이 너무 오래 걸립니다. Higgsfield 웹사이트에서 상태를 확인해보세요.
+        </div>
+      )}
+
       {/* 생성 중일 때 jobId + 취소 버튼 */}
-      {status === 'generating' && (
+      {(status === 'generating' || status === 'slow') && (
         <div style={{ marginTop: 5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
           {data.jobId && (
             <div style={{
