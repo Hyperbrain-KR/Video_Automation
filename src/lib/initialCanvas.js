@@ -217,7 +217,10 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
 // ── 저장된 노드 로드 시 진행 중 상태 초기화 ──────────────────────
 export function resetInProgressNodes(nodes) {
   return nodes.map(n => {
-    if (n.data?.status === 'loading' || n.data?.status === 'generating') {
+    const s = n.data?.status
+    // jobId가 있는 generating/slow 노드는 폴링 재개 대상이므로 유지
+    if ((s === 'generating' || s === 'slow') && n.data?.jobId) return n
+    if (s === 'loading' || s === 'generating' || s === 'slow') {
       return { ...n, data: { ...n.data, status: 'idle', error: undefined } }
     }
     return n

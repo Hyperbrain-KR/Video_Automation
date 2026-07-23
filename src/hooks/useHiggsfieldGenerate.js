@@ -240,9 +240,47 @@ export function useHiggsfieldGenerate(characters) {
     }
   }, [getNodes, getEdges, updateNodeData, characters])
 
+  const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
+    console.log(`[폴링 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
+    updateNodeData(nodeId, { status: 'generating', jobId })
+    try {
+      const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
+      let resultUrl = null
+      let pollCount = 0
+      let warnedSlow = false
+      while (true) {
+        pollCount++
+        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusData = await statusRes.json()
+        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
+        console.log(`[재개 폴링 #${pollCount}]`, statusData.resultUrl ? `✅ URL` : `⏳ 대기`, statusData.error ? `❌ ${statusData.error}` : '', rawStatus.slice(0, 60))
+        if (!statusRes.ok) {
+          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
+        }
+        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
+        if (statusData.error) throw new Error(statusData.error)
+        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
+        if (!warnedSlow && Date.now() > warnAfterMs) {
+          warnedSlow = true
+          updateNodeData(nodeId, { status: 'slow', jobId })
+        }
+        await new Promise(r => setTimeout(r, 5000))
+      }
+      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
+      window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
+        .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
+    } catch (err) {
+      console.error(`[재개 폴링 실패]`, err.message)
+      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+    }
+  }, [getEdges, updateNodeData])
+
   useEffect(() => {
     higgsfieldHandlerRef.current = handleHiggsfieldGenerate
   }, [handleHiggsfieldGenerate])
 
-  return handleHiggsfieldGenerate
+  return resumePolling
 }

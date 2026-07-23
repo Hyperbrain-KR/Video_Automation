@@ -97,6 +97,21 @@ function FlowCanvas() {
   const saveTimerRef = useRef(null)
   const isMountedRef = useRef(false)
   const initialLoadDoneRef = useRef(false)
+  const pollingNodeIds = useRef(new Set())
+
+  useClaudeGenerate(activeId)
+  const resumePolling = useHiggsfieldGenerate(characters)
+
+  const resumeInProgressPolling = useCallback((loadedNodes) => {
+    loadedNodes
+      .filter(n => (n.data?.status === 'generating' || n.data?.status === 'slow') && n.data?.jobId)
+      .forEach(n => {
+        if (pollingNodeIds.current.has(n.id)) return
+        pollingNodeIds.current.add(n.id)
+        resumePolling(n.id, n.data.jobId, n.data.type === 'video')
+          .finally(() => pollingNodeIds.current.delete(n.id))
+      })
+  }, [resumePolling])
 
   // base64 imageDataUrl은 용량 한도 초과 방지를 위해 저장에서 제외
   const stripLargeData = (nodes) => nodes.map(n => {
@@ -114,10 +129,12 @@ function FlowCanvas() {
           const data = await loadProject(activeId)
           if (data) {
             isMountedRef.current = false  // 로드 후 auto-save skip
-            setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+            const loadedNodes = data.nodes ?? nodes0
+            setNodes(resetInProgressNodes(loadedNodes))
             setEdges(data.edges ?? edges0)
             setCharacters(data.characters ?? [])
             if (data.defaults) { setProjectDefaults(data.defaults); setDraftDefaults(data.defaults) }
+            resumeInProgressPolling(loadedNodes)
           }
         }
       } catch (e) {
@@ -162,16 +179,18 @@ function FlowCanvas() {
     const data = await switchProject(id)
     if (data) {
       isMountedRef.current = false
-      setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+      const loadedNodes = data.nodes ?? nodes0
+      setNodes(resetInProgressNodes(loadedNodes))
       setEdges(data.edges ?? edges0)
       setCharacters(data.characters ?? [])
       const d = data.defaults ?? DEFAULT_PROJ_DEFAULTS
       setProjectDefaults(d); setDraftDefaults(d)
+      resumeInProgressPolling(loadedNodes)
     }
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, resumeInProgressPolling])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
@@ -262,9 +281,6 @@ function FlowCanvas() {
       return n
     }))
   }, [setNodes, projectDefaults])
-
-  useClaudeGenerate(activeId)
-  useHiggsfieldGenerate(characters)
 
   // 노드 연결
   const onConnect = useCallback((params) => {
