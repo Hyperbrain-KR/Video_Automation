@@ -579,9 +579,30 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
     if (url) {
       console.log(`[upload-ref] ① media_import_url 호출 중... (url: ${url.slice(0, 60)})`)
       const importResult = await callHiggsfieldMCP('media_import_url', { url, type: 'image' })
-      if (importResult.isError) throw new Error(importResult.content?.[0]?.text || 'URL 임포트 실패')
-      mediaId = extractMediaId(importResult)
-      console.log(`[upload-ref] ② mediaId 획득: ${mediaId} (${ts()})`)
+      const importText = importResult.content?.[0]?.text ?? ''
+      const importOk = !importResult.isError && !importText.toLowerCase().includes('something went wrong')
+      if (importOk) {
+        mediaId = extractMediaId(importResult)
+        console.log(`[upload-ref] ② mediaId 획득: ${mediaId} (${ts()})`)
+      } else {
+        console.warn(`[upload-ref] URL import 실패, 직접 다운로드 후 업로드로 fallback... (${ts()})`)
+        const imgRes = await fetch(url)
+        if (!imgRes.ok) throw new Error(`이미지 다운로드 실패: ${imgRes.status}`)
+        const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+        const imgContentType = imgRes.headers.get('content-type') || 'image/jpeg'
+        const uploadResult = await callHiggsfieldMCP('media_upload', {
+          filename: 'reference.jpg', content_type: imgContentType,
+        })
+        if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
+        const { presignedUrl, id } = extractPresigned(uploadResult)
+        if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+        const putRes = await fetch(presignedUrl, {
+          method: 'PUT', headers: { 'Content-Type': imgContentType }, body: imgBuf,
+        })
+        if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+        mediaId = id
+        console.log(`[upload-ref] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
+      }
     } else {
       console.log(`[upload-ref] ① media_upload presigned 요청 중... (${filename})`)
       const uploadResult = await callHiggsfieldMCP('media_upload', {
