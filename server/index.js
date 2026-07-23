@@ -589,7 +589,8 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         const imgRes = await fetch(url)
         if (!imgRes.ok) throw new Error(`이미지 다운로드 실패: ${imgRes.status}`)
         const imgBuf = Buffer.from(await imgRes.arrayBuffer())
-        const imgContentType = imgRes.headers.get('content-type') || 'image/jpeg'
+        const rawType = imgRes.headers.get('content-type') || 'image/jpeg'
+        const imgContentType = rawType.split(';')[0].trim()
         const uploadResult = await callHiggsfieldMCP('media_upload', {
           filename: 'reference.jpg', content_type: imgContentType,
         })
@@ -601,6 +602,7 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         })
         if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
         mediaId = id
+        await new Promise(r => setTimeout(r, 1500))
         console.log(`[upload-ref] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
       }
     } else {
@@ -630,9 +632,19 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
     if (!mediaId) throw new Error('mediaId 획득 실패')
 
     console.log(`[upload-ref] ⑤ media_confirm 호출 중... (mediaId: ${mediaId})`)
-    const confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
-    console.log(`[upload-ref] ⑥ confirm 완료 (${ts()}):`, confirmResult.content?.[0]?.text?.slice(0, 100))
-    if (confirmResult.isError) {
+    let confirmResult
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
+      const confirmText = confirmResult.content?.[0]?.text ?? ''
+      console.log(`[upload-ref] confirm 시도 ${attempt} (${ts()}):`, confirmText.slice(0, 100))
+      if (!confirmResult.isError && !confirmText.toLowerCase().includes('something went wrong')) break
+      if (attempt < 4) {
+        console.warn(`[upload-ref] confirm 실패, ${attempt * 2000}ms 후 재시도...`)
+        await new Promise(r => setTimeout(r, attempt * 2000))
+      }
+    }
+    const finalConfirmText = confirmResult.content?.[0]?.text ?? ''
+    if (confirmResult.isError || finalConfirmText.toLowerCase().includes('something went wrong')) {
       const errText = confirmResult.content?.map(c => c.text).join(' ') ?? 'confirm 실패'
       throw new Error(`media_confirm 실패: ${errText}`)
     }
