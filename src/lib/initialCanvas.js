@@ -148,7 +148,7 @@ export const edges0 = [
 // ── 씬 복제 팩토리 ────────────────────────────────────────────────
 export const SCENE_X_STEP = 1000
 
-export function buildScene(sceneIdx) {
+export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
   const uid = `sc${Date.now()}`
   const x = 350 + (sceneIdx - 1) * SCENE_X_STEP
   const u = uid
@@ -169,7 +169,11 @@ export function buildScene(sceneIdx) {
     { id: `reviewImagePrompt-${u}`, type: 'reviewGate', position: { x: x + 630, y: 580 },
       data: { label: '이미지 프롬프트 리뷰', prompt: '(Claude가 생성한 이미지 프롬프트)' } },
     { id: `higgsfieldImage-${u}`, type: 'higgsfieldNode', position: { x: x + 310, y: 840 },
-      data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_pro' } },
+      data: { label: '이미지 생성', type: 'image', hasRef: true,
+        model: imgDef.model ?? 'nano_banana_pro',
+        quality: imgDef.quality ?? '1k',
+        aspectRatio: imgDef.aspectRatio ?? 'auto',
+      } },
     { id: `reviewImageResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 840 },
       data: { label: '이미지 리뷰', prompt: '(생성된 이미지 확인 후 비디오 단계로)' } },
     { id: `vidDirection-${u}`, type: 'textInput', position: { x: x + 20, y: 1130 },
@@ -179,7 +183,12 @@ export function buildScene(sceneIdx) {
     { id: `reviewVideoPrompt-${u}`, type: 'reviewGate', position: { x: x + 630, y: 1130 },
       data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 } },
     { id: `higgsfieldVideo-${u}`, type: 'higgsfieldNode', position: { x: x + 310, y: 1400 },
-      data: { label: '비디오 생성', type: 'video' } },
+      data: { label: '비디오 생성', type: 'video',
+        videoMode: vidDef.videoMode ?? 'pro',
+        videoAspect: vidDef.videoAspect ?? '9:16',
+        sound: vidDef.sound ?? 'off',
+        duration: vidDef.duration ?? 5,
+      } },
     { id: `reviewVideoResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 1400 },
       data: { label: '최종 비디오 리뷰', prompt: '(최종 비디오 확인 후 다운로드)' } },
   ]

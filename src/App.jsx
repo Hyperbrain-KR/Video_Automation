@@ -57,6 +57,11 @@ function SlotCounter({ value }) {
   )
 }
 
+const DEFAULT_PROJ_DEFAULTS = {
+  image: { model: 'nano_banana_pro', quality: '1k', aspectRatio: 'auto' },
+  video: { videoMode: 'pro', videoAspect: '9:16', sound: 'off', duration: 5 },
+}
+
 const nodeTypes = {
   reviewGate: ReviewGateNode,
   styleAnchorInput: StyleAnchorInputNode,
@@ -80,8 +85,12 @@ function FlowCanvas() {
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
   const {
     projects, activeId, activeProject, loading,
-    loadProject, saveProject, createProject, switchProject, deleteProject, renameProject,
+    loadProject, saveProject, saveProjectDefaults, createProject, switchProject, deleteProject, renameProject,
   } = useProjects(user)
+
+  const [projectDefaults, setProjectDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
+  const [showDefaultsModal, setShowDefaultsModal] = useState(false)
+  const [draftDefaults, setDraftDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
 
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'pending' | 'saved'
   const [savedAt, setSavedAt]     = useState(null)
@@ -108,6 +117,7 @@ function FlowCanvas() {
             setNodes(resetInProgressNodes(data.nodes ?? nodes0))
             setEdges(data.edges ?? edges0)
             setCharacters(data.characters ?? [])
+            if (data.defaults) { setProjectDefaults(data.defaults); setDraftDefaults(data.defaults) }
           }
         }
       } catch (e) {
@@ -155,6 +165,8 @@ function FlowCanvas() {
       setNodes(resetInProgressNodes(data.nodes ?? nodes0))
       setEdges(data.edges ?? edges0)
       setCharacters(data.characters ?? [])
+      const d = data.defaults ?? DEFAULT_PROJ_DEFAULTS
+      setProjectDefaults(d); setDraftDefaults(d)
     }
     setSaveState('idle')
     setSavedAt(null)
@@ -235,10 +247,21 @@ function FlowCanvas() {
   // ── 씬 추가 ──────────────────────────────────────────────────
   const addScene = useCallback(() => {
     const sceneIdx = getNodes().filter(n => n.data?.step?.includes('Step 02')).length + 1
-    const { nodes: newNodes, edges: newEdges } = buildScene(sceneIdx)
+    const { nodes: newNodes, edges: newEdges } = buildScene(sceneIdx, projectDefaults.image, projectDefaults.video)
     setNodes(nds => [...nds, ...newNodes])
     setEdges(eds => [...eds, ...newEdges])
-  }, [getNodes, setNodes, setEdges])
+  }, [getNodes, setNodes, setEdges, projectDefaults])
+
+  const applyDefaultsToAll = useCallback(() => {
+    setNodes(nds => nds.map(n => {
+      if (n.type !== 'higgsfieldNode') return n
+      if (n.data.type === 'image' && n.data.label !== '캐릭터 생성')
+        return { ...n, data: { ...n.data, ...projectDefaults.image } }
+      if (n.data.type === 'video')
+        return { ...n, data: { ...n.data, ...projectDefaults.video } }
+      return n
+    }))
+  }, [setNodes, projectDefaults])
 
   useClaudeGenerate(activeId)
   useHiggsfieldGenerate(characters)
@@ -412,6 +435,128 @@ function FlowCanvas() {
           <div style={{ fontSize: 12, color: 'rgba(244,244,244,0.4)' }}>불러오는 중...</div>
         </div>
       )}
+      {/* 프로젝트 기본값 설정 버튼 */}
+      <button
+        onClick={() => { setDraftDefaults(projectDefaults); setShowDefaultsModal(true) }}
+        title="생성 기본값 설정"
+        style={{
+          position: 'fixed', bottom: 240, left: 12, zIndex: 10,
+          height: 32, paddingInline: 10, borderRadius: 7,
+          border: '1px solid var(--controls-border)',
+          background: 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+          fontSize: 11, fontWeight: 700, color: 'var(--t4)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >⚙ 생성 기본값</button>
+
+      {/* 기본값 설정 모달 */}
+      {showDefaultsModal && (
+        <div
+          onClick={() => setShowDefaultsModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--node-bg, #12131f)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 12, padding: 24, width: 300,
+              backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--t1)' }}>⚙ 생성 기본값 설정</div>
+
+            {/* 이미지 */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#29D9D9', marginBottom: 8, letterSpacing: '0.06em' }}>이미지</div>
+              {[
+                { label: '모델', key: 'model', opts: [['nano_banana_pro','나노바나나 Pro'],['gpt_image_2','GPT 이미지 2']] },
+                { label: '퀄리티', key: 'quality', opts: draftDefaults.image.model === 'gpt_image_2'
+                    ? [['low','Low'],['medium','Medium'],['high','High']]
+                    : [['720','720p'],['1k','1K'],['2k','2K'],['4k','4K']] },
+                { label: '비율', key: 'aspectRatio', opts: [['auto','Auto'],['1:1','1:1'],['3:4','3:4'],['4:3','4:3'],['9:16','9:16'],['16:9','16:9']] },
+              ].map(({ label, key, opts }) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>{label}</span>
+                  <select
+                    value={draftDefaults.image[key]}
+                    onChange={e => setDraftDefaults(d => ({ ...d, image: { ...d.image, [key]: e.target.value,
+                      ...(key === 'model' ? { quality: e.target.value === 'gpt_image_2' ? 'high' : '1k' } : {}) } }))}
+                    style={{ flex: 1, background: 'var(--node-input,#1a1b2e)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 5, color: 'var(--t2)', padding: '4px 6px', fontSize: 10, fontFamily: 'inherit' }}
+                  >
+                    {opts.map(([v, l]) => <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {/* 비디오 */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(170,110,255,1)', marginBottom: 8, letterSpacing: '0.06em' }}>비디오</div>
+              {[
+                { label: '모드', key: 'videoMode', opts: [['std','Standard'],['pro','Pro'],['4k','4K']] },
+                { label: '비율', key: 'videoAspect', opts: [['16:9','16:9'],['9:16','9:16'],['1:1','1:1']] },
+                { label: '오디오', key: 'sound', opts: [['off','Off'],['on','On']] },
+              ].map(({ label, key, opts }) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>{label}</span>
+                  <select
+                    value={draftDefaults.video[key]}
+                    onChange={e => setDraftDefaults(d => ({ ...d, video: { ...d.video, [key]: e.target.value } }))}
+                    style={{ flex: 1, background: 'var(--node-input,#1a1b2e)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 5, color: 'var(--t2)', padding: '4px 6px', fontSize: 10, fontFamily: 'inherit' }}
+                  >
+                    {opts.map(([v, l]) => <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>길이</span>
+                <input
+                  type="range" min={3} max={15} step={1}
+                  value={draftDefaults.video.duration}
+                  onChange={e => setDraftDefaults(d => ({ ...d, video: { ...d.video, duration: Number(e.target.value) } }))}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: 10, color: 'var(--t2)', width: 24 }}>{draftDefaults.video.duration}s</span>
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setProjectDefaults(draftDefaults)
+                  saveProjectDefaults(activeId, draftDefaults)
+                  setShowDefaultsModal(false)
+                }}
+                style={{ flex: 1, padding: '7px 0', borderRadius: 7, border: 'none',
+                  background: '#29D9D9', color: '#0a0a0f', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              >저장</button>
+              <button
+                onClick={() => {
+                  setProjectDefaults(draftDefaults)
+                  saveProjectDefaults(activeId, draftDefaults)
+                  applyDefaultsToAll()
+                  setShowDefaultsModal(false)
+                }}
+                style={{ flex: 1, padding: '7px 0', borderRadius: 7,
+                  border: '1px solid rgba(170,110,255,0.5)',
+                  background: 'rgba(170,110,255,0.1)', color: 'rgba(170,110,255,1)',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              >저장 + 전체 적용</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
         disabled={!hasHiggsfieldAuthError}
         onClick={() => window.open(`${CANVAS_API}/auth/higgsfield/start`, '_blank')}

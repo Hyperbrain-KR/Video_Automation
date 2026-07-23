@@ -41,12 +41,18 @@ export function useProjects(user) {
   const loadProject = useCallback(async (id) => {
     if (!id) return null
     const { data, error } = await supabase.from('projects')
-      .select('nodes, edges, characters')
+      .select('nodes, edges, characters, defaults')
       .eq('id', id)
       .single()
     if (error) { console.error('[loadProject]', error); return null }
     return data
   }, [])
+
+  const saveProjectDefaults = useCallback(async (id, defaults) => {
+    if (!id || !user) return
+    const { error } = await supabase.from('projects').update({ defaults }).eq('id', id)
+    if (error) console.error('[saveProjectDefaults]', error)
+  }, [user])
 
   const saveProject = useCallback(async (id, nodes, edges, characters) => {
     if (!id || !user) return
@@ -94,6 +100,6 @@ export function useProjects(user) {
 
   return {
     projects, activeId, activeProject, loading,
-    loadProject, saveProject, createProject, switchProject, deleteProject, renameProject,
+    loadProject, saveProject, saveProjectDefaults, createProject, switchProject, deleteProject, renameProject,
   }
 }
