@@ -444,9 +444,15 @@ app.post('/api/higgsfield/video', async (req, res) => {
     console.log('[higgsfield/video] ① generate_video MCP 호출 중...')
     let result, rawContent
     // "Media input not found" 오류는 media_confirm 후 인덱싱 지연으로 발생 → 재시도
+    // callHiggsfieldMCP가 JSON-RPC error를 throw할 수 있으므로 try/catch로 감쌈
     for (let attempt = 1; attempt <= 4; attempt++) {
-      result = await callHiggsfieldMCP('generate_video', args)
-      rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+      try {
+        result = await callHiggsfieldMCP('generate_video', args)
+        rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+      } catch (e) {
+        rawContent = e.message
+        result = { isError: true, content: [{ type: 'text', text: e.message }] }
+      }
       const lower = rawContent.toLowerCase()
       if (lower.includes('media input not found') || lower.includes('media not found')) {
         if (attempt < 4) {
