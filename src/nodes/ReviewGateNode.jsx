@@ -201,6 +201,7 @@ export default function ReviewGateNode({ id, data, selected }) {
 
   const [editTab, setEditTab] = useState('direct')   // 'direct' | 'ai'
   const [feedback, setFeedback] = useState('')
+  const [feedbackImages, setFeedbackImages] = useState([]) // [{ data, mediaType, previewUrl }]
   const [regenerating, setRegenerating] = useState(false)
 
 
@@ -217,6 +218,18 @@ export default function ReviewGateNode({ id, data, selected }) {
   // data.approved가 소스 오브 트루스 — status는 파생값
   const status = data.approved && !isEditing ? 'approved' : isEditing ? 'editing' : 'pending'
 
+  const addFeedbackImage = (file) => {
+    if (!file || feedbackImages.length >= 3) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target.result
+      const [meta, data] = dataUrl.split(',')
+      const mediaType = meta.split(':')[1].split(';')[0]
+      setFeedbackImages(prev => [...prev, { data, mediaType, previewUrl: dataUrl }])
+    }
+    reader.readAsDataURL(file)
+  }
+
   const regenerate = async () => {
     if (!feedback.trim() || regenerating) return
     setRegenerating(true)
@@ -229,6 +242,7 @@ export default function ReviewGateNode({ id, data, selected }) {
           userMessage: `Original prompt:\n${prompt}\n\nUser feedback:\n${feedback.trim()}`,
           maxTokens: charLimit ? charLimit + 300 : 2000,
           projectId: projectId ?? undefined,
+          images: feedbackImages.length ? feedbackImages.map(({ data, mediaType }) => ({ data, mediaType })) : undefined,
         }),
       })
       if (!res.ok) throw new Error('재생성 실패')
@@ -236,6 +250,7 @@ export default function ReviewGateNode({ id, data, selected }) {
       setPrompt(text)
       updateNodeData(id, { prompt: text, approved: false })
       setFeedback('')
+      setFeedbackImages([])
       setIsEditing(false)
     } catch (err) {
       console.error('[regenerate]', err.message)
@@ -398,7 +413,50 @@ export default function ReviewGateNode({ id, data, selected }) {
               }}
             />
 
-            <div style={{ fontSize: 9, color: 'var(--t5)', marginBottom: 8, textAlign: 'right' }}>
+            {/* 이미지 첨부 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              {feedbackImages.map((img, i) => (
+                <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                  <img
+                    src={img.previewUrl}
+                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 5,
+                      border: '1px solid rgba(41,217,217,0.35)' }}
+                  />
+                  <button
+                    className="nopan nodrag"
+                    onClick={() => setFeedbackImages(prev => prev.filter((_, j) => j !== i))}
+                    style={{
+                      position: 'absolute', top: -5, right: -5,
+                      width: 14, height: 14, borderRadius: '50%',
+                      background: '#E34054', border: 'none', cursor: 'pointer',
+                      fontSize: 8, color: '#fff', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', padding: 0,
+                    }}
+                  >✕</button>
+                </div>
+              ))}
+              {feedbackImages.length < 3 && (
+                <label className="nopan nodrag" style={{
+                  width: 48, height: 48, borderRadius: 5, cursor: 'pointer',
+                  border: '1px dashed rgba(41,217,217,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18, color: 'rgba(41,217,217,0.6)',
+                  background: 'rgba(41,217,217,0.04)',
+                  transition: 'all 0.15s',
+                }}>
+                  📎
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={e => { addFeedbackImage(e.target.files[0]); e.target.value = '' }}
+                    className="nopan nodrag"
+                  />
+                </label>
+              )}
+            </div>
+
+            <div style={{ fontSize: 9, color: 'var(--t5)', marginBottom: 8, marginTop: 4, textAlign: 'right' }}>
               ⌘↵ 로 재생성
             </div>
 
@@ -406,12 +464,12 @@ export default function ReviewGateNode({ id, data, selected }) {
               <button style={styles.btnSecondary} onClick={() => setIsEditing(false)}>취소</button>
               <button
                 onClick={regenerate}
-                disabled={regenerating || !feedback.trim()}
+                disabled={regenerating || (!feedback.trim() && feedbackImages.length === 0)}
                 className="nopan nodrag"
                 style={{
                   ...styles.btnApprove,
-                  opacity: regenerating || !feedback.trim() ? 0.55 : 1,
-                  cursor: regenerating || !feedback.trim() ? 'not-allowed' : 'pointer',
+                  opacity: regenerating || (!feedback.trim() && feedbackImages.length === 0) ? 0.55 : 1,
+                  cursor: regenerating || (!feedback.trim() && feedbackImages.length === 0) ? 'not-allowed' : 'pointer',
                 }}
               >
                 {regenerating ? '⚙ 재생성 중…' : '↺ 재생성'}

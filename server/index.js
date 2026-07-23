@@ -159,17 +159,25 @@ function accumulateUsage(projectId, u) {
 
 // ── Claude: 프롬프트 생성 ──────────────────────────────────
 app.post('/api/claude/generate', async (req, res) => {
-  const { systemPrompt, userMessage, maxTokens = 1500, projectId } = req.body
+  const { systemPrompt, userMessage, maxTokens = 1500, projectId, images } = req.body
   if (!systemPrompt || !userMessage) {
     return res.status(400).json({ error: 'systemPrompt와 userMessage가 필요합니다' })
   }
   try {
+    const userContent = images?.length
+      ? [
+          ...images.map(({ data, mediaType }) => ({
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data },
+          })),
+          { type: 'text', text: userMessage },
+        ]
+      : userMessage
     const message = await anthropic.messages.create({
       model: MODEL,
       max_tokens: maxTokens,
-      // system을 배열로 변경 + cache_control → 동일 시스템 프롬프트 반복 호출 시 캐시 히트
       system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: userMessage }],
+      messages: [{ role: 'user', content: userContent }],
     })
     const text = message.content[0]?.text ?? ''
 
