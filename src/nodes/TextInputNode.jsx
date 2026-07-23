@@ -37,20 +37,22 @@ function SuggestionModal({ isVideo, onClose, onApply, projectId, styleAnchor }) 
     if (!narration.trim()) return
     setSuggesting('loading')
     try {
-      const anchorBlock = styleAnchor?.trim()
-        ? `\nStyle anchor (follow this visual style — do not contradict it):\n${styleAnchor.trim()}\n`
-        : ''
+      const anchor = styleAnchor?.trim()
       const systemPrompt = isVideo
-        ? `You are a creative director helping write video scene directions in Korean.
-Given a narration/script excerpt and optional creative intent, suggest a concise Korean video direction.
-Focus on: camera movement (줌인, 트래킹, 패닝 등), character action, timing, and atmosphere.${anchorBlock}
-Output ONLY the Korean scene direction — no labels, no explanations.`
-        : `You are a creative director helping write image scene directions in Korean.
-Given a narration/script excerpt and optional creative intent, suggest a concise Korean image direction.
-Focus on: character action and expression, spatial composition, mood and atmosphere.${anchorBlock}
-Output ONLY the Korean scene direction — no labels, no explanations.`
+        ? `You are a creative director writing Korean video scene directions.
+${anchor ? 'The project has a fixed visual style defined by a style anchor. Your direction MUST reflect and be consistent with that anchor\'s aesthetic, mood, and cinematography language.' : ''}
+Given the narration and optional intent, suggest a concise Korean video direction (camera movement, character action, timing, atmosphere).
+Output ONLY the Korean direction — no labels, no explanations.`
+        : `You are a creative director writing Korean image scene directions.
+${anchor ? 'The project has a fixed visual style defined by a style anchor. Your direction MUST reflect and be consistent with that anchor\'s aesthetic, mood, and visual language.' : ''}
+Given the narration and optional intent, suggest a concise Korean image direction (character action, composition, mood).
+Output ONLY the Korean direction — no labels, no explanations.`
 
-      const userMessage = `나레이션:\n${narration.trim()}${intent.trim() ? `\n\n의도:\n${intent.trim()}` : ''}`
+      const userMessage = [
+        anchor ? `[스타일 앵커]\n${anchor}` : '',
+        `[나레이션]\n${narration.trim()}`,
+        intent.trim() ? `[의도]\n${intent.trim()}` : '',
+      ].filter(Boolean).join('\n\n')
 
       const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
         method: 'POST',
