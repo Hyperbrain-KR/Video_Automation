@@ -499,8 +499,17 @@ app.get('/api/higgsfield/credits', async (req, res) => {
     const toolNames = tools.map(t => t.name)
     console.log('[higgsfield/credits] 사용 가능한 툴:', toolNames)
 
-    const result = await callHiggsfieldMCP('balance', {}, 10_000)
-    const text = result.content?.[0]?.text ?? ''
+    let result = await callHiggsfieldMCP('balance', {}, 10_000)
+    let text = result.content?.[0]?.text ?? ''
+    if (text.includes('expired') || text.includes('no longer valid')) {
+      const refreshed = await refreshHiggsfieldToken()
+      if (refreshed) {
+        result = await callHiggsfieldMCP('balance', {}, 10_000)
+        text = result.content?.[0]?.text ?? ''
+      } else {
+        return res.status(401).json({ error: 'Higgsfield 세션 만료 — 재로그인 필요' })
+      }
+    }
     console.log('[higgsfield/credits] balance 응답:', text)
     const match = text.match(/[\d,]+(\.\d+)?/)
     const credits = match ? parseFloat(match[0].replace(/,/g, '')) : null

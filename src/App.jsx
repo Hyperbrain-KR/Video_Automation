@@ -248,12 +248,6 @@ function FlowCanvas() {
     setEdges(eds => addEdge({ ...params, type: 'smoothstep' }, eds))
   }, [setEdges])
 
-  // ── Higgsfield 인증 오류 감지 ────────────────────────────
-  const hasHiggsfieldAuthError = useMemo(
-    () => nodes.some(n => n.data?.status === 'auth_error'),
-    [nodes]
-  )
-
   // ── Higgsfield 크레딧 조회 ───────────────────────────────
   const [hfCredits, setHfCredits] = useState(null)
   const [hfCreditsRaw, setHfCreditsRaw] = useState(null)
@@ -267,6 +261,12 @@ function FlowCanvas() {
       })
       .catch(() => setHfCredits('error'))
   }, [])
+
+  // ── Higgsfield 인증 오류 감지 ────────────────────────────
+  const hasHiggsfieldAuthError = useMemo(
+    () => nodes.some(n => n.data?.status === 'auth_error') || hfCredits === 'error',
+    [nodes, hfCredits]
+  )
   useEffect(() => {
     if (!hasHiggsfieldAuthError) fetchHfCredits()
   }, [hasHiggsfieldAuthError, fetchHfCredits])
