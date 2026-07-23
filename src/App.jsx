@@ -271,13 +271,14 @@ function FlowCanvas() {
     setEdges(eds => [...eds, ...newEdges])
   }, [getNodes, setNodes, setEdges, projectDefaults])
 
-  const applyDefaultsToAll = useCallback(() => {
+  const applyDefaultsToAll = useCallback((defaults) => {
+    const d = defaults ?? projectDefaults
     setNodes(nds => nds.map(n => {
       if (n.type !== 'higgsfieldNode') return n
       if (n.data.type === 'image' && n.data.label !== '캐릭터 생성')
-        return { ...n, data: { ...n.data, ...projectDefaults.image } }
+        return { ...n, data: { ...n.data, ...d.image } }
       if (n.data.type === 'video')
-        return { ...n, data: { ...n.data, ...projectDefaults.video } }
+        return { ...n, data: { ...n.data, ...d.video } }
       return n
     }))
   }, [setNodes, projectDefaults])
@@ -560,7 +561,7 @@ function FlowCanvas() {
                 onClick={() => {
                   setProjectDefaults(draftDefaults)
                   saveProjectDefaults(activeId, draftDefaults)
-                  applyDefaultsToAll()
+                  applyDefaultsToAll(draftDefaults)
                   setShowDefaultsModal(false)
                 }}
                 style={{ flex: 1, padding: '7px 0', borderRadius: 7,
