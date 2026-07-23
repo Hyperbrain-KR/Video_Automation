@@ -442,9 +442,22 @@ app.post('/api/higgsfield/video', async (req, res) => {
 
   try {
     console.log('[higgsfield/video] ① generate_video MCP 호출 중...')
-    let result = await callHiggsfieldMCP('generate_video', args)
+    let result, rawContent
+    // "Media input not found" 오류는 media_confirm 후 인덱싱 지연으로 발생 → 재시도
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      result = await callHiggsfieldMCP('generate_video', args)
+      rawContent = result.content?.map(c => c.text).join(' ') ?? ''
+      const lower = rawContent.toLowerCase()
+      if (lower.includes('media input not found') || lower.includes('media not found')) {
+        if (attempt < 4) {
+          console.warn(`[higgsfield/video] 미디어 미인식 (시도 ${attempt}), ${attempt * 3}s 후 재시도...`)
+          await new Promise(r => setTimeout(r, attempt * 3000))
+          continue
+        }
+      }
+      break
+    }
     console.log(`[higgsfield/video] ② MCP 응답 수신 (${ts()})`)
-    let rawContent = result.content?.map(c => c.text).join(' ') ?? ''
     console.log('[higgsfield/video] content:', rawContent.slice(0, 300))
 
     // Higgsfield가 프리셋을 제안하는 경우 → 자동으로 declined_preset_id 붙여 재시도
