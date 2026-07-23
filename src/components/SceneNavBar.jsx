@@ -153,6 +153,15 @@ const STYLES = `
     box-shadow: 0 12px 32px rgba(0,0,0,0.16), 0 0 0 1px rgba(41,217,217,0.35);
   }
 
+  [data-theme="dark"] .scene-card-approved {
+    border-color: rgba(34,197,94,0.7) !important;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.35), 0 0 10px rgba(34,197,94,0.2), 0 2px 8px rgba(0,0,0,0.35) !important;
+  }
+  [data-theme="light"] .scene-card-approved {
+    border-color: rgba(34,197,94,0.8) !important;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.3), 0 0 8px rgba(34,197,94,0.15), 0 2px 10px rgba(0,0,0,0.09) !important;
+  }
+
   .scene-card-empty {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
@@ -574,7 +583,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch
 
 // ── SceneCard ──────────────────────────────────────────────────────────────
 function SceneCard({ scene, onClick, onDelete }) {
-  const { imgStatus, vidStatus, imgResultUrl, vidResultUrl } = scene
+  const { imgStatus, vidStatus, imgResultUrl, vidResultUrl, vidApproved } = scene
   const overallStatus = sceneStatus(imgStatus, vidStatus)
   const dot = STATUS_DOT[overallStatus] ?? STATUS_DOT.idle
   const isVidDone    = vidStatus === 'done'
@@ -616,7 +625,10 @@ function SceneCard({ scene, onClick, onDelete }) {
 
   return (
     <div className="scene-card-wrap">
-      <button className="scene-card" onClick={confirm ? undefined : onClick}>
+      <button
+        className={`scene-card${vidApproved ? ' scene-card-approved' : ''}`}
+        onClick={confirm ? undefined : onClick}
+      >
         {thumbSrc ? (
           <>
             <img
@@ -656,6 +668,17 @@ function SceneCard({ scene, onClick, onDelete }) {
               animation: isGenerating ? 'sceneIconPulse 1.4s ease-in-out infinite' : 'none',
             }}>🎬</span>
           </div>
+        )}
+
+        {vidApproved && (
+          <div style={{
+            position: 'absolute', top: 4, right: 4, zIndex: 10,
+            width: 14, height: 14, borderRadius: '50%',
+            background: '#22c55e',
+            boxShadow: '0 0 6px rgba(34,197,94,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 8, fontWeight: 900, color: '#fff', lineHeight: 1,
+          }}>✓</div>
         )}
 
         <div className="scene-card-label">
@@ -758,8 +781,9 @@ export default function SceneNavBar({
       .sort((a, b) => a.position.x - b.position.x)
       .map((bg, i) => {
         const uid = bg.id === 'bg-s2' ? null : bg.id.replace('bg-s2-', '')
-        const imgNode = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
-        const vidNode = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
+        const imgNode     = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
+        const vidNode     = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
+        const reviewFinal = nodes.find(n => n.id === (uid ? `reviewVideoResult-${uid}` : 'reviewVideoResult'))
         return {
           index: i + 1,
           uid,
@@ -768,6 +792,7 @@ export default function SceneNavBar({
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
           vidResultUrl: vidNode?.data?.resultUrl ?? null,
+          vidApproved:  reviewFinal?.data?.approved ?? false,
         }
       })
   }, [nodes])
