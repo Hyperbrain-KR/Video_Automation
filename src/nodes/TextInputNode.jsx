@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { CANVAS_API } from '../lib/config'
+import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 
 const C = {
   cyan: '#29D9D9',
@@ -28,7 +29,7 @@ const nodeBase = {
 const MAX_HEIGHT = 220
 
 // ── 제안 모달 ─────────────────────────────────────────────────────────────
-function SuggestionModal({ isVideo, onClose, onApply, projectId, styleAnchor }) {
+function SuggestionModal({ isVideo, onClose, onApply, projectId, styleAnchor, directionImage }) {
   const [narration, setNarration] = useState('')
   const [intent, setIntent] = useState('')
   const [suggesting, setSuggesting] = useState('')  // '' | 'loading' | error msg
@@ -38,26 +39,32 @@ function SuggestionModal({ isVideo, onClose, onApply, projectId, styleAnchor }) 
     setSuggesting('loading')
     try {
       const anchor = styleAnchor?.trim()
+      const hasImage = !!directionImage
       const systemPrompt = isVideo
         ? `You are a creative director writing Korean video scene directions.
 ${anchor ? 'The project has a fixed visual style defined by a style anchor. Your direction MUST reflect and be consistent with that anchor\'s aesthetic, mood, and cinematography language.' : ''}
+${hasImage ? 'A reference image of the character is provided. Use it to inform the character\'s appearance and feel in the direction.' : ''}
 Given the narration and optional intent, suggest a concise Korean video direction (camera movement, character action, timing, atmosphere).
 Output ONLY the Korean direction — no labels, no explanations.`
         : `You are a creative director writing Korean image scene directions.
 ${anchor ? 'The project has a fixed visual style defined by a style anchor. Your direction MUST reflect and be consistent with that anchor\'s aesthetic, mood, and visual language.' : ''}
+${hasImage ? 'A reference image of the character is provided. Use it to inform the character\'s appearance and feel in the direction.' : ''}
 Given the narration and optional intent, suggest a concise Korean image direction (character action, composition, mood).
 Output ONLY the Korean direction — no labels, no explanations.`
 
       const userMessage = [
         anchor ? `[스타일 앵커]\n${anchor}` : '',
+        hasImage ? '[캐릭터 레퍼런스 이미지가 첨부되어 있습니다. 이 캐릭터의 외형과 분위기를 연출에 반영해 주세요.]' : '',
         `[나레이션]\n${narration.trim()}`,
         intent.trim() ? `[의도]\n${intent.trim()}` : '',
       ].filter(Boolean).join('\n\n')
 
+      const images = directionImage ? [directionImage] : undefined
+
       const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemPrompt, userMessage, maxTokens: 600, projectId: projectId ?? undefined }),
+        body: JSON.stringify({ systemPrompt, userMessage, maxTokens: 600, projectId: projectId ?? undefined, images }),
       })
       if (!res.ok) throw new Error('서버 오류')
       const { text } = await res.json()
@@ -218,6 +225,10 @@ export default function TextInputNode({ id, data, selected }) {
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
   const [showModal, setShowModal] = useState(false)
+  const [dirImgSrc, setDirImgSrc] = useState(null)
+  const [dirImgMeta, setDirImgMeta] = useState(null) // { data, mediaType }
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
 
   const isDirectionNode = data.label?.includes('연출')
@@ -240,6 +251,40 @@ export default function TextInputNode({ id, data, selected }) {
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + 'px'
   }, [value])
+
+  // 연출 노드: 저장된 레퍼런스 이미지 로드
+  useEffect(() => {
+    if (!isDirectionNode || !data.hasDirectionImage) return
+    loadImage(`direction-${id}`).then(url => {
+      if (!url) return
+      setDirImgSrc(url)
+      const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
+      const base64 = url.split(',')[1]
+      setDirImgMeta({ data: base64, mediaType })
+    })
+  }, [id, isDirectionNode, data.hasDirectionImage])
+
+  const handleDirectionImageFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const url = e.target.result
+      const mediaType = file.type
+      const base64 = url.split(',')[1]
+      setDirImgSrc(url)
+      setDirImgMeta({ data: base64, mediaType })
+      saveImage(`direction-${id}`, url)
+      updateNodeData(id, { hasDirectionImage: true })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleDirectionImageRemove = () => {
+    setDirImgSrc(null)
+    setDirImgMeta(null)
+    deleteImage(`direction-${id}`)
+    updateNodeData(id, { hasDirectionImage: false })
+  }
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -322,6 +367,75 @@ export default function TextInputNode({ id, data, selected }) {
         onChange={e => { setValue(e.target.value); updateNodeData(id, { value: e.target.value }) }}
       />
 
+      {/* 연출 노드 전용: 레퍼런스 이미지 첨부 */}
+      {isDirectionNode && (
+        <div style={{ marginTop: 8 }}>
+          {dirImgSrc ? (
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img
+                src={dirImgSrc}
+                alt="레퍼런스"
+                style={{
+                  width: '100%', maxHeight: 120,
+                  objectFit: 'cover', borderRadius: 6,
+                  border: '1px solid rgba(41,217,217,0.3)',
+                  display: 'block',
+                }}
+              />
+              <button
+                className="nopan nodrag"
+                onClick={handleDirectionImageRemove}
+                title="이미지 제거"
+                style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 18, height: 18,
+                  background: 'rgba(0,0,0,0.65)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '50%', cursor: 'pointer',
+                  color: '#fff', fontSize: 9, lineHeight: '18px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 0,
+                }}
+              >✕</button>
+            </div>
+          ) : (
+            <div
+              className="nopan nodrag"
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => {
+                e.preventDefault()
+                setDragOver(false)
+                handleDirectionImageFile(e.dataTransfer.files[0])
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `1px dashed ${dragOver ? 'rgba(41,217,217,0.7)' : 'rgba(255,255,255,0.15)'}`,
+                borderRadius: 6,
+                padding: '8px 10px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                fontSize: 10,
+                color: dragOver ? C.cyan : 'var(--t5)',
+                background: dragOver ? 'rgba(41,217,217,0.06)' : 'transparent',
+                transition: 'all 0.15s',
+                userSelect: 'none',
+              }}
+            >
+              🖼 연출 참고용 이미지 첨부 (클릭 또는 드래그)
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="nopan nodrag"
+            style={{ display: 'none' }}
+            onChange={e => handleDirectionImageFile(e.target.files[0])}
+          />
+        </div>
+      )}
+
       <Handle
         type="source"
         position={Position.Right}
@@ -339,6 +453,7 @@ export default function TextInputNode({ id, data, selected }) {
           onApply={handleApply}
           projectId={projectId}
           styleAnchor={styleAnchor}
+          directionImage={dirImgMeta}
         />
       )}
     </div>

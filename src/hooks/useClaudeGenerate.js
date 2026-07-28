@@ -3,6 +3,7 @@ import { useReactFlow } from '@xyflow/react'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
 import { CANVAS_API } from '../lib/config'
+import { loadImage } from '../lib/imageDB'
 
 export const CLAUDE_PROMPTS = {
   claudeChar: {
@@ -10,6 +11,11 @@ export const CLAUDE_PROMPTS = {
 
 Your only job is to describe WHO the character is — not HOW they are rendered.
 Style, rendering, lighting, and visual treatment are handled separately by the style anchor. Do not add any style language.
+
+A reference image of the character MAY be provided. If it is:
+- Use it to inform the character's general feel, vibe, and personality
+- Do NOT describe specific facial features, skin details, or anatomical traits visible in the image
+- Let the image guide the emotional tone and silhouette description only
 
 WHAT to write:
 - Emotional expression and mood (e.g. "tired but gentle expression", "shy smile")
@@ -132,11 +138,27 @@ export function useClaudeGenerate(projectId) {
       return ''
     }
 
+    const getCommandSrcNode = () => {
+      const edge = currentEdges.find(e => e.target === nodeId && e.targetHandle === 'command')
+      return edge ? currentNodes.find(n => n.id === edge.source) : null
+    }
+
     const anchor = getInput('anchor')
     const command = getInput('command')
 
     const node = currentNodes.find(n => n.id === nodeId)
     const cfg = CLAUDE_PROMPTS[node?.data?.promptType] ?? GENERIC_PROMPT
+
+    // 연출 입력 노드에 참고 이미지가 첨부된 경우 로드
+    let images
+    const cmdSrc = getCommandSrcNode()
+    if (cmdSrc?.type === 'textInput' && cmdSrc.data.hasDirectionImage) {
+      const url = await loadImage(`direction-${cmdSrc.id}`)
+      if (url) {
+        const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
+        images = [{ data: url.split(',')[1], mediaType }]
+      }
+    }
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
@@ -148,6 +170,7 @@ export function useClaudeGenerate(projectId) {
           systemPrompt: cfg.system,
           userMessage: cfg.user(anchor, command),
           projectId: projectId ?? undefined,
+          ...(images ? { images } : {}),
         }),
       })
       if (!res.ok) {
