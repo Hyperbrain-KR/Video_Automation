@@ -116,7 +116,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
-  const thumbCollapsed = data.thumbCollapsed ?? false
+  const LS_KEY = `thumbCollapsed_${id}`
+  const thumbCollapsed = data.thumbCollapsed ?? (localStorage.getItem(LS_KEY) === 'true')
   const [hoveredCharId, setHoveredCharId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
@@ -654,7 +655,11 @@ export default function HiggsfieldNode({ id, data, selected }) {
         <div style={{ marginTop: 8 }}>
           <div
             className="nopan nodrag"
-            onClick={() => updateNodeData(id, { thumbCollapsed: !thumbCollapsed })}
+            onClick={() => {
+              const next = !thumbCollapsed
+              localStorage.setItem(LS_KEY, String(next))
+              updateNodeData(id, { thumbCollapsed: next })
+            }}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               cursor: 'pointer', marginBottom: thumbCollapsed ? 0 : 6,
