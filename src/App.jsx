@@ -457,21 +457,25 @@ function FlowCanvas() {
           <div style={{ fontSize: 12, color: 'rgba(244,244,244,0.4)' }}>불러오는 중...</div>
         </div>
       )}
-      {/* 프로젝트 기본값 설정 버튼 */}
-      <button
-        onClick={() => { setDraftDefaults(projectDefaults); setShowDefaultsModal(true) }}
-        title="생성 기본값 설정"
-        style={{
-          position: 'fixed', bottom: 240, left: 12, zIndex: 10,
-          height: 32, paddingInline: 10, borderRadius: 7,
-          border: '1px solid var(--controls-border)',
-          background: 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-          fontSize: 11, fontWeight: 700, color: 'var(--t4)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >⚙ 생성 기본값</button>
+      {/* 좌하단 버튼 그룹 */}
+      <div style={{
+        position: 'fixed', bottom: 120, left: 12, zIndex: 10,
+        display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+        {/* 프로젝트 기본값 설정 버튼 */}
+        <button
+          onClick={() => { setDraftDefaults(projectDefaults); setShowDefaultsModal(true) }}
+          title="생성 기본값 설정"
+          style={{
+            height: 32, paddingInline: 10, borderRadius: 7,
+            border: '1px solid var(--controls-border)',
+            background: 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 11, fontWeight: 700, color: 'var(--t4)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}
+        >⚙ 생성 기본값</button>
 
       {/* 기본값 설정 모달 */}
       {showDefaultsModal && (
@@ -579,40 +583,37 @@ function FlowCanvas() {
         </div>
       )}
 
-      <button
-        disabled={!hasHiggsfieldAuthError}
-        onClick={() => {
-          // localhost:3002 is the only redirect_uri registered with Higgsfield OAuth.
-          // On production, open local server with relay param so it forwards the token back.
-          const isLocal = CANVAS_API === 'http://localhost:3002'
-          const url = isLocal
-            ? 'http://localhost:3002/auth/higgsfield/start'
-            : `http://localhost:3002/auth/higgsfield/start?relay=${encodeURIComponent(CANVAS_API)}`
-          window.open(url, '_blank')
-        }}
-        title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
-        style={{
-          position: 'fixed', bottom: 200, left: 12, zIndex: 10,
-          height: 32, paddingInline: 10, borderRadius: 7,
-          border: `1px solid ${hasHiggsfieldAuthError ? 'rgba(245,158,11,0.55)' : 'var(--controls-border)'}`,
-          background: hasHiggsfieldAuthError ? 'rgba(245,158,11,0.14)' : 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: hasHiggsfieldAuthError ? 'pointer' : 'default',
-          display: 'flex', alignItems: 'center', gap: 5,
-          fontSize: 11, fontWeight: 700,
-          color: hasHiggsfieldAuthError ? '#F59E0B' : 'var(--t4)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          transition: 'all 0.2s',
-          opacity: hasHiggsfieldAuthError ? 1 : 0.5,
-        }}
-      >
-        <span style={{
-          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-          background: hasHiggsfieldAuthError ? '#F59E0B' : '#22c55e',
-          boxShadow: hasHiggsfieldAuthError ? '0 0 6px #F59E0B' : '0 0 6px #22c55e',
-        }} />
-        {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
-      </button>
+        <button
+          disabled={!hasHiggsfieldAuthError}
+          onClick={() => {
+            const isLocal = CANVAS_API === 'http://localhost:3002'
+            const url = isLocal
+              ? 'http://localhost:3002/auth/higgsfield/start'
+              : `http://localhost:3002/auth/higgsfield/start?relay=${encodeURIComponent(CANVAS_API)}`
+            window.open(url, '_blank')
+          }}
+          title={hasHiggsfieldAuthError ? 'Higgsfield 재연결' : 'Higgsfield 연결됨'}
+          style={{
+            height: 32, paddingInline: 10, borderRadius: 7,
+            border: `1px solid ${hasHiggsfieldAuthError ? 'rgba(245,158,11,0.55)' : 'var(--controls-border)'}`,
+            background: hasHiggsfieldAuthError ? 'rgba(245,158,11,0.14)' : 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: hasHiggsfieldAuthError ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 11, fontWeight: 700,
+            color: hasHiggsfieldAuthError ? '#F59E0B' : 'var(--t4)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.2s',
+            opacity: hasHiggsfieldAuthError ? 1 : 0.5,
+          }}
+        >
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: hasHiggsfieldAuthError ? '#F59E0B' : '#22c55e',
+            boxShadow: hasHiggsfieldAuthError ? '0 0 6px #F59E0B' : '0 0 6px #22c55e',
+          }} />
+          {hasHiggsfieldAuthError ? '재연결 필요' : 'HF 연결됨'}
+        </button>
       {/* 크레딧 / 사용량 카드 */}
       <div style={{ position: 'fixed', top: 82, right: 16, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {[
@@ -647,48 +648,48 @@ function FlowCanvas() {
           </button>
         ))}
       </div>
-      <button
-        onClick={toggleTheme}
-        title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
-        style={{
-          position: 'fixed', bottom: 160, left: 12, zIndex: 10,
-          width: 32, height: 32, borderRadius: 7,
-          border: '1px solid var(--controls-border)',
-          background: 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: theme === 'dark' ? '#a0b0d0' : '#5a6a90',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        {theme === 'dark'
-          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        }
-      </button>
-      {/* 업데이트 내역 버튼 (항상 표시) */}
-      <button
-        onClick={() => setShowChangelog(true)}
-        title="업데이트 내역"
-        style={{
-          position: 'fixed', bottom: 120, left: 12, zIndex: 10,
-          width: 32, height: 32, borderRadius: 7,
-          border: '1px solid var(--controls-border)',
-          background: 'var(--controls-bg)',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        🚀
-        {hasUpdate && (
-          <span style={{
-            position: 'absolute', top: 4, right: 4,
-            width: 7, height: 7, borderRadius: '50%',
-            background: '#ef4444', boxShadow: '0 0 4px rgba(239,68,68,0.8)',
-          }} />
-        )}
-      </button>
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? '라이트 모드' : '다크 모드'}
+          style={{
+            width: 32, height: 32, borderRadius: 7,
+            border: '1px solid var(--controls-border)',
+            background: 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: theme === 'dark' ? '#a0b0d0' : '#5a6a90',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}
+        >
+          {theme === 'dark'
+            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          }
+        </button>
+
+        {/* 업데이트 내역 버튼 */}
+        <button
+          onClick={() => setShowChangelog(true)}
+          title="업데이트 내역"
+          style={{
+            width: 32, height: 32, borderRadius: 7,
+            border: '1px solid var(--controls-border)',
+            background: 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,0.2)', position: 'relative',
+          }}
+        >
+          🚀
+          {hasUpdate && (
+            <span style={{
+              position: 'absolute', top: 4, right: 4,
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#ef4444', boxShadow: '0 0 4px rgba(239,68,68,0.8)',
+            }} />
+          )}
+        </button>
+      </div>
 
       <ReactFlow
         nodes={nodes}
