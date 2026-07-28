@@ -231,7 +231,11 @@ html.theme-transitioning *::after {
   box-shadow: 0 0 12px rgba(41, 217, 217, 0.8);
 }
 
-/* 컨트롤 */
+/* 컨트롤 — 좌하단 버튼 그룹(left:12)과 정렬을 맞추기 위해 margin을 12px로 고정 */
+.react-flow__panel.bottom.left {
+  margin: 12px;
+}
+
 .react-flow__controls {
   background: rgba(19, 19, 26, 0.7);
   backdrop-filter: blur(16px);

@@ -459,7 +459,7 @@ function FlowCanvas() {
       )}
       {/* 좌하단 버튼 그룹 */}
       <div style={{
-        position: 'fixed', bottom: 120, left: 12, zIndex: 10,
+        position: 'fixed', bottom: 129, left: 12, zIndex: 10,
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
         {/* 프로젝트 기본값 설정 버튼 */}
