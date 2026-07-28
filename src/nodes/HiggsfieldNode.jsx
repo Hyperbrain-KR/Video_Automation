@@ -116,6 +116,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const [thumbCollapsed, setThumbCollapsed] = useState(false)
   const [hoveredCharId, setHoveredCharId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
@@ -651,25 +652,45 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {/* 결과 미리보기 + 다운로드 */}
       {isDone && data.resultUrl && (
         <div style={{ marginTop: 8 }}>
-          {isVideo
+          <div
+            className="nopan nodrag"
+            onClick={() => setThumbCollapsed(c => !c)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer', marginBottom: thumbCollapsed ? 0 : 6,
+              padding: '2px 0',
+            }}
+          >
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.04em' }}>
+              결과 미리보기
+            </span>
+            <span style={{
+              fontSize: 10, color: 'var(--t4)',
+              transform: thumbCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+              display: 'inline-block',
+            }}>▾</span>
+          </div>
+          {!thumbCollapsed && (isVideo
             ? <video src={data.resultUrl} controls style={{ width: '100%', borderRadius: 7 }} />
             : <img src={data.resultUrl} alt="생성 결과" style={{ width: '100%', borderRadius: 7, display: 'block' }} />
-          }
-          <a
-            href={`${CANVAS_API}/api/download?url=${encodeURIComponent(data.resultUrl)}`}
-            download
-            style={{ display: 'block', textDecoration: 'none', marginTop: 6 }}
-          >
-            <div style={{
-              width: '100%', padding: '6px 0', textAlign: 'center',
-              background: 'var(--btn-done-bg)',
-              border: '1px solid var(--btn-done-border)', borderRadius: 6,
-              fontSize: 11, fontWeight: 700, color: 'var(--btn-done-text)',
-              cursor: 'pointer',
-            }}>
-              ↓ 다운로드
-            </div>
-          </a>
+          )}
+          {!thumbCollapsed && <>
+            <a
+              href={`${CANVAS_API}/api/download?url=${encodeURIComponent(data.resultUrl)}`}
+              download
+              style={{ display: 'block', textDecoration: 'none', marginTop: 6 }}
+            >
+              <div style={{
+                width: '100%', padding: '6px 0', textAlign: 'center',
+                background: 'var(--btn-done-bg)',
+                border: '1px solid var(--btn-done-border)', borderRadius: 6,
+                fontSize: 11, fontWeight: 700, color: 'var(--btn-done-text)',
+                cursor: 'pointer',
+              }}>
+                ↓ 다운로드
+              </div>
+            </a>
 
           {/* 캐릭터로 저장 (이미지만) */}
           {!isVideo && (
@@ -724,6 +745,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
               >👤 캐릭터로 저장</button>
             )
           )}
+          </>}
         </div>
       )}
 
