@@ -152,14 +152,33 @@ app.post('/auth/receive-token', async (req, res) => {
 app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
 
 // ── Claude 사용량 누적 ─────────────────────────────────────
+// In-memory cache loaded from Supabase at startup; writes are async (non-blocking).
+// Falls back to local usage.json when Supabase is unavailable (local dev).
 const USAGE_PATH = path.join(__dirname, 'usage.json')
+let _usageCache = null
+
+async function loadUsageCache() {
+  if (supabase) {
+    const { data } = await supabase.from('app_config').select('value').eq('key', 'claude_usage').single()
+    if (data?.value) { _usageCache = JSON.parse(data.value); return }
+  }
+  try { _usageCache = JSON.parse(fs.readFileSync(USAGE_PATH, 'utf8')) } catch { _usageCache = {} }
+}
 
 function readUsage() {
-  try { return JSON.parse(fs.readFileSync(USAGE_PATH, 'utf8')) } catch { return {} }
+  return _usageCache ?? {}
 }
 
 function writeUsage(data) {
-  fs.writeFileSync(USAGE_PATH, JSON.stringify(data, null, 2))
+  _usageCache = data
+  // Persist to Supabase asynchronously (non-blocking)
+  if (supabase) {
+    supabase.from('app_config')
+      .upsert({ key: 'claude_usage', value: JSON.stringify(data), updated_at: new Date().toISOString() })
+      .catch(e => console.warn('[usage] Supabase 저장 실패:', e))
+  }
+  // Also write local file as fallback
+  try { fs.writeFileSync(USAGE_PATH, JSON.stringify(data, null, 2)) } catch {}
 }
 
 function accumulateUsage(projectId, u) {
@@ -772,7 +791,7 @@ app.get('/api/download', async (req, res) => {
 
 const PORT = process.env.PORT || 3002
 
-loadTokensFromSupabase().finally(() => {
+Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
   app.listen(PORT, () => {
     console.log(`\n🎨 Canvas 서버 시작: http://localhost:${PORT}`)
     console.log(`   Claude 모델: ${MODEL}`)
