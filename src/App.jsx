@@ -666,6 +666,30 @@ function FlowCanvas() {
           : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         }
       </button>
+      {/* 업데이트 내역 버튼 (항상 표시) */}
+      <button
+        onClick={() => setShowChangelog(true)}
+        title="업데이트 내역"
+        style={{
+          position: 'fixed', bottom: 120, left: 12, zIndex: 10,
+          width: 32, height: 32, borderRadius: 7,
+          border: '1px solid var(--controls-border)',
+          background: 'var(--controls-bg)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        🚀
+        {hasUpdate && (
+          <span style={{
+            position: 'absolute', top: 4, right: 4,
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#ef4444', boxShadow: '0 0 4px rgba(239,68,68,0.8)',
+          }} />
+        )}
+      </button>
+
       <ReactFlow
         nodes={nodes}
         edges={activeEdges}
