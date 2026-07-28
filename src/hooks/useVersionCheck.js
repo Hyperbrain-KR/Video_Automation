@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CANVAS_API } from '../lib/config'
 
-const POLL_INTERVAL = 5 * 60 * 1000
+const POLL_INTERVAL = 60 * 1000
 
 export function useVersionCheck() {
   const [hasUpdate, setHasUpdate] = useState(false)
