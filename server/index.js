@@ -178,11 +178,8 @@ function readUsage() {
 function writeUsage(data) {
   _usageCache = data
   // Persist to Supabase asynchronously (non-blocking)
-  if (supabase) {
-    supabase.from('app_config')
-      .upsert({ key: 'claude_usage', value: JSON.stringify(data), updated_at: new Date().toISOString() })
-      .catch(e => console.warn('[usage] Supabase 저장 실패:', e))
-  }
+  dbSetConfig('claude_usage', JSON.stringify(data))
+    .catch(e => console.warn('[usage] Supabase 저장 실패:', e))
   // Also write local file as fallback
   try { fs.writeFileSync(USAGE_PATH, JSON.stringify(data, null, 2)) } catch {}
 }
