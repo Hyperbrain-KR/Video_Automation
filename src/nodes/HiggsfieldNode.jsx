@@ -3,6 +3,7 @@ import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
+import { CANVAS_API } from '../lib/config'
 
 function CharacterThumb({ char }) {
   const [src, setSrc] = useState(() => char.hasLocalImage ? null : (char.resultUrl ?? null))
@@ -106,7 +107,6 @@ function SelectRow({ label, value, onChange, options }) {
   )
 }
 
-const CANVAS_API = 'http://localhost:3002'
 
 const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
 const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]

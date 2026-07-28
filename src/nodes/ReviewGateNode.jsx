@@ -1,6 +1,7 @@
 import { useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
+import { CANVAS_API } from '../lib/config'
 
 const C = {
   blue: '#1F41B0',
@@ -170,7 +171,6 @@ const styles = {
   },
 }
 
-const CANVAS_API = 'http://localhost:3002'
 
 function CharCount({ text, charLimit }) {
   if (!charLimit) return null

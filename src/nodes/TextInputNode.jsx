@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
+import { CANVAS_API } from '../lib/config'
 
 const C = {
   cyan: '#29D9D9',
@@ -24,7 +25,6 @@ const nodeBase = {
   ].join(', '),
 }
 
-const CANVAS_API = 'http://localhost:3002'
 const MAX_HEIGHT = 220
 
 // ── 제안 모달 ─────────────────────────────────────────────────────────────
