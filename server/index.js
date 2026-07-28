@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createClient } from '@supabase/supabase-js'
+const CHANGELOG = JSON.parse(fs.readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'))
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ENV_PATH = path.join(__dirname, '.env')
@@ -153,17 +154,6 @@ app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
 
 // ── 버전 / 업데이트 내역 ──────────────────────────────────
 const SERVER_START_TIME = new Date().toISOString()
-
-const CHANGELOG = [
-  {
-    date: '2026-07-23',
-    items: [
-      '다운로드·연출제안·재생성이 다른 사용자에게 작동하지 않던 문제 수정',
-      'Claude API 사용량이 재배포 시 초기화되던 문제 수정',
-      'Higgsfield 재인증을 로컬 서버 릴레이 방식으로 개선',
-    ],
-  },
-]
 
 app.get('/api/version', (_, res) => res.json({ startTime: SERVER_START_TIME, changelog: CHANGELOG }))
 
