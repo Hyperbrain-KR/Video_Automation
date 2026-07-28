@@ -14,6 +14,7 @@ import { useProjects } from './hooks/useProjects'
 import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes } from './lib/initialCanvas'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
+import { useVersionCheck } from './hooks/useVersionCheck'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -301,6 +302,10 @@ function FlowCanvas() {
       })
       .catch(() => setHfCredits('error'))
   }, [])
+
+  // ── 업데이트 알림 ─────────────────────────────────────────
+  const { hasUpdate, changelog } = useVersionCheck()
+  const [showChangelog, setShowChangelog] = useState(false)
 
   // ── Higgsfield 인증 오류 감지 ────────────────────────────
   const hasHiggsfieldAuthError = useMemo(
@@ -705,6 +710,84 @@ function FlowCanvas() {
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      {/* 업데이트 알림 배너 */}
+      {hasUpdate && (
+        <div style={{
+          position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          background: 'rgba(30,40,60,0.96)', backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(99,179,237,0.4)',
+          borderRadius: 12, padding: '10px 16px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+          color: '#e2e8f0', fontSize: 13, fontWeight: 500,
+        }}>
+          <span style={{ fontSize: 16 }}>🚀</span>
+          <span>새 버전이 배포됐습니다</span>
+          <button
+            onClick={() => setShowChangelog(true)}
+            style={{ background: 'none', border: 'none', color: '#63b3ed', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
+          >업데이트 내역</button>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              background: '#3b82f6', border: 'none', color: '#fff',
+              borderRadius: 7, padding: '4px 12px', fontSize: 13,
+              fontWeight: 700, cursor: 'pointer',
+            }}
+          >새로고침</button>
+        </div>
+      )}
+
+      {/* 업데이트 내역 모달 */}
+      {showChangelog && (
+        <div
+          onClick={() => setShowChangelog(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--controls-bg)', backdropFilter: 'blur(20px)',
+              border: '1px solid var(--controls-border)',
+              borderRadius: 16, padding: '28px 32px', minWidth: 360, maxWidth: 480,
+              boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)' }}>🚀 업데이트 내역</span>
+              <button
+                onClick={() => setShowChangelog(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+              >✕</button>
+            </div>
+            {changelog.map((entry, i) => (
+              <div key={i} style={{ marginBottom: i < changelog.length - 1 ? 20 : 0 }}>
+                <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>
+                  {entry.date}
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {entry.items.map((item, j) => (
+                    <li key={j} style={{ fontSize: 13, color: 'var(--t1)', marginBottom: 5, lineHeight: 1.5 }}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                marginTop: 24, width: '100%', padding: '10px 0',
+                background: '#3b82f6', border: 'none', borderRadius: 9,
+                color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}
+            >새로고침하여 적용</button>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
     </ProjectContext.Provider>
