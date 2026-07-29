@@ -313,8 +313,15 @@ function FlowCanvas() {
     [nodes, hfCredits]
   )
   useEffect(() => {
-    if (!hasHiggsfieldAuthError) fetchHfCredits()
-  }, [hasHiggsfieldAuthError, fetchHfCredits])
+    fetchHfCredits()
+    const interval = setInterval(fetchHfCredits, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [fetchHfCredits])
+  useEffect(() => {
+    const handler = () => { if (!document.hidden) fetchHfCredits() }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [fetchHfCredits])
   useEffect(() => {
     const handler = () => setTimeout(fetchHfCredits, 3000)
     window.addEventListener('higgsfield-generate-done', handler)
