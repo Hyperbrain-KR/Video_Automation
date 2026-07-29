@@ -527,7 +527,22 @@ export default function ReviewGateNode({ id, data, selected }) {
   return (
     <div style={{ ...styles.node, ...selectedGlow }}>
       {handles}
-      <div style={styles.statusBadge}>⏳ 검토 대기</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ ...styles.statusBadge, marginBottom: 0 }}>⏳ 검토 대기</div>
+        <button
+          className="nopan nodrag"
+          onClick={handleCopy}
+          title="영어 원본 복사"
+          style={{
+            fontSize: 9, fontWeight: 700,
+            color: copied ? '#22c55e' : 'var(--t4)',
+            background: copied ? 'rgba(34,197,94,0.1)' : 'var(--node-section)',
+            border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'var(--sep)'}`,
+            borderRadius: 4, padding: '3px 8px',
+            cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit',
+          }}
+        >{copied ? '✓ 복사됨' : '복사'}</button>
+      </div>
       <div style={styles.label}>{data.label}</div>
 
       {/* 프롬프트 / 번역 토글 영역 */}
@@ -545,23 +560,6 @@ export default function ReviewGateNode({ id, data, selected }) {
           ? <span style={{ color: 'var(--t4)' }}>번역 중…</span>
           : (showKo ? koText : prompt)
         }
-        <button
-          className="nopan nodrag"
-          onClick={e => { e.stopPropagation(); handleCopy() }}
-          title="영어 원본 복사"
-          style={{
-            position: 'absolute', top: 6, right: 8,
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-            color: copied ? '#22c55e' : 'var(--t4)',
-            background: copied ? 'rgba(34,197,94,0.1)' : 'var(--node-section)',
-            border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'var(--sep)'}`,
-            borderRadius: 3, padding: '1px 5px',
-            cursor: 'pointer', transition: 'all 0.2s',
-            fontFamily: 'inherit',
-          }}
-        >
-          {copied ? '✓ 복사됨' : '복사'}
-        </button>
         <span style={{
           position: 'absolute', bottom: 6, right: 8,
           fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
