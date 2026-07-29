@@ -625,11 +625,11 @@ function FlowCanvas() {
       <div style={{ position: 'fixed', top: 82, right: 16, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {[
           {
-            label: '💎 Higgsfield Credit',
-            value: hfCredits === 'error' ? 'Error' : hfCredits === null ? '——' : String(hfCredits),
+            label: hfCredits === 'error' ? '🔐 HF 세션 상태' : '💎 HF 크레딧',
+            value: hfCredits === 'error' ? '세션 만료' : hfCredits === null ? '——' : String(hfCredits),
             isError: hfCredits === 'error',
             onClick: fetchHfCredits,
-            title: hfCreditsRaw ?? '클릭하여 새로고침',
+            title: hfCredits === 'error' ? '재연결 버튼을 눌러 재인증하세요' : (hfCreditsRaw ?? '클릭하여 새로고침'),
           },
           {
             label: '🤖 Claude API usage',
