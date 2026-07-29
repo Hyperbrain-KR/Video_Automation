@@ -4,6 +4,7 @@ import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { CANVAS_API } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
+import { generateHandlerRef } from '../lib/generateHandlerRef'
 
 const C = {
   cyan: '#29D9D9',
@@ -220,7 +221,7 @@ Output ONLY the Korean direction — no labels, no explanations.`
 
 // ── 메인 노드 ─────────────────────────────────────────────────────────────
 export default function TextInputNode({ id, data, selected }) {
-  const { updateNodeData, getNodes } = useReactFlow()
+  const { updateNodeData, getNodes, getEdges } = useReactFlow()
   const projectId = useContext(ProjectContext)
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
@@ -302,6 +303,17 @@ export default function TextInputNode({ id, data, selected }) {
     updateNodeData(id, { value: text })
   }
 
+  const handleKeyDown = (e) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return
+    e.preventDefault()
+    const edges = getEdges()
+    const nodes = getNodes()
+    const edge = edges.find(eg => eg.source === id && eg.targetHandle === 'command')
+    if (!edge) return
+    const target = nodes.find(n => n.id === edge.target && n.type === 'claude')
+    if (target) generateHandlerRef.current?.(target.id)
+  }
+
   return (
     <div style={{ ...nodeBase, ...selectedGlow }}>
 
@@ -365,6 +377,7 @@ export default function TextInputNode({ id, data, selected }) {
         placeholder={data.placeholder ?? '내용을 입력하세요...'}
         value={value}
         onChange={e => { setValue(e.target.value); updateNodeData(id, { value: e.target.value }) }}
+        onKeyDown={handleKeyDown}
       />
 
       {/* 연출 노드 전용: 레퍼런스 이미지 첨부 */}
