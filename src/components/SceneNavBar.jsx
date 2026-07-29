@@ -804,13 +804,23 @@ export default function SceneNavBar({
     )
   }, [fitBounds])
 
-  // 키보드 단축키: 1~9 → 씬 1~9, 0 → 씬 10, Shift+1~9 → 씬 11~19, Shift+0 → 씬 20
+  // 키보드 단축키:
+  // 1~9, 0           → 씬 1~10
+  // Shift+1~9, Shift+0 → 씬 11~20
+  // Alt+1~9, Alt+0   → 씬 21~30
+  // Shift+Alt+1~9, Shift+Alt+0 → 씬 31~40
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return
       if (!e.code.startsWith('Digit')) return
+      if (e.ctrlKey || e.metaKey) return
       const digit = parseInt(e.code.replace('Digit', ''), 10)
-      const idx = e.shiftKey ? (digit === 0 ? 20 : digit + 10) : (digit === 0 ? 10 : digit)
+      const d = digit === 0 ? 10 : digit
+      let idx
+      if (e.altKey && e.shiftKey) idx = d + 30
+      else if (e.altKey)          idx = d + 20
+      else if (e.shiftKey)        idx = d + 10
+      else                        idx = d
       const scene = scenes[idx - 1]
       if (scene) goToScene(scene)
     }
