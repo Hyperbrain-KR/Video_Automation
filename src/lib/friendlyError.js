@@ -14,5 +14,6 @@ export function friendlyError(msg) {
   if (/힉스필드 서버 오류/.test(msg)) return msg
   if (/서버 오류/.test(msg)) return '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return '네트워크 연결을 확인해주세요.'
+  if (/Unexpected token.*DOCTYPE|not valid JSON/i.test(msg)) return '서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.'
   return msg
 }
