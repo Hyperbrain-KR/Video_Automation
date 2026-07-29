@@ -204,6 +204,14 @@ export default function ReviewGateNode({ id, data, selected }) {
   const [feedbackImages, setFeedbackImages] = useState([]) // [{ data, mediaType, previewUrl }]
   const [regenerating, setRegenerating] = useState(false)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
 
 
   // 승인된 프롬프트를 상위 ClaudeNode에 역전파
@@ -368,6 +376,20 @@ export default function ReviewGateNode({ id, data, selected }) {
         {/* 직접 수정 */}
         {!isAi && (
           <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button
+                className="nopan nodrag"
+                onClick={handleCopy}
+                style={{
+                  fontSize: 9, fontWeight: 700,
+                  color: copied ? '#22c55e' : 'var(--t4)',
+                  background: copied ? 'rgba(34,197,94,0.1)' : 'var(--node-section)',
+                  border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'var(--sep)'}`,
+                  borderRadius: 3, padding: '2px 7px',
+                  cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit',
+                }}
+              >{copied ? '✓ 복사됨' : '복사'}</button>
+            </div>
             <textarea style={styles.textarea} value={prompt}
               onChange={e => setPrompt(e.target.value)} />
             <CharCount text={prompt} />
@@ -523,6 +545,23 @@ export default function ReviewGateNode({ id, data, selected }) {
           ? <span style={{ color: 'var(--t4)' }}>번역 중…</span>
           : (showKo ? koText : prompt)
         }
+        <button
+          className="nopan nodrag"
+          onClick={e => { e.stopPropagation(); handleCopy() }}
+          title="영어 원본 복사"
+          style={{
+            position: 'absolute', top: 6, right: 8,
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            color: copied ? '#22c55e' : 'var(--t4)',
+            background: copied ? 'rgba(34,197,94,0.1)' : 'var(--node-section)',
+            border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'var(--sep)'}`,
+            borderRadius: 3, padding: '1px 5px',
+            cursor: 'pointer', transition: 'all 0.2s',
+            fontFamily: 'inherit',
+          }}
+        >
+          {copied ? '✓ 복사됨' : '복사'}
+        </button>
         <span style={{
           position: 'absolute', bottom: 6, right: 8,
           fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
