@@ -310,7 +310,7 @@ export default function TextInputNode({ id, data, selected }) {
     const nodes = getNodes()
     const edge = edges.find(eg => eg.source === id && eg.targetHandle === 'command')
     if (!edge) return
-    const target = nodes.find(n => n.id === edge.target && n.type === 'claude')
+    const target = nodes.find(n => n.id === edge.target && n.type === 'claudeNode')
     if (target) generateHandlerRef.current?.(target.id)
   }
 
