@@ -61,16 +61,21 @@ export async function deleteImage(key) {
   await supabase.storage.from(BUCKET).remove([`${userId}/${key}`])
 }
 
-export async function deleteProjectImages(projectId) {
+export async function deleteProjectImages(nodes, characters) {
   const userId = await getUserId()
   if (!userId) return
-  const { data } = await supabase.storage.from(BUCKET).list(userId, { search: projectId })
-  if (!data?.length) return
-  const paths = data
-    .filter(f => f.name.startsWith(`${projectId}-`) || f.name.startsWith(`char-`))
-    .map(f => `${userId}/${f.name}`)
-  if (paths.length > 0) await supabase.storage.from(BUCKET).remove(paths)
-  for (const [k] of memCache) {
-    if (k.startsWith(`${projectId}-`)) memCache.delete(k)
+
+  const keys = []
+  for (const node of nodes ?? []) {
+    if (node.data?.hasDirectionImage) keys.push(`direction-${node.id}`)
+    if (node.data?.hasLocalImage) keys.push(node.id)
   }
+  for (const char of characters ?? []) {
+    if (char.hasLocalImage) keys.push(`char-${char.id}`)
+  }
+  if (!keys.length) return
+
+  const paths = keys.map(k => `${userId}/${k}`)
+  await supabase.storage.from(BUCKET).remove(paths)
+  for (const k of keys) memCache.delete(k)
 }

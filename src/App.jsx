@@ -195,7 +195,14 @@ function FlowCanvas() {
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
-    deleteProjectImages(id).catch(() => {})
+    // 삭제할 프로젝트의 노드/캐릭터 데이터로 이미지 키 수집
+    if (id === activeId) {
+      deleteProjectImages(nodes, characters).catch(() => {})
+    } else {
+      loadProject(id).then(data => {
+        if (data) deleteProjectImages(data.nodes, data.characters).catch(() => {})
+      })
+    }
     const remaining = await deleteProject(id)
     if (id === activeId) {
       if (remaining.length > 0) {
@@ -215,7 +222,7 @@ function FlowCanvas() {
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, deleteProject, switchProject, setNodes, setEdges, setCharacters])
+  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters])
 
   const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)
