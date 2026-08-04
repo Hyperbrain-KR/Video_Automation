@@ -75,7 +75,7 @@ const nodeTypes = {
 }
 
 function FlowCanvas() {
-  const { screenToFlowPosition, getNodes } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
   const { user } = useAuth()
 
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
@@ -99,6 +99,36 @@ function FlowCanvas() {
   const isMountedRef = useRef(false)
   const initialLoadDoneRef = useRef(false)
   const pollingNodeIds = useRef(new Set())
+
+  // ── Undo history ─────────────────────────────────────────────────────
+  const historyRef = useRef([])
+  const historyIdxRef = useRef(-1)
+  const pushHistory = useCallback(() => {
+    historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1)
+    historyRef.current.push({ nodes, edges })
+    historyIdxRef.current = historyRef.current.length - 1
+    if (historyRef.current.length > 50) {
+      historyRef.current.shift()
+      historyIdxRef.current--
+    }
+  }, [nodes, edges])
+
+  const pushHistoryRef = useRef(null)
+  useEffect(() => { pushHistoryRef.current = pushHistory }, [pushHistory])
+
+  // ── 키보드 삭제 확인 ─────────────────────────────────────────────────
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const pendingDeleteRef = useRef(null)
+
+  const onNodesChangeWithHistory = useCallback((changes) => {
+    if (changes.some(c => c.type === 'remove')) pushHistory()
+    onNodesChange(changes)
+  }, [onNodesChange, pushHistory])
+
+  const onEdgesChangeWithHistory = useCallback((changes) => {
+    if (changes.some(c => c.type === 'remove')) pushHistory()
+    onEdgesChange(changes)
+  }, [onEdgesChange, pushHistory])
 
   useClaudeGenerate(activeId)
   const resumePolling = useHiggsfieldGenerate(characters)
@@ -267,9 +297,10 @@ function FlowCanvas() {
   // ── 씬 삭제 ──────────────────────────────────────────────────
   const deleteScene = useCallback((uid) => {
     if (!uid) return  // 씬 1 보호
+    pushHistory()
     setNodes(nds => nds.filter(n => !n.id.endsWith(`-${uid}`)))
     setEdges(eds => eds.filter(e => !e.id.endsWith(`-${uid}`)))
-  }, [setNodes, setEdges])
+  }, [pushHistory, setNodes, setEdges])
 
   // ── 씬 추가 ──────────────────────────────────────────────────
   const addScene = useCallback(() => {
@@ -414,6 +445,7 @@ function FlowCanvas() {
     if (!contextMenu?.nodeId) return
     const id = contextMenu.nodeId
     if (action === 'delete') {
+      pushHistory()
       setNodes(nds => nds.filter(n => n.id !== id))
       setEdges(eds => eds.filter(e => e.source !== id && e.target !== id))
     } else if (action === 'duplicate') {
@@ -424,15 +456,77 @@ function FlowCanvas() {
         { ...node, id: `${node.type}-${Date.now()}`, position: { x: node.position.x + 30, y: node.position.y + 30 }, selected: false },
       ])
     }
-  }, [contextMenu, nodes, setNodes, setEdges])
+  }, [contextMenu, nodes, pushHistory, setNodes, setEdges])
 
   // ── 엣지 삭제 ─────────────────────────────────────────────
   const handleEdgeAction = useCallback((action) => {
     if (!contextMenu?.edgeId) return
     if (action === 'delete') {
+      pushHistory()
       setEdges(eds => eds.filter(e => e.id !== contextMenu.edgeId))
     }
-  }, [contextMenu, setEdges])
+  }, [contextMenu, pushHistory, setEdges])
+
+  useEffect(() => {
+    const handleUndo = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z' || e.shiftKey) return
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      if (historyIdxRef.current < 0) return
+      const snap = historyRef.current[historyIdxRef.current]
+      historyIdxRef.current--
+      setNodes(snap.nodes)
+      setEdges(snap.edges)
+    }
+    window.addEventListener('keydown', handleUndo)
+    return () => window.removeEventListener('keydown', handleUndo)
+  }, [setNodes, setEdges])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      const selNodes = getNodes().filter(n => n.selected)
+      const selEdges = getEdges().filter(eg => eg.selected)
+      if (selNodes.length === 0 && selEdges.length === 0) return
+      e.preventDefault()
+      pendingDeleteRef.current = {
+        nodeIds: selNodes.map(n => n.id),
+        edgeIds: selEdges.map(eg => eg.id),
+      }
+      setConfirmDelete(true)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [getNodes, getEdges])
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeleteRef.current) return
+    const { nodeIds, edgeIds } = pendingDeleteRef.current
+    pushHistoryRef.current?.()
+    if (nodeIds.length > 0) {
+      const idSet = new Set(nodeIds)
+      setNodes(nds => nds.filter(n => !idSet.has(n.id)))
+      setEdges(eds => eds.filter(e => !idSet.has(e.source) && !idSet.has(e.target)))
+    }
+    if (edgeIds.length > 0) {
+      const edgeIdSet = new Set(edgeIds)
+      setEdges(eds => eds.filter(e => !edgeIdSet.has(e.id)))
+    }
+    pendingDeleteRef.current = null
+    setConfirmDelete(false)
+  }, [setNodes, setEdges])
+
+  useEffect(() => {
+    if (!confirmDelete) return
+    const handler = (e) => {
+      if (e.key === 'Escape') { pendingDeleteRef.current = null; setConfirmDelete(false) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [confirmDelete])
 
   const handleContextMenuSelect = useCallback((key) => {
     if (contextMenu?.mode === 'node') handleNodeAction(key)
@@ -708,8 +802,8 @@ function FlowCanvas() {
       <ReactFlow
         nodes={nodes}
         edges={activeEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onNodesChange={onNodesChangeWithHistory}
+        onEdgesChange={onEdgesChangeWithHistory}
         onConnect={onConnect}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
@@ -725,6 +819,7 @@ function FlowCanvas() {
         minZoom={0.08}
         maxZoom={2}
         defaultEdgeOptions={{ type: 'smoothstep' }}
+        deleteKeyCode={null}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -823,6 +918,51 @@ function FlowCanvas() {
                 color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}
             >새로고침하여 적용</button>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div
+          onClick={() => { pendingDeleteRef.current = null; setConfirmDelete(false) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10001,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--node-bg, #12131f)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12, padding: '24px 28px',
+              display: 'flex', flexDirection: 'column', gap: 16,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+              minWidth: 260,
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>선택한 항목을 삭제할까요?</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { pendingDeleteRef.current = null; setConfirmDelete(false) }}
+                style={{
+                  padding: '7px 16px', borderRadius: 7,
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'transparent', color: 'var(--t2)',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                }}
+              >취소</button>
+              <button
+                onClick={handleConfirmDelete}
+                autoFocus
+                style={{
+                  padding: '7px 16px', borderRadius: 7, border: 'none',
+                  background: '#E34054', color: '#fff',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                }}
+              >삭제</button>
+            </div>
           </div>
         </div>
       )}
