@@ -344,6 +344,17 @@ function FlowCanvas() {
   // ── 업데이트 알림 ─────────────────────────────────────────
   const { hasUpdate, changelog } = useVersionCheck()
   const [showChangelog, setShowChangelog] = useState(false)
+  const [openMonths, setOpenMonths] = useState(new Set())
+  const [openDates, setOpenDates] = useState(new Set())
+  const openChangelogModal = useCallback(() => {
+    if (changelog.length) {
+      const first = changelog[0]
+      const [y, m] = first.date.split('-')
+      setOpenMonths(new Set([`${y}-${m}`]))
+      setOpenDates(new Set([first.date]))
+    }
+    setShowChangelog(true)
+  }, [changelog])
 
   // ── Higgsfield 인증 오류 감지 ────────────────────────────
   const hasHiggsfieldAuthError = useMemo(
@@ -777,7 +788,7 @@ function FlowCanvas() {
 
         {/* 업데이트 내역 버튼 */}
         <button
-          onClick={() => setShowChangelog(true)}
+          onClick={() => openChangelogModal()}
           title="업데이트 내역"
           style={{
             width: 32, height: 32, borderRadius: 7,
@@ -859,7 +870,7 @@ function FlowCanvas() {
           <span style={{ fontSize: 16 }}>🚀</span>
           <span>새 버전이 배포됐습니다</span>
           <button
-            onClick={() => setShowChangelog(true)}
+            onClick={() => openChangelogModal()}
             style={{ background: 'none', border: 'none', color: '#63b3ed', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
           >업데이트 내역</button>
           <button
@@ -888,6 +899,7 @@ function FlowCanvas() {
               background: 'var(--controls-bg)', backdropFilter: 'blur(20px)',
               border: '1px solid var(--controls-border)',
               borderRadius: 16, padding: '28px 32px', minWidth: 360, maxWidth: 480,
+              maxHeight: '80vh', display: 'flex', flexDirection: 'column',
               boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
             }}
           >
@@ -898,22 +910,89 @@ function FlowCanvas() {
                 style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
               >✕</button>
             </div>
-            {changelog.map((entry, i) => (
-              <div key={i} style={{ marginBottom: i < changelog.length - 1 ? 20 : 0 }}>
-                <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>
-                  {entry.date}
-                </div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {entry.items.map((item, j) => (
-                    <li key={j} style={{ fontSize: 13, color: 'var(--t1)', marginBottom: 5, lineHeight: 1.5 }}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <div style={{ overflowY: 'auto', flex: 1, marginBottom: 16 }}>
+            {(() => {
+              const monthGroups = {}
+              const monthOrder = []
+              changelog.forEach(entry => {
+                const [y, m] = entry.date.split('-')
+                const key = `${y}-${m}`
+                if (!monthGroups[key]) { monthGroups[key] = []; monthOrder.push(key) }
+                monthGroups[key].push(entry)
+              })
+              const toggleMonth = (key) => setOpenMonths(prev => {
+                const next = new Set(prev)
+                next.has(key) ? next.delete(key) : next.add(key)
+                return next
+              })
+              const toggleDate = (date) => setOpenDates(prev => {
+                const next = new Set(prev)
+                next.has(date) ? next.delete(date) : next.add(date)
+                return next
+              })
+              return monthOrder.map(mKey => {
+                const [y, m] = mKey.split('-')
+                const label = `${y}년 ${parseInt(m)}월`
+                const isMonthOpen = openMonths.has(mKey)
+                return (
+                  <div key={mKey} style={{ marginBottom: 6 }}>
+                    <button
+                      onClick={() => toggleMonth(mKey)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'rgba(255,255,255,0.05)', border: 'none',
+                        borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                        color: 'var(--t1)', fontSize: 13, fontWeight: 700,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span>{label}</span>
+                      <span style={{ fontSize: 10, opacity: 0.5 }}>{isMonthOpen ? '▾' : '▸'}</span>
+                    </button>
+                    {isMonthOpen && (
+                      <div style={{ paddingLeft: 8, marginTop: 4 }}>
+                        {monthGroups[mKey].map(entry => {
+                          const [, em, ed] = entry.date.split('-')
+                          const dateLabel = `${parseInt(em)}월 ${parseInt(ed)}일`
+                          const isDateOpen = openDates.has(entry.date)
+                          return (
+                            <div key={entry.date} style={{ marginBottom: 3 }}>
+                              <button
+                                onClick={() => toggleDate(entry.date)}
+                                style={{
+                                  width: '100%', display: 'flex', alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  background: 'none', border: 'none',
+                                  borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
+                                  color: 'var(--t3)', fontSize: 11, fontWeight: 600,
+                                  textAlign: 'left', letterSpacing: '0.04em',
+                                }}
+                              >
+                                <span>{dateLabel}</span>
+                                <span style={{ fontSize: 9, opacity: 0.5 }}>{isDateOpen ? '▾' : '▸'}</span>
+                              </button>
+                              {isDateOpen && (
+                                <ul style={{ margin: '2px 0 6px', paddingLeft: 24 }}>
+                                  {entry.items.map((item, j) => (
+                                    <li key={j} style={{ fontSize: 12, color: 'var(--t1)', marginBottom: 4, lineHeight: 1.55 }}>{item}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            })()}
+            </div>
             <button
               onClick={() => window.location.reload()}
               style={{
-                marginTop: 24, width: '100%', padding: '10px 0',
+                width: '100%', padding: '10px 0', flexShrink: 0,
                 background: '#3b82f6', border: 'none', borderRadius: 9,
                 color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}

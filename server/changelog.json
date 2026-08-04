@@ -3,7 +3,8 @@
     "date": "2026-08-04",
     "items": [
       "노드·엣지 실수로 삭제 시 Cmd+Z(Mac) / Ctrl+Z(Windows)로 되돌리기 지원",
-      "Delete/Backspace 키로 노드 삭제 시 확인 다이얼로그 표시 (Escape: 취소, Enter: 삭제)"
+      "Delete/Backspace 키로 노드 삭제 시 확인 다이얼로그 표시 (Escape: 취소, Enter: 삭제)",
+      "업데이트 내역을 월별 그룹 + 날짜별 드롭다운으로 개선"
     ]
   },
   {
