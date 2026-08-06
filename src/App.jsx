@@ -82,6 +82,7 @@ function FlowCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(edges0)
   const [characters, setCharacters] = useState([])
   const [isDataReady, setIsDataReady] = useState(false)
+  const [canvasKey, setCanvasKey] = useState('initial')
 
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
   const {
@@ -216,12 +217,13 @@ function FlowCanvas() {
       setCharacters(data.characters ?? [])
       const d = data.defaults ?? DEFAULT_PROJ_DEFAULTS
       setProjectDefaults(d); setDraftDefaults(d)
+      setCanvasKey(id)
       resumeInProgressPolling(loadedNodes)
     }
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, resumeInProgressPolling])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
@@ -257,14 +259,17 @@ function FlowCanvas() {
   const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)
     if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
-    await createProject(name, nodes0, edges0, [])
+    const freshNodes = JSON.parse(JSON.stringify(nodes0))
+    const freshEdges = JSON.parse(JSON.stringify(edges0))
+    const newId = await createProject(name, freshNodes, freshEdges, [])
     isMountedRef.current = false
-    setNodes(nodes0)
-    setEdges(edges0)
+    setNodes(freshNodes)
+    setEdges(freshEdges)
     setCharacters([])
+    setCanvasKey(newId ?? `new-${Date.now()}`)
     setSaveState('idle')
     setSavedAt(null)
-  }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters])
+  }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
 
   // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
   const saveCharacter = useCallback((name, resultUrl) => {
@@ -811,6 +816,7 @@ function FlowCanvas() {
       </div>
 
       <ReactFlow
+        key={canvasKey}
         nodes={nodes}
         edges={activeEdges}
         onNodesChange={onNodesChangeWithHistory}

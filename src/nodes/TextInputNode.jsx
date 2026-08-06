@@ -255,7 +255,11 @@ export default function TextInputNode({ id, data, selected }) {
 
   // 연출 노드: 저장된 레퍼런스 이미지 로드
   useEffect(() => {
-    if (!isDirectionNode || !data.hasDirectionImage) return
+    if (!isDirectionNode || !data.hasDirectionImage) {
+      setDirImgSrc(null)
+      setDirImgMeta(null)
+      return
+    }
     loadImage(`direction-${id}`).then(url => {
       if (!url) return
       setDirImgSrc(url)
