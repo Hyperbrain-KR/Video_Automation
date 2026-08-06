@@ -983,11 +983,27 @@ function FlowCanvas() {
                                 <span style={{ fontSize: 9, opacity: 0.5 }}>{isDateOpen ? '▾' : '▸'}</span>
                               </button>
                               {isDateOpen && (
-                                <ul style={{ margin: '2px 0 6px', paddingLeft: 24 }}>
-                                  {entry.items.map((item, j) => (
-                                    <li key={j} style={{ fontSize: 12, color: 'var(--t1)', marginBottom: 4, lineHeight: 1.55 }}>{item}</li>
-                                  ))}
-                                </ul>
+                                <div style={{ margin: '2px 0 6px', paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {entry.items.map((item, j) => {
+                                    const match = item.match(/^\[(FIX|ADD|UPD)\]\s*/)
+                                    const tag = match?.[1] ?? null
+                                    const text = match ? item.slice(match[0].length) : item
+                                    const tagStyle = tag === 'FIX'
+                                      ? { background: 'rgba(227,64,84,0.15)', color: '#E34054', border: '1px solid rgba(227,64,84,0.28)' }
+                                      : tag === 'ADD'
+                                      ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
+                                      : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
+                                    return (
+                                      <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                        {tag
+                                          ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
+                                          : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
+                                        }
+                                        <span style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.55 }}>{text}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               )}
                             </div>
                           )
