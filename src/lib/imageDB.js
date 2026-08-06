@@ -61,13 +61,13 @@ export async function deleteImage(key) {
   await supabase.storage.from(BUCKET).remove([`${userId}/${key}`])
 }
 
-export async function deleteProjectImages(nodes, characters) {
+export async function deleteProjectImages(nodes, characters, projectId) {
   const userId = await getUserId()
   if (!userId) return
 
   const keys = []
   for (const node of nodes ?? []) {
-    if (node.data?.hasDirectionImage) keys.push(`direction-${node.id}`)
+    if (node.data?.hasDirectionImage) keys.push(`direction-${projectId}-${node.id}`)
     if (node.data?.hasLocalImage) keys.push(node.id)
   }
   for (const char of characters ?? []) {

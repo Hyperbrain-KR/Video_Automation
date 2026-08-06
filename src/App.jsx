@@ -229,10 +229,10 @@ function FlowCanvas() {
     clearTimeout(saveTimerRef.current)
     // 삭제할 프로젝트의 노드/캐릭터 데이터로 이미지 키 수집
     if (id === activeId) {
-      deleteProjectImages(nodes, characters).catch(() => {})
+      deleteProjectImages(nodes, characters, id).catch(() => {})
     } else {
       loadProject(id).then(data => {
-        if (data) deleteProjectImages(data.nodes, data.characters).catch(() => {})
+        if (data) deleteProjectImages(data.nodes, data.characters, id).catch(() => {})
       })
     }
     const remaining = await deleteProject(id)

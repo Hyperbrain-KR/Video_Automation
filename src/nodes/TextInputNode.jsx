@@ -260,7 +260,7 @@ export default function TextInputNode({ id, data, selected }) {
       setDirImgMeta(null)
       return
     }
-    loadImage(`direction-${id}`).then(url => {
+    loadImage(`direction-${projectId}-${id}`).then(url => {
       if (!url) return
       setDirImgSrc(url)
       const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
@@ -278,7 +278,7 @@ export default function TextInputNode({ id, data, selected }) {
       const base64 = url.split(',')[1]
       setDirImgSrc(url)
       setDirImgMeta({ data: base64, mediaType })
-      saveImage(`direction-${id}`, url)
+      saveImage(`direction-${projectId}-${id}`, url)
       updateNodeData(id, { hasDirectionImage: true })
     }
     reader.readAsDataURL(file)
@@ -287,7 +287,7 @@ export default function TextInputNode({ id, data, selected }) {
   const handleDirectionImageRemove = () => {
     setDirImgSrc(null)
     setDirImgMeta(null)
-    deleteImage(`direction-${id}`)
+    deleteImage(`direction-${projectId}-${id}`)
     updateNodeData(id, { hasDirectionImage: false })
   }
 

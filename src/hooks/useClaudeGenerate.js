@@ -153,7 +153,7 @@ export function useClaudeGenerate(projectId) {
     let images
     const cmdSrc = getCommandSrcNode()
     if (cmdSrc?.type === 'textInput' && cmdSrc.data.hasDirectionImage) {
-      const url = await loadImage(`direction-${cmdSrc.id}`)
+      const url = await loadImage(`direction-${projectId}-${cmdSrc.id}`)
       if (url) {
         const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
         images = [{ data: url.split(',')[1], mediaType }]
