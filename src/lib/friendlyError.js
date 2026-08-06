@@ -1,6 +1,6 @@
 export function friendlyError(msg) {
   if (!msg) return '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.'
-  if (/insufficient.?credit|not enough credit|credit.?balance|low.?credit|no.?credit|크레딧 부족|credit required/i.test(msg)) return 'Higgsfield 크레딧이 부족합니다. Higgsfield 계정에서 크레딧을 충전해주세요.'
+  if (/out of credit|insufficient.?credit|not enough credit|credit.?balance|low.?credit|no.?credit|크레딧 부족|credit required/i.test(msg)) return 'Higgsfield 크레딧이 부족합니다. Higgsfield 계정에서 크레딧을 충전해주세요.'
   if (/HTTP 520/.test(msg)) return 'Higgsfield 서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.'
   if (/HTTP 5\d\d/.test(msg)) return 'Higgsfield 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
   if (/status 5\d\d|Service Unavailable|Error starting generation/i.test(msg)) return 'Higgsfield 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.'

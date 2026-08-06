@@ -344,14 +344,14 @@ function isHiggsfieldAuthError(msg) {
 
 function isHiggsfieldCreditError(msg) {
   const m = msg.toLowerCase()
-  return m.includes('insufficient credit')
+  return m.includes('out of credit')
+    || m.includes('insufficient credit')
     || m.includes('not enough credit')
     || m.includes('credit balance')
     || m.includes('credit required')
     || m.includes('low credit')
     || m.includes('no credit')
     || m.includes('payment required')
-    || m.includes('402')
 }
 
 function extractJobId(result) {
