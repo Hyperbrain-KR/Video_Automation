@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
@@ -164,15 +164,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const isAuthError = status === 'auth_error'
 
   const [elapsed, setElapsed] = useState(0)
-  const startRef = useRef(null)
   useEffect(() => {
-    if (status !== 'generating' && status !== 'slow') { startRef.current = null; return }
-    startRef.current = Date.now()
+    if (status !== 'generating' && status !== 'slow') return
+    const startedAt = data.generatingStartedAt ?? Date.now()
     const t = setInterval(() => {
-      if (startRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000))
     }, 1000)
     return () => clearInterval(t)
-  }, [status])
+  }, [status, data.generatingStartedAt])
 
   let description = '프롬프트 → 이미지 생성'
   if (hasRef) description = '프롬프트 + 캐릭터 참조 → 이미지 생성'

@@ -198,7 +198,7 @@ export function useHiggsfieldGenerate(characters) {
       if (!jobId) throw new Error('jobId를 받지 못했습니다')
       console.log(`[생성 요청 완료] jobId: ${jobId} (${ts()})`)
 
-      updateNodeData(nodeId, { status: 'generating', jobId })
+      updateNodeData(nodeId, { status: 'generating', jobId, generatingStartedAt: Date.now() })
 
       const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
