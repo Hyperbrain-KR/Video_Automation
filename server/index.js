@@ -342,6 +342,18 @@ function isHiggsfieldAuthError(msg) {
     || m.includes('unauthorized')
 }
 
+function isHiggsfieldCreditError(msg) {
+  const m = msg.toLowerCase()
+  return m.includes('insufficient credit')
+    || m.includes('not enough credit')
+    || m.includes('credit balance')
+    || m.includes('credit required')
+    || m.includes('low credit')
+    || m.includes('no credit')
+    || m.includes('payment required')
+    || m.includes('402')
+}
+
 function extractJobId(result) {
   for (const c of (result.content ?? [])) {
     if (c.type !== 'text') continue
@@ -434,6 +446,8 @@ app.post('/api/higgsfield/image', async (req, res) => {
         const refreshed = await refreshHiggsfieldToken()
         if (refreshed) result = await runImage()
         else return res.status(401).json({ error: 'Higgsfield 토큰 만료 — http://localhost:3002/auth/higgsfield/start 에서 재로그인' })
+      } else if (isHiggsfieldCreditError(msg)) {
+        return res.status(402).json({ error: 'insufficient credits' })
       } else {
         return res.status(500).json({ error: msg })
       }
@@ -547,6 +561,8 @@ app.post('/api/higgsfield/video', async (req, res) => {
         } else {
           return res.status(401).json({ error: 'Higgsfield 토큰 만료 — http://localhost:3002/auth/higgsfield/start 에서 재로그인' })
         }
+      } else if (isHiggsfieldCreditError(rawContent)) {
+        return res.status(402).json({ error: 'insufficient credits' })
       } else {
         return res.status(500).json({ error: rawContent || 'generate_video 실패' })
       }

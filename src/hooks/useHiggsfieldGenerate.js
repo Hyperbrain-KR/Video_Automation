@@ -190,6 +190,10 @@ export function useHiggsfieldGenerate(characters) {
           updateNodeData(nodeId, { status: 'auth_error', error: err.error })
           return
         }
+        if (genRes.status === 402) {
+          updateNodeData(nodeId, { status: 'error', error: 'Higgsfield 크레딧이 부족합니다. Higgsfield 계정에서 크레딧을 충전해주세요.' })
+          return
+        }
         throw new Error(err.error || `서버 오류 ${genRes.status}`)
       }
       const genResData = await genRes.json()
