@@ -8,9 +8,11 @@ import {
 } from '@xyflow/react'
 import { CANVAS_API } from './lib/config'
 import { CharactersContext } from './lib/CharactersContext'
+import { AssetsContext } from './lib/AssetsContext'
 import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB } from './lib/imageDB'
 import { useProjects } from './hooks/useProjects'
+import { useAssets } from './hooks/useAssets'
 import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes } from './lib/initialCanvas'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
@@ -132,7 +134,8 @@ function FlowCanvas() {
   }, [onEdgesChange, pushHistory])
 
   useClaudeGenerate(activeId)
-  const resumePolling = useHiggsfieldGenerate(characters)
+  const { assets, saveAsset, deleteAsset } = useAssets(user)
+  const resumePolling = useHiggsfieldGenerate(characters, assets)
 
   const resumeInProgressPolling = useCallback((loadedNodes) => {
     loadedNodes
@@ -553,6 +556,7 @@ function FlowCanvas() {
   // 이미지 드롭 → image 노드 생성
 
   return (
+    <AssetsContext.Provider value={{ assets, saveAsset, deleteAsset }}>
     <CharactersContext.Provider value={{ characters, saveCharacter, deleteCharacter }}>
     <ProjectContext.Provider value={activeId}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
@@ -1056,6 +1060,7 @@ function FlowCanvas() {
     </div>
     </ProjectContext.Provider>
     </CharactersContext.Provider>
+    </AssetsContext.Provider>
   )
 }
 

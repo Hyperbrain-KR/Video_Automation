@@ -5,7 +5,7 @@ import { friendlyError } from '../lib/friendlyError'
 import { CANVAS_API } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
 
-export function useHiggsfieldGenerate(characters) {
+export function useHiggsfieldGenerate(characters, assets = []) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
 
   const handleHiggsfieldGenerate = useCallback(async (nodeId) => {
@@ -105,6 +105,23 @@ export function useHiggsfieldGenerate(characters) {
       } catch (err) {
         updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
         return
+      }
+
+      // 제품 참조 이미지 추가
+      const selectedAssetIds = node?.data?.selectedAssetIds ?? []
+      for (const assetId of selectedAssetIds) {
+        const asset = assets.find(a => a.id === assetId)
+        if (!asset) continue
+        const src = asset.hasLocalImage
+          ? await loadImageByNodeId(`asset-${assetId}`)
+          : asset.resultUrl
+        if (!src) continue
+        try {
+          const mediaId = await importRefUrl(src)
+          if (mediaId) referenceMediaIds.push(mediaId)
+        } catch (e) {
+          console.warn(`[제품 참조 업로드 실패] ${asset.name}:`, e.message)
+        }
       }
     }
 
@@ -241,7 +258,7 @@ export function useHiggsfieldGenerate(characters) {
       console.error(`[생성 실패] (${ts()})`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData, characters])
+  }, [getNodes, getEdges, updateNodeData, characters, assets])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     console.log(`[폴링 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)

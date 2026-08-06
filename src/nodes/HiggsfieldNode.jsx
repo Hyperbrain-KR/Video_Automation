@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
+import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
 import { CANVAS_API } from '../lib/config'
 
@@ -13,6 +14,54 @@ function CharacterThumb({ char }) {
   }, [char.id, char.hasLocalImage])
   if (!src) return null
   return <img src={src} alt={char.name} style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+}
+
+function AssetThumb({ asset, checked, onToggle, onDelete }) {
+  const [src, setSrc] = useState(() => asset.hasLocalImage ? null : (asset.resultUrl ?? null))
+  const [hovered, setHovered] = useState(false)
+  useEffect(() => {
+    if (!asset.hasLocalImage) return
+    loadImageDB(`asset-${asset.id}`).then(url => setSrc(url ?? null)).catch(() => setSrc(null))
+  }, [asset.id, asset.hasLocalImage])
+  return (
+    <div className="nopan nodrag"
+      title={asset.name}
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative', cursor: 'pointer', borderRadius: 5, overflow: 'hidden',
+        border: `2px solid ${checked ? 'rgba(41,217,217,0.7)' : 'rgba(255,255,255,0.08)'}`,
+        aspectRatio: '1', background: 'var(--node-bg)',
+        boxShadow: checked ? '0 0 0 1px rgba(41,217,217,0.2)' : 'none',
+        transition: 'border-color 0.15s',
+      }}
+    >
+      {src
+        ? <img src={src} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📦</div>
+      }
+      {checked && (
+        <div style={{
+          position: 'absolute', top: 2, right: 2, width: 14, height: 14,
+          background: '#29D9D9', borderRadius: '50%', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          fontSize: 8, color: '#000', fontWeight: 700, lineHeight: 1,
+        }}>✓</div>
+      )}
+      {hovered && (
+        <button className="nopan nodrag"
+          onClick={e => { e.stopPropagation(); onDelete() }}
+          style={{
+            position: 'absolute', top: 2, left: 2, width: 14, height: 14, padding: 0,
+            background: 'rgba(227,64,84,0.85)', border: 'none', borderRadius: '50%',
+            fontSize: 8, color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+      )}
+    </div>
+  )
 }
 
 const C = {
@@ -114,6 +163,7 @@ const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData, getEdges, setNodes } = useReactFlow()
   const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
+  const { assets, saveAsset, deleteAsset } = useContext(AssetsContext)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
   const LS_KEY = `thumbCollapsed_${id}`
@@ -365,6 +415,55 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       >✕</button>
                     )}
                   </label>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 제품 참조 (이미지 노드만) */}
+      {!isVideo && (
+        <div style={{ marginBottom: 10, padding: '7px 9px',
+          background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
+              letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              제품 참조
+            </div>
+            <label className="nopan nodrag" title="제품 이미지 추가" style={{ cursor: 'pointer',
+              width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--node-bg)', border: '1px solid var(--sep2)', borderRadius: 3,
+              fontSize: 12, color: 'var(--t3)', lineHeight: 1,
+            }}>
+              <input type="file" accept="image/*" className="nopan nodrag" style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = ev => saveAsset(file.name.replace(/\.[^.]+$/, ''), ev.target.result)
+                  reader.readAsDataURL(file)
+                  e.target.value = ''
+                }}
+              />
+              +
+            </label>
+          </div>
+          {assets.length === 0 ? (
+            <div style={{ fontSize: 10, color: 'var(--t5)' }}>+ 버튼으로 제품 이미지 추가</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+              {assets.map(a => {
+                const checked = (data.selectedAssetIds ?? []).includes(a.id)
+                return (
+                  <AssetThumb key={a.id} asset={a} checked={checked}
+                    onToggle={() => {
+                      const cur = data.selectedAssetIds ?? []
+                      const next = checked ? cur.filter(x => x !== a.id) : [...cur, a.id]
+                      updateNodeData(id, { selectedAssetIds: next })
+                    }}
+                    onDelete={() => deleteAsset(a.id)}
+                  />
                 )
               })}
             </div>
