@@ -217,6 +217,24 @@ html.theme-transitioning *::after {
   animation: edge-pulse 1.2s ease-in-out infinite;
 }
 
+/* 섹션 드래그 중 테두리 펄스 */
+@keyframes section-drag-pulse {
+  0%, 100% { box-shadow: 0 0 0 0px var(--pulse-color), 0 0 0px var(--pulse-color); }
+  50%       { box-shadow: 0 0 0 3px var(--pulse-color), 0 0 18px var(--pulse-color); }
+}
+.section-dragging {
+  animation: section-drag-pulse 0.65s ease-in-out infinite;
+}
+
+/* 섹션 드래그 핸들 */
+.section-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+.section-drag-handle:active {
+  cursor: grabbing;
+}
+
 /* 핸들 */
 .react-flow__handle {
   background: rgba(41, 217, 217, 0.5);

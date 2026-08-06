@@ -170,6 +170,56 @@ function FlowCanvas() {
     onEdgesChange(changes)
   }, [onEdgesChange, pushHistory])
 
+  const normalizeSectionNodes = useCallback((nds) =>
+    nds.map(n => {
+      if (n.type !== 'sectionBackground') return n
+      // 마이그레이션: 헤더가 노드 내부에 포함되지 않은 기존 저장 데이터 처리
+      if (!n.data?.headerIncluded) {
+        return {
+          ...n,
+          draggable: true, dragHandle: '.section-drag-handle', zIndex: 0,
+          position: { x: n.position.x, y: n.position.y - 30 },
+          data: { ...n.data, height: (n.data.height ?? 470) + 30, headerIncluded: true },
+        }
+      }
+      return { ...n, draggable: true, dragHandle: '.section-drag-handle', zIndex: 0 }
+    }), [])
+
+  const sectionDragRef = useRef(null)
+
+  const onSectionDragStart = useCallback((_, node) => {
+    if (node.type !== 'sectionBackground') return
+    const { x: sx, y: sy } = node.position
+    const w = node.data.width ?? 940
+    const h = node.data.height ?? 500
+    const captiveIds = getNodes()
+      .filter(n => n.type !== 'sectionBackground')
+      .filter(n => n.position.x >= sx && n.position.x <= sx + w && n.position.y >= sy && n.position.y <= sy + h)
+      .map(n => n.id)
+    sectionDragRef.current = { captiveIds, lastPos: { ...node.position } }
+    setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, isDragging: true } } : n))
+  }, [getNodes, setNodes])
+
+  const onSectionDrag = useCallback((_, node) => {
+    if (node.type !== 'sectionBackground' || !sectionDragRef.current) return
+    const { lastPos, captiveIds } = sectionDragRef.current
+    const dx = node.position.x - lastPos.x
+    const dy = node.position.y - lastPos.y
+    sectionDragRef.current.lastPos = { ...node.position }
+    if (!captiveIds.length) return
+    setNodes(nds => nds.map(n =>
+      captiveIds.includes(n.id)
+        ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } }
+        : n
+    ))
+  }, [setNodes])
+
+  const onSectionDragStop = useCallback((_, node) => {
+    if (node.type !== 'sectionBackground') return
+    sectionDragRef.current = null
+    setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, isDragging: false } } : n))
+  }, [setNodes])
+
   useClaudeGenerate(activeId)
   const { assets, saveAsset, deleteAsset } = useAssets(user)
   const resumePolling = useHiggsfieldGenerate(characters, assets)
@@ -201,7 +251,7 @@ function FlowCanvas() {
           const data = await loadProject(activeId)
           if (data) {
             isMountedRef.current = false  // 로드 후 auto-save skip
-            const loadedNodes = data.nodes ?? nodes0
+            const loadedNodes = normalizeSectionNodes(data.nodes ?? nodes0)
             setNodes(resetInProgressNodes(loadedNodes))
             setEdges(data.edges ?? edges0)
             setCharacters(data.characters ?? [])
@@ -251,7 +301,7 @@ function FlowCanvas() {
     const data = await switchProject(id)
     if (data) {
       isMountedRef.current = false
-      const loadedNodes = data.nodes ?? nodes0
+      const loadedNodes = normalizeSectionNodes(data.nodes ?? nodes0)
       setNodes(resetInProgressNodes(loadedNodes))
       setEdges(data.edges ?? edges0)
       setCharacters(data.characters ?? [])
@@ -263,7 +313,7 @@ function FlowCanvas() {
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeSectionNodes])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
@@ -281,7 +331,7 @@ function FlowCanvas() {
         const data = await switchProject(remaining[0].id)
         if (data) {
           isMountedRef.current = false
-          setNodes(resetInProgressNodes(data.nodes ?? nodes0))
+          setNodes(resetInProgressNodes(normalizeSectionNodes(data.nodes ?? nodes0)))
           setEdges(data.edges ?? edges0)
           setCharacters(data.characters ?? [])
         }
@@ -294,7 +344,7 @@ function FlowCanvas() {
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters])
+  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeSectionNodes])
 
   const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)
@@ -922,6 +972,9 @@ function FlowCanvas() {
         onNodesChange={onNodesChangeWithHistory}
         onEdgesChange={onEdgesChangeWithHistory}
         onConnect={onConnect}
+        onNodeDragStart={onSectionDragStart}
+        onNodeDrag={onSectionDrag}
+        onNodeDragStop={onSectionDragStop}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
         onNodeContextMenu={onNodeContextMenu}
