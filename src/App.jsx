@@ -10,7 +10,7 @@ import { CANVAS_API } from './lib/config'
 import { CharactersContext } from './lib/CharactersContext'
 import { AssetsContext } from './lib/AssetsContext'
 import { ProjectContext } from './lib/ProjectContext'
-import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB } from './lib/imageDB'
+import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from './lib/imageDB'
 import { useProjects } from './hooks/useProjects'
 import { useAssets } from './hooks/useAssets'
 import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes } from './lib/initialCanvas'
@@ -76,6 +76,42 @@ const nodeTypes = {
   referenceImage: ReferenceImageNode,
 }
 
+function AssetPanelThumb({ asset, onDelete }) {
+  const [src, setSrc] = useState(() => asset.hasLocalImage ? null : (asset.resultUrl ?? null))
+  const [hovered, setHovered] = useState(false)
+  useEffect(() => {
+    if (!asset.hasLocalImage) return
+    loadImageDB(`asset-${asset.id}`).then(url => setSrc(url ?? null)).catch(() => {})
+  }, [asset.id, asset.hasLocalImage])
+  return (
+    <div title={asset.name}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '1',
+        background: 'var(--node-bg)', border: '1px solid var(--sep)' }}
+    >
+      {src
+        ? <img src={src} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📦</div>
+      }
+      {hovered && (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+          <div style={{ position: 'absolute', bottom: 2, left: 2, right: 2,
+            fontSize: 8, color: '#fff', textAlign: 'center',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
+          <button onClick={onDelete}
+            style={{ position: 'absolute', top: 2, right: 2, width: 14, height: 14, padding: 0,
+              background: 'rgba(227,64,84,0.85)', border: 'none', borderRadius: '50%',
+              fontSize: 8, color: '#fff', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
+        </>
+      )}
+    </div>
+  )
+}
+
 function FlowCanvas() {
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
   const { user } = useAuth()
@@ -94,6 +130,7 @@ function FlowCanvas() {
 
   const [projectDefaults, setProjectDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
   const [showDefaultsModal, setShowDefaultsModal] = useState(false)
+  const [showAssetsPanel, setShowAssetsPanel] = useState(false)
   const [draftDefaults, setDraftDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
 
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'pending' | 'saved'
@@ -794,6 +831,65 @@ function FlowCanvas() {
             : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           }
         </button>
+
+        {/* 제품 이미지 관리 버튼 */}
+        <button
+          onClick={() => setShowAssetsPanel(v => !v)}
+          title="제품 이미지 관리"
+          style={{
+            width: 32, height: 32, borderRadius: 7,
+            border: `1px solid ${showAssetsPanel ? 'rgba(41,217,217,0.5)' : 'var(--controls-border)'}`,
+            background: showAssetsPanel ? 'rgba(41,217,217,0.1)' : 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}
+        >📦</button>
+
+        {/* 제품 이미지 패널 */}
+        {showAssetsPanel && (
+          <div style={{
+            position: 'fixed', bottom: 90, left: 52, zIndex: 200,
+            background: 'var(--controls-bg)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--controls-border)', borderRadius: 12,
+            padding: '14px 14px 12px', width: 220,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--t1)' }}>📦 제품 이미지</span>
+              <label style={{ cursor: 'pointer' }} title="이미지 추가">
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = ev => saveAsset(file.name.replace(/\.[^.]+$/, ''), ev.target.result)
+                    reader.readAsDataURL(file)
+                    e.target.value = ''
+                  }}
+                />
+                <span style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 22, height: 22, borderRadius: 5, fontSize: 14, fontWeight: 700,
+                  border: '1px solid var(--controls-border)', background: 'var(--node-bg)',
+                  color: 'var(--t3)', cursor: 'pointer',
+                }}>+</span>
+              </label>
+            </div>
+            {assets.length === 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--t5)', textAlign: 'center', padding: '12px 0' }}>
+                + 버튼으로 제품 이미지 추가<br/>
+                <span style={{ fontSize: 10, opacity: 0.6 }}>모든 프로젝트에서 공유됩니다</span>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                {assets.map(a => (
+                  <AssetPanelThumb key={a.id} asset={a} onDelete={() => deleteAsset(a.id)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 업데이트 내역 버튼 */}
         <button

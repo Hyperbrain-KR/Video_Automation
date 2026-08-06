@@ -163,7 +163,7 @@ const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData, getEdges, setNodes } = useReactFlow()
   const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
-  const { assets, saveAsset, deleteAsset } = useContext(AssetsContext)
+  const { assets, deleteAsset } = useContext(AssetsContext)
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
   const LS_KEY = `thumbCollapsed_${id}`
@@ -302,172 +302,148 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 캐릭터 참조 선택 (이미지 씬 노드만) */}
-      {!isVideo && hasRef && (
-        <div style={{ marginBottom: 10, padding: '7px 9px',
-          background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
-            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
-            캐릭터 참조
-          </div>
+      {/* 캐릭터 참조 + 제품 참조 (이미지 노드만, 나란히) */}
+      {!isVideo && (hasRef || assets.length > 0) && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
 
-          {/* 참조 없음 옵션 — 엣지 기반 참조까지 모두 차단 */}
-          <label className="nopan nodrag" style={{
-            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-            padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
-            marginBottom: characters.length > 0 ? 4 : 0,
-            background: noCharRef ? 'rgba(227,64,84,0.07)' : 'transparent',
-            border: `1px solid ${noCharRef ? 'rgba(227,64,84,0.25)' : 'transparent'}`,
-          }}>
-            <input type="checkbox" checked={noCharRef} className="nopan nodrag"
-              onChange={() => {
-                const next = !noCharRef
-                updateNodeData(id, { noCharRef: next, ...(next ? { selectedCharacterIds: [] } : {}) })
-              }}
-              style={{ accentColor: '#E34054', width: 11, height: 11, flexShrink: 0 }}
-            />
-            <span style={{ fontSize: 10, fontWeight: 700, color: noCharRef ? '#E34054' : 'var(--t4)' }}>
-              참조 없음
-            </span>
-            {noCharRef && (
-              <span style={{ fontSize: 9, color: 'rgba(227,64,84,0.6)', marginLeft: 'auto' }}>
-                엣지도 무시
-              </span>
-            )}
-          </label>
+          {/* 캐릭터 참조 */}
+          {hasRef && (
+            <div style={{ flex: 1, padding: '7px 9px', minWidth: 0,
+              background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
+                letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+                캐릭터 참조
+              </div>
 
-          {/* 구분선 */}
-          {characters.length > 0 && (
-            <div style={{ height: 1, background: 'var(--sep)', margin: '0 2px 5px' }} />
+              {/* 참조 없음 옵션 */}
+              <label className="nopan nodrag" style={{
+                display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                padding: '3px 4px', borderRadius: 4, transition: 'all 0.15s',
+                marginBottom: characters.length > 0 ? 4 : 0,
+                background: noCharRef ? 'rgba(227,64,84,0.07)' : 'transparent',
+                border: `1px solid ${noCharRef ? 'rgba(227,64,84,0.25)' : 'transparent'}`,
+              }}>
+                <input type="checkbox" checked={noCharRef} className="nopan nodrag"
+                  onChange={() => {
+                    const next = !noCharRef
+                    updateNodeData(id, { noCharRef: next, ...(next ? { selectedCharacterIds: [] } : {}) })
+                  }}
+                  style={{ accentColor: '#E34054', width: 11, height: 11, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 10, fontWeight: 700, color: noCharRef ? '#E34054' : 'var(--t4)' }}>
+                  참조 없음
+                </span>
+              </label>
+
+              {characters.length > 0 && (
+                <div style={{ height: 1, background: 'var(--sep)', margin: '0 2px 5px' }} />
+              )}
+
+              {characters.length === 0 ? (
+                <div style={{ fontSize: 10, color: 'var(--t5)' }}>캐릭터 없음</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {characters.map(c => {
+                    const checked = (data.selectedCharacterIds ?? []).includes(c.id)
+                    const isConfirming = confirmDeleteId === c.id
+                    const disabled = noCharRef
+
+                    if (isConfirming) return (
+                      <div key={c.id} style={{
+                        padding: '5px 7px', borderRadius: 4,
+                        background: 'rgba(227,64,84,0.07)',
+                        border: '1px solid rgba(227,64,84,0.22)',
+                      }}>
+                        <div style={{ fontSize: 9, color: '#E34054', marginBottom: 5, lineHeight: 1.4 }}>
+                          ⚠ 다시 쓸 캐릭터라면 먼저 저장해두세요.<br/>삭제 시 복구할 수 없습니다.
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="nopan nodrag"
+                            onClick={() => setConfirmDeleteId(null)}
+                            style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                              background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+                              borderRadius: 4, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >취소</button>
+                          <button className="nopan nodrag"
+                            onClick={() => { deleteCharacter(c.id); setConfirmDeleteId(null) }}
+                            style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
+                              background: 'rgba(227,64,84,0.12)', border: '1px solid rgba(227,64,84,0.35)',
+                              borderRadius: 4, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >삭제</button>
+                        </div>
+                      </div>
+                    )
+
+                    return (
+                      <label key={c.id} className="nopan nodrag"
+                        onMouseEnter={() => !disabled && setHoveredCharId(c.id)}
+                        onMouseLeave={() => setHoveredCharId(null)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          cursor: disabled ? 'not-allowed' : 'pointer',
+                          padding: '3px 4px', borderRadius: 4, transition: 'all 0.15s',
+                          opacity: disabled ? 0.35 : 1,
+                          background: !disabled && checked ? 'rgba(41,217,217,0.07)' : 'transparent',
+                          border: `1px solid ${!disabled && checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
+                        }}>
+                        <input type="checkbox" checked={!disabled && checked} disabled={disabled}
+                          className="nopan nodrag"
+                          onChange={() => {
+                            const cur = data.selectedCharacterIds ?? []
+                            const next = checked ? cur.filter(x => x !== c.id) : [...cur, c.id]
+                            updateNodeData(id, { selectedCharacterIds: next, noCharRef: false })
+                          }}
+                          style={{ accentColor: '#29D9D9', width: 11, height: 11, flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: 10, flex: 1,
+                          color: !disabled && checked ? 'var(--t1)' : 'var(--t3)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {c.name}
+                        </span>
+                        <CharacterThumb char={c} />
+                        {!disabled && hoveredCharId === c.id && (
+                          <button className="nopan nodrag"
+                            onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
+                            style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
+                              background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
+                              borderRadius: 3, fontSize: 9, color: '#E34054',
+                              cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
+                          >✕</button>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
-          {/* 캐릭터 목록 */}
-          {characters.length === 0 ? (
-            <div style={{ fontSize: 10, color: 'var(--t5)' }}>저장된 캐릭터 없음</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {characters.map(c => {
-                const checked = (data.selectedCharacterIds ?? []).includes(c.id)
-                const isConfirming = confirmDeleteId === c.id
-                const disabled = noCharRef
-
-                if (isConfirming) return (
-                  <div key={c.id} style={{
-                    padding: '5px 7px', borderRadius: 4,
-                    background: 'rgba(227,64,84,0.07)',
-                    border: '1px solid rgba(227,64,84,0.22)',
-                  }}>
-                    <div style={{ fontSize: 9, color: '#E34054', marginBottom: 5, lineHeight: 1.4 }}>
-                      ⚠ 다시 쓸 캐릭터라면 먼저 저장해두세요.<br/>삭제 시 복구할 수 없습니다.
-                    </div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="nopan nodrag"
-                        onClick={() => setConfirmDeleteId(null)}
-                        style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
-                          background: 'var(--node-bg)', border: '1px solid var(--sep2)',
-                          borderRadius: 4, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >취소</button>
-                      <button className="nopan nodrag"
-                        onClick={() => { deleteCharacter(c.id); setConfirmDeleteId(null) }}
-                        style={{ flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 700,
-                          background: 'rgba(227,64,84,0.12)', border: '1px solid rgba(227,64,84,0.35)',
-                          borderRadius: 4, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >삭제</button>
-                    </div>
-                  </div>
-                )
-
-                return (
-                  <label key={c.id} className="nopan nodrag"
-                    onMouseEnter={() => !disabled && setHoveredCharId(c.id)}
-                    onMouseLeave={() => setHoveredCharId(null)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      cursor: disabled ? 'not-allowed' : 'pointer',
-                      padding: '3px 6px', borderRadius: 4, transition: 'all 0.15s',
-                      opacity: disabled ? 0.35 : 1,
-                      background: !disabled && checked ? 'rgba(41,217,217,0.07)' : 'transparent',
-                      border: `1px solid ${!disabled && checked ? 'rgba(41,217,217,0.2)' : 'transparent'}`,
-                    }}>
-                    <input type="checkbox" checked={!disabled && checked} disabled={disabled}
-                      className="nopan nodrag"
-                      onChange={() => {
-                        const cur = data.selectedCharacterIds ?? []
-                        const next = checked ? cur.filter(x => x !== c.id) : [...cur, c.id]
-                        // 캐릭터 체크 시 "참조 없음" 자동 해제
-                        updateNodeData(id, { selectedCharacterIds: next, noCharRef: false })
+          {/* 제품 참조 */}
+          {assets.length > 0 && (
+            <div style={{ flex: 1, padding: '7px 9px', minWidth: 0,
+              background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
+                letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+                제품 참조
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {assets.map(a => {
+                  const checked = (data.selectedAssetIds ?? []).includes(a.id)
+                  return (
+                    <AssetThumb key={a.id} asset={a} checked={checked}
+                      onToggle={() => {
+                        const cur = data.selectedAssetIds ?? []
+                        const next = checked ? cur.filter(x => x !== a.id) : [...cur, a.id]
+                        updateNodeData(id, { selectedAssetIds: next })
                       }}
-                      style={{ accentColor: '#29D9D9', width: 11, height: 11, flexShrink: 0 }}
+                      onDelete={() => deleteAsset(a.id)}
                     />
-                    <span style={{ fontSize: 10, flex: 1,
-                      color: !disabled && checked ? 'var(--t1)' : 'var(--t3)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {c.name}
-                    </span>
-                    <CharacterThumb char={c} />
-                    {!disabled && hoveredCharId === c.id && (
-                      <button className="nopan nodrag"
-                        onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
-                        style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
-                          background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
-                          borderRadius: 3, fontSize: 9, color: '#E34054',
-                          cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
-                      >✕</button>
-                    )}
-                  </label>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* 제품 참조 (이미지 노드만) */}
-      {!isVideo && (
-        <div style={{ marginBottom: 10, padding: '7px 9px',
-          background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
-              letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              제품 참조
-            </div>
-            <label className="nopan nodrag" title="제품 이미지 추가" style={{ cursor: 'pointer',
-              width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--node-bg)', border: '1px solid var(--sep2)', borderRadius: 3,
-              fontSize: 12, color: 'var(--t3)', lineHeight: 1,
-            }}>
-              <input type="file" accept="image/*" className="nopan nodrag" style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = ev => saveAsset(file.name.replace(/\.[^.]+$/, ''), ev.target.result)
-                  reader.readAsDataURL(file)
-                  e.target.value = ''
-                }}
-              />
-              +
-            </label>
-          </div>
-          {assets.length === 0 ? (
-            <div style={{ fontSize: 10, color: 'var(--t5)' }}>+ 버튼으로 제품 이미지 추가</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-              {assets.map(a => {
-                const checked = (data.selectedAssetIds ?? []).includes(a.id)
-                return (
-                  <AssetThumb key={a.id} asset={a} checked={checked}
-                    onToggle={() => {
-                      const cur = data.selectedAssetIds ?? []
-                      const next = checked ? cur.filter(x => x !== a.id) : [...cur, a.id]
-                      updateNodeData(id, { selectedAssetIds: next })
-                    }}
-                    onDelete={() => deleteAsset(a.id)}
-                  />
-                )
-              })}
-            </div>
-          )}
         </div>
       )}
 
