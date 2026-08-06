@@ -197,9 +197,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const hasMultiInput = isVideo || hasRef
   const promptTop = hasMultiInput ? '25%' : '50%'
 
-  const model       = data.model       ?? 'nano_banana_pro'
-  const quality     = data.quality     ?? (model === 'gpt_image_2' ? 'high' : '1k')
-  const aspectRatio = data.aspectRatio ?? 'auto'
+  const model       = data.model       ?? 'gpt_image_2'
+  const quality     = data.quality     ?? 'high'
+  const aspectRatio = data.aspectRatio ?? '9:16'
   const duration    = Number(data.duration  ?? 5)
   const videoMode   = data.videoMode   ?? 'pro'
   const sound       = data.sound       ?? 'off'

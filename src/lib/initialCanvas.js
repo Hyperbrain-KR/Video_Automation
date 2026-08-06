@@ -72,7 +72,7 @@ export const nodes0 = [
     id: 'reviewCharPrompt', type: 'reviewGate', position: { x: 980, y: 20 },
     data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' },
   },
-  { id: 'higgsfieldChar', type: 'higgsfieldNode', position: { x: 660, y: 270 }, data: { label: '캐릭터 생성', type: 'image' } },
+  { id: 'higgsfieldChar', type: 'higgsfieldNode', position: { x: 660, y: 270 }, data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' } },
   {
     id: 'reviewCharResult', type: 'reviewGate', position: { x: 980, y: 270 },
     data: { label: '생성된 캐릭터 리뷰', prompt: '(Higgsfield가 생성한 캐릭터 이미지 확인)' },
