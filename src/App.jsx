@@ -179,10 +179,10 @@ function FlowCanvas() {
           ...n,
           draggable: true, dragHandle: '.section-drag-handle', zIndex: 0,
           position: { x: n.position.x, y: n.position.y - 30 },
-          data: { ...n.data, height: (n.data.height ?? 470) + 30, headerIncluded: true },
+          data: { ...n.data, height: (n.data.height ?? 470) + 30, headerIncluded: true, isDragging: false },
         }
       }
-      return { ...n, draggable: true, dragHandle: '.section-drag-handle', zIndex: 0 }
+      return { ...n, draggable: true, dragHandle: '.section-drag-handle', zIndex: 0, data: { ...n.data, isDragging: false } }
     }), [])
 
   const sectionDragRef = useRef(null)

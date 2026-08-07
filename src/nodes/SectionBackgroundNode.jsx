@@ -5,10 +5,10 @@ export default function SectionBackgroundNode({ data }) {
   const sectionH = totalH - 30
 
   return (
-    <div style={{ width: w, height: totalH, position: 'relative', '--pulse-color': data.border }}>
+    <div className={isDragging ? 'section-dragging' : ''} style={{ width: w, height: totalH, position: 'relative', '--pulse-color': data.border }}>
       {/* ── 드래그 핸들 (레이블 박스) ── */}
       <div
-        className={`section-drag-handle${isDragging ? ' section-dragging' : ''}`}
+        className="section-drag-handle"
         style={{
           height: 30,
           display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 16,
