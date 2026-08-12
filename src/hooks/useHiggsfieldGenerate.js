@@ -189,9 +189,9 @@ export function useHiggsfieldGenerate(characters, assets = []) {
           }
         : {
             prompt,
-            model: node?.data?.model ?? 'nano_banana_pro',
-            quality: node?.data?.quality ?? '1k',
-            aspectRatio: node?.data?.aspectRatio ?? 'auto',
+            model: node?.data?.model ?? 'gpt_image_2',
+            quality: node?.data?.quality ?? 'high',
+            aspectRatio: node?.data?.aspectRatio ?? '9:16',
             referenceMediaIds,
           }
 

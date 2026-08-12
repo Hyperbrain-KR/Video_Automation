@@ -240,7 +240,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const handleModel = (v) => {
     const newQuality = v === 'gpt_image_2' ? 'high' : '1k'
-    updateNodeData(id, { model: v, quality: newQuality })
+    const newAspect = v === 'gpt_image_2' ? '9:16' : 'auto'
+    updateNodeData(id, { model: v, quality: newQuality, aspectRatio: newAspect })
   }
   const handleQuality = (v) => updateNodeData(id, { quality: v })
   const handleAspect = (v) => updateNodeData(id, { aspectRatio: v })
