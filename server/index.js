@@ -435,6 +435,7 @@ app.post('/api/higgsfield/image', async (req, res) => {
     },
   }
 
+  console.log('[higgsfield/image] MCP args:', JSON.stringify(args, null, 2))
   const runImage = async () => callHiggsfieldMCP('generate_image', args)
   try {
     let result = await runImage()
