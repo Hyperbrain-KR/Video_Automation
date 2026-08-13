@@ -203,9 +203,7 @@ export function useClaudeGenerate(projectId) {
       const prependAnchor = node?.data?.promptType !== 'claudeVideo'
       const finalText = (anchor && prependAnchor) ? `${anchor}\n\n${text}` : text
 
-      const ts = Date.now()
-      console.log('[claude done] nodeId:', nodeId, 'generatedAt:', ts)
-      updateNodeData(nodeId, { status: 'done', result: finalText, generatedAt: ts })
+      updateNodeData(nodeId, { status: 'done', result: finalText, generatedAt: Date.now() })
       window.dispatchEvent(new CustomEvent('claude-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)

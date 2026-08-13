@@ -800,15 +800,16 @@ export default function SceneNavBar({
   const goToScene = useCallback((scene) => {
     const liveNodes = getNodes()
     const uid = scene.uid
-    const imgNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
-    const vidNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
-    const claudeVid = liveNodes.find(n => n.id === (uid ? `claudeVideo-${uid}` : 'claudeVideo'))
-    console.log('[goToScene] uid:', uid, '| img:', imgNode?.data?.generatedAt, '| vid:', vidNode?.data?.generatedAt, '| claude:', claudeVid?.data?.generatedAt)
+    const imgNode    = liveNodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
+    const vidNode    = liveNodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
+    const claudeVid  = liveNodes.find(n => n.id === (uid ? `claudeVideo-${uid}`  : 'claudeVideo'))
+    const claudeImg  = liveNodes.find(n => n.id === (uid ? `claudeImage-${uid}`  : 'claudeImage'))
 
     const candidates = [
       imgNode?.data?.generatedAt   ? { ts: imgNode.data.generatedAt,   pos: imgNode.position,   w: 320, h: 460 } : null,
       vidNode?.data?.generatedAt   ? { ts: vidNode.data.generatedAt,   pos: vidNode.position,   w: 320, h: 520 } : null,
       claudeVid?.data?.generatedAt ? { ts: claudeVid.data.generatedAt, pos: claudeVid.position, w: 320, h: 260 } : null,
+      claudeImg?.data?.generatedAt ? { ts: claudeImg.data.generatedAt, pos: claudeImg.position, w: 320, h: 260 } : null,
     ].filter(Boolean)
 
     const latest = candidates.length ? candidates.reduce((a, b) => a.ts >= b.ts ? a : b) : null
