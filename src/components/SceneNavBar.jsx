@@ -806,18 +806,21 @@ export default function SceneNavBar({
     const reviewVidPmt   = liveNodes.find(n => n.id === (uid ? `reviewVideoPrompt-${uid}` : 'reviewVideoPrompt'))
 
     const candidates = [
-      imgNode?.data?.generatedAt      ? { ts: imgNode.data.generatedAt,      pos: imgNode.position,      w: 320, h: 460 } : null,
-      vidNode?.data?.generatedAt      ? { ts: vidNode.data.generatedAt,      pos: vidNode.position,      w: 320, h: 520 } : null,
-      reviewImgPmt?.data?.generatedAt ? { ts: reviewImgPmt.data.generatedAt, pos: reviewImgPmt.position, w: 340, h: 380 } : null,
-      reviewVidPmt?.data?.generatedAt ? { ts: reviewVidPmt.data.generatedAt, pos: reviewVidPmt.position, w: 340, h: 380 } : null,
+      // 이미지/비디오 생성 결과: 결과 미리보기 영역(노드 상단 ~380px 아래)을 타깃
+      imgNode?.data?.generatedAt      ? { ts: imgNode.data.generatedAt,      pos: imgNode.position,      w: 280, h: 520, yOff: 370 } : null,
+      vidNode?.data?.generatedAt      ? { ts: vidNode.data.generatedAt,      pos: vidNode.position,      w: 280, h: 560, yOff: 310 } : null,
+      // 프롬프트 리뷰 노드: 노드 전체를 타깃
+      reviewImgPmt?.data?.generatedAt ? { ts: reviewImgPmt.data.generatedAt, pos: reviewImgPmt.position, w: 340, h: 380, yOff: -10 } : null,
+      reviewVidPmt?.data?.generatedAt ? { ts: reviewVidPmt.data.generatedAt, pos: reviewVidPmt.position, w: 340, h: 380, yOff: -10 } : null,
     ].filter(Boolean)
 
     const latest = candidates.length ? candidates.reduce((a, b) => a.ts >= b.ts ? a : b) : null
 
     if (latest) {
+      const { pos, w, h, yOff } = latest
       fitBounds(
-        { x: latest.pos.x - 10, y: latest.pos.y - 10, width: latest.w, height: latest.h },
-        { duration: 420, padding: 0.1 },
+        { x: pos.x - 10, y: pos.y + yOff, width: w, height: h },
+        { duration: 420, padding: 0.12 },
       )
     } else {
       fitBounds(
