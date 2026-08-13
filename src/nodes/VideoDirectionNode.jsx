@@ -197,14 +197,19 @@ function DialogueInput({ label, value, onChange, placeholder }) {
     <div style={{ marginTop: 8 }}>
       <div style={{
         fontSize: 9, fontWeight: 700, letterSpacing: '0.07em',
-        textTransform: 'uppercase', color: 'var(--t4)', marginBottom: 4,
+        textTransform: 'uppercase', color: value ? 'var(--t2)' : 'var(--t4)', marginBottom: 4,
+        transition: 'color 0.15s',
       }}>
         {label}
-        <span style={{
-          marginLeft: 5, fontSize: 8, fontWeight: 600, color: 'var(--t5)',
-          background: 'var(--node-section)', border: '1px solid var(--sep)',
-          borderRadius: 3, padding: '1px 4px',
-        }}>선택</span>
+        {value ? (
+          <span style={{ marginLeft: 5, fontSize: 7, color: '#4ade80', lineHeight: 1 }}>●</span>
+        ) : (
+          <span style={{
+            marginLeft: 5, fontSize: 8, fontWeight: 600, color: 'var(--t5)',
+            background: 'var(--node-section)', border: '1px solid var(--sep)',
+            borderRadius: 3, padding: '1px 4px',
+          }}>선택</span>
+        )}
       </div>
       <textarea
         ref={ref}
@@ -216,7 +221,7 @@ function DialogueInput({ label, value, onChange, placeholder }) {
         style={{
           width: '100%',
           background: 'var(--node-input)',
-          border: '1px solid var(--sep)',
+          border: `1px solid ${value ? 'rgba(41,217,217,0.35)' : 'var(--sep)'}`,
           borderRadius: 6,
           padding: '6px 9px',
           fontSize: 11,
@@ -227,6 +232,7 @@ function DialogueInput({ label, value, onChange, placeholder }) {
           boxSizing: 'border-box',
           resize: 'none',
           overflow: 'hidden',
+          transition: 'border-color 0.15s',
         }}
       />
     </div>
