@@ -133,6 +133,7 @@ function FlowCanvas() {
   const [projectDefaults, setProjectDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
   const [showDefaultsModal, setShowDefaultsModal] = useState(false)
   const [showAssetsPanel, setShowAssetsPanel] = useState(false)
+  const [showEdges, setShowEdges] = useState(true)
   const [draftDefaults, setDraftDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
 
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'pending' | 'saved'
@@ -895,6 +896,27 @@ function FlowCanvas() {
           }
         </button>
 
+        {/* 연결선 표시/숨김 버튼 */}
+        <button
+          onClick={() => setShowEdges(v => !v)}
+          title={showEdges ? '연결선 숨기기' : '연결선 보이기'}
+          style={{
+            width: 32, height: 32, borderRadius: 7,
+            border: `1px solid ${!showEdges ? 'rgba(41,217,217,0.5)' : 'var(--controls-border)'}`,
+            background: !showEdges ? 'rgba(41,217,217,0.1)' : 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={!showEdges ? '#29D9D9' : 'var(--controls-fill)'} strokeWidth="2" strokeLinecap="round">
+            {showEdges
+              ? <><path d="M5 12h14"/><path d="M5 6h14"/><path d="M5 18h14"/></>
+              : <><path d="M5 12h14" strokeDasharray="4 2"/><path d="M5 6h14" strokeDasharray="4 2"/><path d="M5 18h14" strokeDasharray="4 2"/></>
+            }
+          </svg>
+        </button>
+
         {/* 제품 이미지 관리 버튼 */}
         <button
           onClick={() => setShowAssetsPanel(v => !v)}
@@ -980,6 +1002,7 @@ function FlowCanvas() {
 
       <ReactFlow
         key={canvasKey}
+        className={showEdges ? '' : 'edges-hidden'}
         nodes={nodes}
         edges={activeEdges}
         onNodesChange={onNodesChangeWithHistory}

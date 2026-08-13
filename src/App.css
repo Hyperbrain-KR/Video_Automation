@@ -226,6 +226,13 @@ html.theme-transitioning *::after {
   animation: section-drag-pulse 0.65s ease-in-out infinite;
 }
 
+/* 연결선 숨기기 토글 */
+.edges-hidden .react-flow__edges,
+.edges-hidden .react-flow__connectionline {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 섹션 드래그 핸들 */
 .section-drag-handle {
   cursor: grab;
