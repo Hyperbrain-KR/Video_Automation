@@ -390,13 +390,13 @@ export default function VideoDirectionNode({ id, data, selected }) {
       <DialogueInput
         label="Korean Dialogue"
         value={koreanDialogue}
-        placeholder="안녕하세요, 오늘 날씨가 참 좋네요."
+        placeholder={"한 명: 안녕하세요, 오늘 날씨가 참 좋네요.\n여러 명:\nA: 오늘 어디 가?\nB: 카페 갈건데, 같이 갈래?"}
         onChange={v => { setKoreanDialogue(v); updateNodeData(id, { koreanDialogue: v }) }}
       />
       <DialogueInput
         label="English Dialogue"
         value={englishDialogue}
-        placeholder="Hello, the weather is so nice today."
+        placeholder={"Single: Hello, the weather is so nice today.\nMultiple:\nA: Where are you going?\nB: To a cafe, wanna join?"}
         onChange={v => { setEnglishDialogue(v); updateNodeData(id, { englishDialogue: v }) }}
       />
 
