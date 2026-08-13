@@ -233,6 +233,13 @@ html.theme-transitioning *::after {
   pointer-events: none;
 }
 
+/* Higgsfield 생성 중 인디케이터 바 */
+@keyframes hf-slide {
+  0%   { transform: translateX(-100%); opacity: 0.7; }
+  50%  { opacity: 1; }
+  100% { transform: translateX(370%); opacity: 0.7; }
+}
+
 /* 섹션 드래그 핸들 */
 .section-drag-handle {
   cursor: grab;

@@ -656,6 +656,33 @@ export default function HiggsfieldNode({ id, data, selected }) {
         )}
       </div>
 
+      {/* 생성 중 스테이지 메시지 + 인디케이터 바 */}
+      {isLoading && (() => {
+        const msg = status === 'loading' ? '요청 전송 중…'
+          : elapsed < 8   ? '큐 대기 중…'
+          : elapsed < 30  ? '처리 중…'
+          : elapsed < 90  ? '렌더링 중…'
+          : elapsed < 150 ? '마무리 중…'
+          : '거의 다 됐어요…'
+        return (
+          <>
+            <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 5 }}>{msg}</div>
+            <div style={{
+              marginTop: 4, height: 3, borderRadius: 999,
+              background: 'var(--sep2)', overflow: 'hidden', position: 'relative',
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0,
+                height: '100%', width: '38%', borderRadius: 999,
+                background: 'linear-gradient(90deg, transparent, #29D9D9, rgba(41,217,217,0.3))',
+                boxShadow: '0 0 8px rgba(41,217,217,0.6)',
+                animation: 'hf-slide 1.6s cubic-bezier(0.4,0,0.6,1) infinite',
+              }} />
+            </div>
+          </>
+        )
+      })()}
+
       {/* slow 경고 */}
       {status === 'slow' && (
         <div style={{
