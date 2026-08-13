@@ -102,13 +102,28 @@ Kling 3.0 Style Rules:
 - Avoid filler like "masterpiece" or "best quality"
 - Use phrasing like "keeping the referenced character unchanged", "based on the attached reference frame"
 
+MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
+- You MUST include it EXACTLY as given, word for word. Never paraphrase, translate, shorten, or omit it.
+- Copy the dialogue lines verbatim into the prompt using the exact format provided (e.g. "Korean Dialogue: 안녕하세요")
+- Also add natural speaking motion cues that match the dialogue moment: natural lip movement, directed eye contact or gaze shift, subtle hand gesture or body language that fits the rhythm of speech
+
 Do not ask follow-up questions.
 
 Output rules:
 - Output the English prompt only
-- No code blocks, no Korean translation, no explanations
+- No code blocks, no Korean translation outside of dialogue lines, no explanations
 - Maximum 2500 characters total — cut secondary details if needed to stay within this limit`,
-    user: (anchor, command) => `Video style anchor:\n${anchor || '(none)'}\n\nVideo direction:\n${command || '(no input)'}`,
+    user: (anchor, command, koreanDialogue, englishDialogue) => {
+      const dialogueLines = [
+        koreanDialogue?.trim() ? `Korean Dialogue: ${koreanDialogue.trim()}` : '',
+        englishDialogue?.trim() ? `English Dialogue: ${englishDialogue.trim()}` : '',
+      ].filter(Boolean).join('\n')
+      return [
+        `Video style anchor:\n${anchor || '(none)'}`,
+        `Video direction:\n${command || '(no input)'}`,
+        dialogueLines ? `⚠️ MANDATORY DIALOGUE — copy verbatim into the prompt:\n${dialogueLines}` : '',
+      ].filter(Boolean).join('\n\n')
+    },
   },
 }
 
@@ -133,7 +148,7 @@ export function useClaudeGenerate(projectId) {
         return edge.sourceHandle === 'video' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
       if (src.type === 'scriptImport')
         return edge.sourceHandle === 'videoAnchor' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
-      if (src.type === 'textInput') return src.data.value || ''
+      if (src.type === 'textInput' || src.type === 'videoDirectionInput') return src.data.value || ''
       if (src.type === 'reviewGate') return src.data.prompt || ''
       return ''
     }
@@ -152,13 +167,18 @@ export function useClaudeGenerate(projectId) {
     // 연출 입력 노드에 참고 이미지가 첨부된 경우 로드
     let images
     const cmdSrc = getCommandSrcNode()
-    if (cmdSrc?.type === 'textInput' && cmdSrc.data.hasDirectionImage) {
+    const isDirectionNode = cmdSrc?.type === 'textInput' || cmdSrc?.type === 'videoDirectionInput'
+    if (isDirectionNode && cmdSrc.data.hasDirectionImage) {
       const url = await loadImage(`direction-${projectId}-${cmdSrc.id}`)
       if (url) {
         const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
         images = [{ data: url.split(',')[1], mediaType }]
       }
     }
+
+    // 비디오 연출 노드에서 대사 읽기
+    const koreanDialogue = cmdSrc?.type === 'videoDirectionInput' ? (cmdSrc.data.koreanDialogue ?? '') : ''
+    const englishDialogue = cmdSrc?.type === 'videoDirectionInput' ? (cmdSrc.data.englishDialogue ?? '') : ''
 
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
@@ -168,7 +188,7 @@ export function useClaudeGenerate(projectId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemPrompt: cfg.system,
-          userMessage: cfg.user(anchor, command),
+          userMessage: cfg.user(anchor, command, koreanDialogue, englishDialogue),
           projectId: projectId ?? undefined,
           ...(images ? { images } : {}),
         }),

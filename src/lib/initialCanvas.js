@@ -99,7 +99,7 @@ export const nodes0 = [
 
   // ── Section 3: 비디오 생성 ──────────────────────────────
   {
-    id: 'vidDirection', type: 'textInput', position: { x: 370, y: 1130 },
+    id: 'vidDirection', type: 'videoDirectionInput', position: { x: 370, y: 1130 },
     data: { label: '비디오 연출 입력', placeholder: '원하는 영상 연출을 설명해주세요.\n예) 카메라가 천천히 줌인하며...' },
   },
   {
@@ -176,7 +176,7 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
       } },
     { id: `reviewImageResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 840 },
       data: { label: '이미지 리뷰', prompt: '(생성된 이미지 확인 후 비디오 단계로)' } },
-    { id: `vidDirection-${u}`, type: 'textInput', position: { x: x + 20, y: 1130 },
+    { id: `vidDirection-${u}`, type: 'videoDirectionInput', position: { x: x + 20, y: 1130 },
       data: { label: `비디오 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 영상 연출을 설명해주세요...' } },
     { id: `claudeVideo-${u}`, type: 'claudeNode', position: { x: x + 310, y: 1130 },
       data: { label: '비디오 프롬프트 생성', description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트', promptType: 'claudeVideo' } },

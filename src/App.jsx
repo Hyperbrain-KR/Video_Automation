@@ -23,6 +23,7 @@ import './App.css'
 import ReviewGateNode from './nodes/ReviewGateNode'
 import StyleAnchorInputNode from './nodes/StyleAnchorInputNode'
 import TextInputNode from './nodes/TextInputNode'
+import VideoDirectionNode from './nodes/VideoDirectionNode'
 import ClaudeNode from './nodes/ClaudeNode'
 import HiggsfieldNode from './nodes/HiggsfieldNode'
 import SectionBackgroundNode from './nodes/SectionBackgroundNode'
@@ -69,6 +70,7 @@ const nodeTypes = {
   reviewGate: ReviewGateNode,
   styleAnchorInput: StyleAnchorInputNode,
   textInput: TextInputNode,
+  videoDirectionInput: VideoDirectionNode,
   claudeNode: ClaudeNode,
   higgsfieldNode: HiggsfieldNode,
   sectionBackground: SectionBackgroundNode,
@@ -185,6 +187,17 @@ function FlowCanvas() {
       return { ...n, draggable: true, dragHandle: '.section-drag-handle', zIndex: 0, data: { ...n.data, isDragging: false } }
     }), [])
 
+  // 기존 저장 프로젝트의 비디오 연출 노드(textInput)를 videoDirectionInput으로 마이그레이션
+  // normalizeSectionNodes와 체이닝해서 한 번에 처리
+  const normalizeNodes = useCallback((nds) => {
+    const afterSection = normalizeSectionNodes(nds)
+    return afterSection.map(n => {
+      if (n.type !== 'textInput') return n
+      if (!n.data?.label?.includes('비디오 연출')) return n
+      return { ...n, type: 'videoDirectionInput' }
+    })
+  }, [normalizeSectionNodes])
+
   const sectionDragRef = useRef(null)
 
   const onSectionDragStart = useCallback((_, node) => {
@@ -251,7 +264,7 @@ function FlowCanvas() {
           const data = await loadProject(activeId)
           if (data) {
             isMountedRef.current = false  // 로드 후 auto-save skip
-            const loadedNodes = normalizeSectionNodes(data.nodes ?? nodes0)
+            const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
             setNodes(resetInProgressNodes(loadedNodes))
             setEdges(data.edges ?? edges0)
             setCharacters(data.characters ?? [])
@@ -301,7 +314,7 @@ function FlowCanvas() {
     const data = await switchProject(id)
     if (data) {
       isMountedRef.current = false
-      const loadedNodes = normalizeSectionNodes(data.nodes ?? nodes0)
+      const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
       setNodes(resetInProgressNodes(loadedNodes))
       setEdges(data.edges ?? edges0)
       setCharacters(data.characters ?? [])
@@ -313,7 +326,7 @@ function FlowCanvas() {
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeSectionNodes])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeNodes])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
@@ -331,7 +344,7 @@ function FlowCanvas() {
         const data = await switchProject(remaining[0].id)
         if (data) {
           isMountedRef.current = false
-          setNodes(resetInProgressNodes(normalizeSectionNodes(data.nodes ?? nodes0)))
+          setNodes(resetInProgressNodes(normalizeNodes(data.nodes ?? nodes0)))
           setEdges(data.edges ?? edges0)
           setCharacters(data.characters ?? [])
         }
@@ -344,7 +357,7 @@ function FlowCanvas() {
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeSectionNodes])
+  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes])
 
   const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)
