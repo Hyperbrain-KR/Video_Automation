@@ -103,15 +103,17 @@ Kling 3.0 Style Rules:
 - Use phrasing like "keeping the referenced character unchanged", "based on the attached reference frame"
 
 MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
-- You MUST include it EXACTLY as given, word for word. Never paraphrase, translate, shorten, or omit it.
-- Copy the dialogue lines verbatim into the prompt using the exact format provided (e.g. "Korean Dialogue: 안녕하세요")
+- You MUST include it EXACTLY as given, word for word. Never paraphrase, shorten, or omit it.
+- NEVER translate dialogue. Korean Dialogue must remain in Korean. English Dialogue must remain in English. The language of the dialogue is intentional and must be preserved exactly.
+- Copy the dialogue lines verbatim into the prompt using the exact label format (e.g. "Korean Dialogue: 안녕하세요", "English Dialogue: Hello")
 - Also add natural speaking motion cues that match the dialogue moment: natural lip movement, directed eye contact or gaze shift, subtle hand gesture or body language that fits the rhythm of speech
 
 Do not ask follow-up questions.
 
 Output rules:
 - Output the English prompt only
-- No code blocks, no Korean translation outside of dialogue lines, no explanations
+- No code blocks, no explanations
+- Write everything in English EXCEPT dialogue lines — dialogue must appear exactly as provided in its original language
 - Maximum 2500 characters total — cut secondary details if needed to stay within this limit`,
     user: (anchor, command, koreanDialogue, englishDialogue) => {
       const dialogueLines = [
