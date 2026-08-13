@@ -805,11 +805,17 @@ export default function SceneNavBar({
     const reviewImgPmt   = liveNodes.find(n => n.id === (uid ? `reviewImagePrompt-${uid}` : 'reviewImagePrompt'))
     const reviewVidPmt   = liveNodes.find(n => n.id === (uid ? `reviewVideoPrompt-${uid}` : 'reviewVideoPrompt'))
 
+    // 결과 노드: measured.height에서 결과 섹션 추정 높이를 빼서 yOff 동적 계산
+    const resultBounds = (node, resultSectionH, w) => {
+      if (!node?.data?.generatedAt) return null
+      const totalH = node.measured?.height ?? (resultSectionH + 350)
+      const yOff = Math.max(0, totalH - resultSectionH)
+      return { ts: node.data.generatedAt, pos: node.position, w, h: resultSectionH, yOff }
+    }
+
     const candidates = [
-      // 이미지/비디오 생성 결과: 결과 미리보기 영역(노드 상단 ~380px 아래)을 타깃
-      imgNode?.data?.generatedAt      ? { ts: imgNode.data.generatedAt,      pos: imgNode.position,      w: 280, h: 520, yOff: 370 } : null,
-      vidNode?.data?.generatedAt      ? { ts: vidNode.data.generatedAt,      pos: vidNode.position,      w: 280, h: 560, yOff: 310 } : null,
-      // 프롬프트 리뷰 노드: 노드 전체를 타깃
+      resultBounds(imgNode,     530, 280),  // 이미지 결과: 이미지+버튼 ≈ 530px
+      resultBounds(vidNode,     560, 280),  // 비디오 결과: 비디오+버튼 ≈ 560px
       reviewImgPmt?.data?.generatedAt ? { ts: reviewImgPmt.data.generatedAt, pos: reviewImgPmt.position, w: 340, h: 380, yOff: -10 } : null,
       reviewVidPmt?.data?.generatedAt ? { ts: reviewVidPmt.data.generatedAt, pos: reviewVidPmt.position, w: 340, h: 380, yOff: -10 } : null,
     ].filter(Boolean)
