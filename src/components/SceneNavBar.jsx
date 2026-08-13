@@ -730,7 +730,7 @@ export default function SceneNavBar({
   projects, activeProject, saveState, savedAt,
   onSwitchProject, onCreateProject, onDeleteProject, onRenameProject,
 }) {
-  const { fitBounds, getNodes } = useReactFlow()
+  const { fitBounds, getNodes, setNodes } = useReactFlow()
   const scenesRef = useRef()
   const [scrollX, setScrollX]     = useState(0)
   const [maxScroll, setMaxScroll] = useState(0)
@@ -810,20 +810,22 @@ export default function SceneNavBar({
       if (!node?.data?.generatedAt) return null
       const totalH = node.measured?.height ?? (resultSectionH + 350)
       const yOff = Math.max(0, totalH - resultSectionH)
-      return { ts: node.data.generatedAt, pos: node.position, w, h: resultSectionH, yOff }
+      return { ts: node.data.generatedAt, nodeId: node.id, pos: node.position, w, h: resultSectionH, yOff }
     }
 
     const candidates = [
       resultBounds(imgNode,     530, 280),  // 이미지 결과: 이미지+버튼 ≈ 530px
       resultBounds(vidNode,     560, 280),  // 비디오 결과: 비디오+버튼 ≈ 560px
-      reviewImgPmt?.data?.generatedAt ? { ts: reviewImgPmt.data.generatedAt, pos: reviewImgPmt.position, w: 340, h: 380, yOff: -10 } : null,
-      reviewVidPmt?.data?.generatedAt ? { ts: reviewVidPmt.data.generatedAt, pos: reviewVidPmt.position, w: 340, h: 380, yOff: -10 } : null,
+      reviewImgPmt?.data?.generatedAt ? { ts: reviewImgPmt.data.generatedAt, nodeId: reviewImgPmt.id, pos: reviewImgPmt.position, w: 340, h: 380, yOff: -10 } : null,
+      reviewVidPmt?.data?.generatedAt ? { ts: reviewVidPmt.data.generatedAt, nodeId: reviewVidPmt.id, pos: reviewVidPmt.position, w: 340, h: 380, yOff: -10 } : null,
     ].filter(Boolean)
 
     const latest = candidates.length ? candidates.reduce((a, b) => a.ts >= b.ts ? a : b) : null
 
     if (latest) {
-      const { pos, w, h, yOff } = latest
+      const { nodeId, pos, w, h, yOff } = latest
+      // 대상 노드를 선택 상태로 만들어 다른 노드 위로 올림
+      setNodes(nds => nds.map(n => ({ ...n, selected: n.id === nodeId })))
       fitBounds(
         { x: pos.x - 10, y: pos.y + yOff, width: w, height: h },
         { duration: 420, padding: 0.12 },
