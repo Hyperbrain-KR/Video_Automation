@@ -184,6 +184,15 @@ Output ONLY the Korean direction — no labels, no explanations.`
 
 // ── 대사 입력 필드 ────────────────────────────────────────────────────────
 function DialogueInput({ label, value, onChange, placeholder }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [value])
+
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{
@@ -197,12 +206,13 @@ function DialogueInput({ label, value, onChange, placeholder }) {
           borderRadius: 3, padding: '1px 4px',
         }}>선택</span>
       </div>
-      <input
+      <textarea
+        ref={ref}
         className="nopan nodrag"
-        type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        rows={1}
         style={{
           width: '100%',
           background: 'var(--node-input)',
@@ -215,6 +225,8 @@ function DialogueInput({ label, value, onChange, placeholder }) {
           color: 'var(--t2)',
           lineHeight: 1.5,
           boxSizing: 'border-box',
+          resize: 'none',
+          overflow: 'hidden',
         }}
       />
     </div>
