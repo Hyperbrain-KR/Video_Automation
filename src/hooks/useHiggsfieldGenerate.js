@@ -248,7 +248,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
       console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
 
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now() })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
@@ -288,7 +288,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
         await new Promise(r => setTimeout(r, 5000))
       }
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId })
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now() })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
