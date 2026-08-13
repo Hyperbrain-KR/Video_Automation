@@ -803,6 +803,7 @@ export default function SceneNavBar({
     const imgNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
     const vidNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
     const claudeVid = liveNodes.find(n => n.id === (uid ? `claudeVideo-${uid}` : 'claudeVideo'))
+    console.log('[goToScene] uid:', uid, '| img:', imgNode?.data?.generatedAt, '| vid:', vidNode?.data?.generatedAt, '| claude:', claudeVid?.data?.generatedAt)
 
     const candidates = [
       imgNode?.data?.generatedAt   ? { ts: imgNode.data.generatedAt,   pos: imgNode.position,   w: 320, h: 460 } : null,
