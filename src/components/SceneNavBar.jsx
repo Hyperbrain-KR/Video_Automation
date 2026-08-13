@@ -730,7 +730,7 @@ export default function SceneNavBar({
   projects, activeProject, saveState, savedAt,
   onSwitchProject, onCreateProject, onDeleteProject, onRenameProject,
 }) {
-  const { fitBounds } = useReactFlow()
+  const { fitBounds, getNodes } = useReactFlow()
   const scenesRef = useRef()
   const [scrollX, setScrollX]     = useState(0)
   const [maxScroll, setMaxScroll] = useState(0)
@@ -780,23 +780,10 @@ export default function SceneNavBar({
       .filter(n => n.id === 'bg-s2' || n.id.startsWith('bg-s2-'))
       .sort((a, b) => a.position.x - b.position.x)
       .map((bg, i) => {
-        const uid          = bg.id === 'bg-s2' ? null : bg.id.replace('bg-s2-', '')
-        const imgNode      = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
-        const vidNode      = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
-        const reviewFinal  = nodes.find(n => n.id === (uid ? `reviewVideoResult-${uid}` : 'reviewVideoResult'))
-        const claudeVid    = nodes.find(n => n.id === (uid ? `claudeVideo-${uid}` : 'claudeVideo'))
-
-        // 아웃풋 후보: generatedAt 타임스탬프 기준으로 가장 최근 것 선택
-        const candidates = [
-          imgNode?.data?.generatedAt   ? { ts: imgNode.data.generatedAt,   pos: imgNode.position,   w: 320, h: 460 } : null,
-          vidNode?.data?.generatedAt   ? { ts: vidNode.data.generatedAt,   pos: vidNode.position,   w: 320, h: 520 } : null,
-          claudeVid?.data?.generatedAt ? { ts: claudeVid.data.generatedAt, pos: claudeVid.position, w: 320, h: 260 } : null,
-        ].filter(Boolean)
-
-        const latestOutput = candidates.length
-          ? candidates.reduce((a, b) => a.ts >= b.ts ? a : b)
-          : null
-
+        const uid         = bg.id === 'bg-s2' ? null : bg.id.replace('bg-s2-', '')
+        const imgNode     = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
+        const vidNode     = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
+        const reviewFinal = nodes.find(n => n.id === (uid ? `reviewVideoResult-${uid}` : 'reviewVideoResult'))
         return {
           index: i + 1,
           uid,
@@ -806,16 +793,28 @@ export default function SceneNavBar({
           vidStatus:    vidNode?.data?.status    ?? 'idle',
           vidResultUrl: vidNode?.data?.resultUrl ?? null,
           vidApproved:  reviewFinal?.data?.approved ?? false,
-          latestOutput,
         }
       })
   }, [nodes])
 
   const goToScene = useCallback((scene) => {
-    if (scene.latestOutput) {
-      const { pos, w, h } = scene.latestOutput
+    const liveNodes = getNodes()
+    const uid = scene.uid
+    const imgNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
+    const vidNode   = liveNodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
+    const claudeVid = liveNodes.find(n => n.id === (uid ? `claudeVideo-${uid}` : 'claudeVideo'))
+
+    const candidates = [
+      imgNode?.data?.generatedAt   ? { ts: imgNode.data.generatedAt,   pos: imgNode.position,   w: 320, h: 460 } : null,
+      vidNode?.data?.generatedAt   ? { ts: vidNode.data.generatedAt,   pos: vidNode.position,   w: 320, h: 520 } : null,
+      claudeVid?.data?.generatedAt ? { ts: claudeVid.data.generatedAt, pos: claudeVid.position, w: 320, h: 260 } : null,
+    ].filter(Boolean)
+
+    const latest = candidates.length ? candidates.reduce((a, b) => a.ts >= b.ts ? a : b) : null
+
+    if (latest) {
       fitBounds(
-        { x: pos.x - 10, y: pos.y - 10, width: w, height: h },
+        { x: latest.pos.x - 10, y: latest.pos.y - 10, width: latest.w, height: latest.h },
         { duration: 420, padding: 0.1 },
       )
     } else {
@@ -824,7 +823,7 @@ export default function SceneNavBar({
         { duration: 420, padding: 0.05 },
       )
     }
-  }, [fitBounds])
+  }, [fitBounds, getNodes])
 
   // 키보드 단축키:
   // 1~9, 0           → 씬 1~10
