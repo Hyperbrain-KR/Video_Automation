@@ -634,25 +634,34 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 상태 뱃지 */}
-      <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
-        color: status === 'error' ? C.red : status === 'idle' ? C.muted : C.cyan,
-        background: 'var(--node-bg)',
-        border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'var(--sep2)'}`,
-        borderRadius: 4, padding: '2px 8px',
-      }}>
-        <span style={{
-          width: 5, height: 5, borderRadius: '50%',
-          background: cfg.dot, boxShadow: cfg.glow, display: 'inline-block',
-          animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : 'none',
-        }} />
-        {cfg.text}
-        {(status === 'generating' || status === 'slow') && elapsed > 0 && (
-          <span style={{ fontWeight: 400, opacity: 0.7 }}>
-            {` ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`}
-          </span>
+      {/* 상태 뱃지 + 크레딧 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
+          color: status === 'error' ? C.red : status === 'idle' ? C.muted : C.cyan,
+          background: 'var(--node-bg)',
+          border: `1px solid ${status === 'error' ? 'rgba(227,64,84,0.2)' : 'var(--sep2)'}`,
+          borderRadius: 4, padding: '2px 8px',
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: cfg.dot, boxShadow: cfg.glow, display: 'inline-block',
+            animation: isLoading ? 'pulse 1.2s ease-in-out infinite' : 'none',
+          }} />
+          {cfg.text}
+          {(status === 'generating' || status === 'slow') && elapsed > 0 && (
+            <span style={{ fontWeight: 400, opacity: 0.7 }}>
+              {` ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`}
+            </span>
+          )}
+        </div>
+        {(data.creditsUsed ?? 0) > 0 && (
+          <span style={{
+            fontSize: 9, color: 'var(--t4)',
+            background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+            borderRadius: 4, padding: '2px 6px',
+          }}>💎 {data.creditsUsed}cr</span>
         )}
       </div>
 

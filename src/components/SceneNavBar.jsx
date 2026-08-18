@@ -430,10 +430,15 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch
           </button>
         )}
 
-        {/* 저장 상태 */}
-        <div style={{ fontSize: 9, color: 'var(--t5)', paddingLeft: 7, marginTop: 1 }}>
-          {saveState === 'pending' && '저장 중…'}
-          {saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
+        {/* 저장 상태 + 크레딧 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 7, marginTop: 1 }}>
+          <span style={{ fontSize: 9, color: 'var(--t5)' }}>
+            {saveState === 'pending' && '저장 중…'}
+            {saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
+          </span>
+          {totalCredits > 0 && (
+            <span style={{ fontSize: 9, color: 'var(--t4)' }}>💎 {totalCredits}cr</span>
+          )}
         </div>
       </div>
 
@@ -732,6 +737,12 @@ export default function SceneNavBar({
 }) {
   const { fitBounds, getNodes, setNodes } = useReactFlow()
   const scenesRef = useRef()
+
+  const totalCredits = useMemo(() =>
+    nodes
+      .filter(n => n.type === 'higgsfieldNode' && (n.data?.creditsUsed ?? 0) > 0)
+      .reduce((sum, n) => sum + (n.data.creditsUsed ?? 0), 0)
+  , [nodes])
   const [scrollX, setScrollX]     = useState(0)
   const [maxScroll, setMaxScroll] = useState(0)
 

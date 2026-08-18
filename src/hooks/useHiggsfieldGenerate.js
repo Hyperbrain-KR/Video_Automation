@@ -4,6 +4,7 @@ import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
 import { CANVAS_API } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
+import { calcHiggsfieldCredits } from '../lib/higgsfieldCredits'
 
 export function useHiggsfieldGenerate(characters, assets = []) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
@@ -248,7 +249,10 @@ export function useHiggsfieldGenerate(characters, assets = []) {
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
       console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
 
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now() })
+      const doneNode = getNodes().find(n => n.id === nodeId)
+      const cost = calcHiggsfieldCredits(doneNode?.data ?? node?.data ?? {})
+      const prevCredits = doneNode?.data?.creditsUsed ?? 0
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
@@ -288,7 +292,10 @@ export function useHiggsfieldGenerate(characters, assets = []) {
         await new Promise(r => setTimeout(r, 5000))
       }
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now() })
+      const resumeNode = getNodes().find(n => n.id === nodeId)
+      const cost = calcHiggsfieldCredits(resumeNode?.data ?? {})
+      const prevCredits = resumeNode?.data?.creditsUsed ?? 0
+      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
@@ -296,7 +303,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
       console.error(`[재개 폴링 실패]`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getEdges, updateNodeData])
+  }, [getNodes, getEdges, updateNodeData])
 
   useEffect(() => {
     higgsfieldHandlerRef.current = handleHiggsfieldGenerate
