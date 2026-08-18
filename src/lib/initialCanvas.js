@@ -106,7 +106,7 @@ export const nodes0 = [
     id: 'reviewVideoPrompt', type: 'reviewGate', position: { x: 980, y: 1130 },
     data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 },
   },
-  { id: 'higgsfieldVideo', type: 'higgsfieldNode', position: { x: 660, y: 1400 }, data: { label: '비디오 생성', type: 'video' } },
+  { id: 'higgsfieldVideo', type: 'higgsfieldNode', position: { x: 980, y: 1400 }, data: { label: '비디오 생성', type: 'video' } },
 ]
 
 // ── 초기 엣지 ─────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
       data: { label: '비디오 프롬프트 생성', description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트', promptType: 'claudeVideo' } },
     { id: `reviewVideoPrompt-${u}`, type: 'reviewGate', position: { x: x + 630, y: 1130 },
       data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 } },
-    { id: `higgsfieldVideo-${u}`, type: 'higgsfieldNode', position: { x: x + 310, y: 1400 },
+    { id: `higgsfieldVideo-${u}`, type: 'higgsfieldNode', position: { x: x + 630, y: 1400 },
       data: { label: '비디오 생성', type: 'video',
         videoMode: vidDef.videoMode ?? 'pro',
         videoAspect: vidDef.videoAspect ?? '9:16',
