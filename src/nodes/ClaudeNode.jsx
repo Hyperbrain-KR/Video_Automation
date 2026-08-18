@@ -2,7 +2,7 @@ import { Handle, Position } from '@xyflow/react'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 
 const C = {
-  blue: '#1F41B0',
+  orange: '#D4622A',
   cyan: '#29D9D9',
   red: '#E34054',
   light: 'var(--t1)',
@@ -13,7 +13,7 @@ const nodeBase = {
   background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-  border: '1px solid rgba(31,65,176,0.35)',
+  border: '1px solid rgba(212,98,42,0.35)',
   borderRadius: 12,
   padding: 14,
   width: 240,
@@ -21,7 +21,7 @@ const nodeBase = {
   boxShadow: [
     'inset 0 1px 0 rgba(255,255,255,0.08)',
     '0 8px 32px rgba(0,0,0,0.45)',
-    '0 0 0 1px rgba(31,65,176,0.12)',
+    '0 0 0 1px rgba(212,98,42,0.12)',
   ].join(', '),
 }
 
@@ -74,24 +74,24 @@ export default function ClaudeNode({ id, data, selected }) {
       ? 'var(--node-bg)'
       : isDone
         ? 'var(--btn-done-bg)'
-        : 'linear-gradient(135deg, #1F41B0 0%, rgba(41,65,200,0.85) 100%)',
+        : 'linear-gradient(135deg, #b84e1a 0%, #D4622A 100%)',
     color: isLoading
       ? 'var(--t5)'
       : isDone
         ? 'var(--btn-done-text)'
         : '#F4F4F4',
     border: isLoading
-      ? '1px solid rgba(31,65,176,0.2)'
+      ? '1px solid rgba(212,98,42,0.2)'
       : isDone
         ? '1px solid var(--btn-done-border)'
-        : '1px solid rgba(31,65,176,0.55)',
+        : '1px solid rgba(212,98,42,0.55)',
     borderRadius: 7,
     cursor: isLoading ? 'not-allowed' : 'pointer',
     fontWeight: 700,
     fontSize: 12,
     letterSpacing: '0.05em',
     fontFamily: 'inherit',
-    boxShadow: isLoading || isDone ? 'none' : '0 2px 12px rgba(31,65,176,0.4)',
+    boxShadow: isLoading || isDone ? 'none' : '0 2px 12px rgba(212,98,42,0.4)',
     transition: 'all 0.15s',
   }
 
@@ -103,21 +103,21 @@ export default function ClaudeNode({ id, data, selected }) {
         id="anchor"
         type="target"
         position={Position.Left}
-        style={{ top: '32%', background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }}
+        style={{ top: '32%', background: 'rgba(212,98,42,0.5)', border: '1.5px solid #D4622A' }}
       />
       <Handle
         id="command"
         type="target"
         position={Position.Left}
-        style={{ top: '68%', background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }}
+        style={{ top: '68%', background: 'rgba(212,98,42,0.5)', border: '1.5px solid #D4622A' }}
       />
 
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <span style={{
           fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
-          color: C.blue, background: 'rgba(31,65,176,0.15)',
-          border: '1px solid rgba(31,65,176,0.3)',
+          color: C.orange, background: 'rgba(212,98,42,0.15)',
+          border: '1px solid rgba(212,98,42,0.35)',
           borderRadius: 4, padding: '2px 6px', textTransform: 'uppercase',
         }}>Claude</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: C.light }}>{data.label}</span>

@@ -65,7 +65,7 @@ function AssetThumb({ asset, checked, onToggle, onDelete }) {
 }
 
 const C = {
-  blue: '#1F41B0',
+  lime: '#C8F135',
   cyan: '#29D9D9',
   red: '#E34054',
   light: 'var(--t1)',
@@ -76,7 +76,7 @@ const nodeBase = {
   background: 'var(--node-bg)',
   backdropFilter: 'blur(20px) saturate(160%)',
   WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-  border: '1px solid rgba(31,65,176,0.45)',
+  border: '1px solid rgba(200,241,53,0.3)',
   borderRadius: 12,
   padding: 14,
   width: 260,
@@ -84,7 +84,7 @@ const nodeBase = {
   boxShadow: [
     'inset 0 1px 0 rgba(255,255,255,0.08)',
     '0 8px 32px rgba(0,0,0,0.5)',
-    '0 0 0 1px rgba(31,65,176,0.18)',
+    '0 0 0 1px rgba(200,241,53,0.1)',
   ].join(', '),
 }
 
@@ -252,12 +252,12 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
-    background: isLoading ? 'var(--node-bg)' : isDone ? 'var(--btn-done-bg)' : 'linear-gradient(135deg, #1a3090 0%, #1F41B0 100%)',
-    color: isLoading ? 'var(--t5)' : isDone ? 'var(--btn-done-text)' : '#F4F4F4',
-    border: isLoading ? '1px solid rgba(31,65,176,0.2)' : isDone ? '1px solid var(--btn-done-border)' : '1px solid rgba(31,65,176,0.6)',
+    background: isLoading ? 'var(--node-bg)' : isDone ? 'var(--btn-done-bg)' : 'linear-gradient(135deg, #a8c42a 0%, #C8F135 100%)',
+    color: isLoading ? 'var(--t5)' : isDone ? 'var(--btn-done-text)' : '#1A1A0A',
+    border: isLoading ? '1px solid rgba(200,241,53,0.15)' : isDone ? '1px solid var(--btn-done-border)' : '1px solid rgba(200,241,53,0.7)',
     borderRadius: 7, cursor: isLoading ? 'not-allowed' : 'pointer',
     fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', fontFamily: 'inherit',
-    boxShadow: isLoading || isDone ? 'none' : '0 2px 12px rgba(31,65,176,0.45)',
+    boxShadow: isLoading || isDone ? 'none' : '0 2px 12px rgba(200,241,53,0.3)',
     transition: 'all 0.15s',
   }
 
@@ -266,10 +266,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
       {/* 프롬프트 핸들 */}
       <Handle id="prompt" type="target" position={Position.Left}
-        style={{ top: isVideo ? '18%' : promptTop, background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
+        style={{ top: isVideo ? '18%' : promptTop, background: 'rgba(200,241,53,0.4)', border: '1.5px solid #C8F135' }} />
       {hasRef && (
         <Handle id="ref" type="target" position={Position.Left}
-          style={{ top: '68%', background: 'rgba(31,65,176,0.6)', border: '1.5px solid #1F41B0' }} />
+          style={{ top: '68%', background: 'rgba(200,241,53,0.4)', border: '1.5px solid #C8F135' }} />
       )}
       {isVideo && (
         <Handle id="image" type="target" position={Position.Left}
@@ -284,7 +284,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
         <span style={{
           fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
-          color: '#F4F4F4', background: C.blue,
+          color: '#1A1A0A', background: C.lime,
           borderRadius: 4, padding: '2px 6px', textTransform: 'uppercase',
         }}>Higgsfield</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: C.light }}>{data.label}</span>
