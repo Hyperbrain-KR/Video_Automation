@@ -325,7 +325,7 @@ const STYLES = `
 `
 
 // ── ProjectSelector ────────────────────────────────────────────────────────
-function ProjectSelector({ projects, activeProject, saveState, savedAt, onSwitch, onCreate, onDelete, onRename }) {
+function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCredits, onSwitch, onCreate, onDelete, onRename }) {
   const [open, setOpen]             = useState(false)
   const [creating, setCreating]     = useState(false)
   const [newName, setNewName]       = useState('')
@@ -883,6 +883,7 @@ export default function SceneNavBar({
           activeProject={activeProject}
           saveState={saveState}
           savedAt={savedAt}
+          totalCredits={totalCredits}
           onSwitch={onSwitchProject}
           onCreate={onCreateProject}
           onDelete={onDeleteProject}
