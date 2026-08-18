@@ -658,8 +658,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
         {(data.creditsUsed ?? 0) > 0 && (
           <span style={{
-            fontSize: 9, color: 'var(--t4)',
-            background: 'var(--node-bg)', border: '1px solid var(--sep2)',
+            fontSize: 9, color: 'var(--t1)',
+            background: 'rgba(200,241,53,0.08)', border: '1px solid rgba(200,241,53,0.3)',
             borderRadius: 4, padding: '2px 6px',
           }}>💎 {data.creditsUsed}cr</span>
         )}

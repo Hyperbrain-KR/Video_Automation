@@ -437,7 +437,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
             {saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
           </span>
           {totalCredits > 0 && (
-            <span style={{ fontSize: 9, color: 'var(--t4)' }}>💎 {totalCredits}cr</span>
+            <span style={{ fontSize: 9, color: 'var(--t2)', fontWeight: 700 }}>💎 {totalCredits}cr</span>
           )}
         </div>
       </div>
