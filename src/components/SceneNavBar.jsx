@@ -783,7 +783,6 @@ export default function SceneNavBar({
         const uid         = bg.id === 'bg-s2' ? null : bg.id.replace('bg-s2-', '')
         const imgNode     = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
         const vidNode     = nodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'))
-        const reviewFinal = nodes.find(n => n.id === (uid ? `reviewVideoResult-${uid}` : 'reviewVideoResult'))
         return {
           index: i + 1,
           uid,
@@ -792,7 +791,7 @@ export default function SceneNavBar({
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
           vidResultUrl: vidNode?.data?.resultUrl ?? null,
-          vidApproved:  reviewFinal?.data?.approved ?? false,
+          vidApproved:  vidNode?.data?.approved  ?? false,
         }
       })
   }, [nodes])

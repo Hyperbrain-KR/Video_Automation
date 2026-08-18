@@ -13,7 +13,7 @@ import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from './lib/imageDB'
 import { useProjects } from './hooks/useProjects'
 import { useAssets } from './hooks/useAssets'
-import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes } from './lib/initialCanvas'
+import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes, dataEdge } from './lib/initialCanvas'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
 import { useVersionCheck } from './hooks/useVersionCheck'
@@ -189,15 +189,52 @@ function FlowCanvas() {
     }), [])
 
   // 기존 저장 프로젝트의 비디오 연출 노드(textInput)를 videoDirectionInput으로 마이그레이션
+  // reviewImageResult / reviewVideoResult 제거 + 승인 상태 higgsfieldImage/Video로 이전
   // normalizeSectionNodes와 체이닝해서 한 번에 처리
   const normalizeNodes = useCallback((nds) => {
     const afterSection = normalizeSectionNodes(nds)
-    return afterSection.map(n => {
-      if (n.type !== 'textInput') return n
-      if (!n.data?.label?.includes('비디오 연출')) return n
-      return { ...n, type: 'videoDirectionInput' }
+    // approved 상태 수집 (reviewImageResult → higgsfieldImage, reviewVideoResult → higgsfieldVideo)
+    const approvedMap = {}
+    afterSection.forEach(n => {
+      if (n.type === 'reviewGate' && n.data?.approved) {
+        if (n.id === 'reviewImageResult' || n.id.startsWith('reviewImageResult-')) {
+          const uid = n.id === 'reviewImageResult' ? null : n.id.replace('reviewImageResult-', '')
+          approvedMap[uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'] = true
+        } else if (n.id === 'reviewVideoResult' || n.id.startsWith('reviewVideoResult-')) {
+          const uid = n.id === 'reviewVideoResult' ? null : n.id.replace('reviewVideoResult-', '')
+          approvedMap[uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'] = true
+        }
+      }
     })
+    return afterSection
+      .filter(n => n.id !== 'reviewImageResult' && n.id !== 'reviewVideoResult' &&
+                   !n.id.startsWith('reviewImageResult-') && !n.id.startsWith('reviewVideoResult-'))
+      .map(n => {
+        if (n.type === 'textInput' && n.data?.label?.includes('비디오 연출'))
+          return { ...n, type: 'videoDirectionInput' }
+        if (approvedMap[n.id])
+          return { ...n, data: { ...n.data, approved: true } }
+        return n
+      })
   }, [normalizeSectionNodes])
+
+  // 기존 저장 프로젝트의 reviewImageResult/reviewVideoResult 관련 엣지 제거 + 첫프레임 엣지 추가
+  const normalizeEdges = useCallback((edgs, normalizedNodes) => {
+    const filtered = edgs.filter(e =>
+      !e.source?.includes('reviewImageResult') && !e.target?.includes('reviewImageResult') &&
+      !e.source?.includes('reviewVideoResult') && !e.target?.includes('reviewVideoResult')
+    )
+    const toAdd = []
+    normalizedNodes.forEach(n => {
+      if (n.id !== 'higgsfieldImage' && !n.id.startsWith('higgsfieldImage-')) return
+      const uid = n.id === 'higgsfieldImage' ? null : n.id.replace('higgsfieldImage-', '')
+      const targetId = uid ? `higgsfieldVideo-${uid}` : 'higgsfieldVideo'
+      const edgeId = uid ? `e-hi-hv-${uid}` : 'e-hi-hv'
+      const exists = filtered.some(e => e.id === edgeId || (e.source === n.id && e.target === targetId && e.targetHandle === 'image'))
+      if (!exists) toAdd.push({ id: edgeId, source: n.id, target: targetId, targetHandle: 'image', label: '첫 프레임', ...dataEdge })
+    })
+    return [...filtered, ...toAdd]
+  }, [])
 
   const sectionDragRef = useRef(null)
 
@@ -267,7 +304,7 @@ function FlowCanvas() {
             isMountedRef.current = false  // 로드 후 auto-save skip
             const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
             setNodes(resetInProgressNodes(loadedNodes))
-            setEdges(data.edges ?? edges0)
+            setEdges(normalizeEdges(data.edges ?? edges0, loadedNodes))
             setCharacters(data.characters ?? [])
             if (data.defaults) { setProjectDefaults(data.defaults); setDraftDefaults(data.defaults) }
             resumeInProgressPolling(loadedNodes)
@@ -317,7 +354,7 @@ function FlowCanvas() {
       isMountedRef.current = false
       const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
       setNodes(resetInProgressNodes(loadedNodes))
-      setEdges(data.edges ?? edges0)
+      setEdges(normalizeEdges(data.edges ?? edges0, loadedNodes))
       setCharacters(data.characters ?? [])
       const d = data.defaults ?? DEFAULT_PROJ_DEFAULTS
       setProjectDefaults(d); setDraftDefaults(d)
@@ -327,7 +364,7 @@ function FlowCanvas() {
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeNodes])
+  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeNodes, normalizeEdges])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
@@ -345,8 +382,9 @@ function FlowCanvas() {
         const data = await switchProject(remaining[0].id)
         if (data) {
           isMountedRef.current = false
-          setNodes(resetInProgressNodes(normalizeNodes(data.nodes ?? nodes0)))
-          setEdges(data.edges ?? edges0)
+          const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
+          setNodes(resetInProgressNodes(loadedNodes))
+          setEdges(normalizeEdges(data.edges ?? edges0, loadedNodes))
           setCharacters(data.characters ?? [])
         }
       } else {
@@ -358,7 +396,7 @@ function FlowCanvas() {
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes])
+  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes, normalizeEdges])
 
   const handleCreateProject = useCallback(async (name) => {
     clearTimeout(saveTimerRef.current)

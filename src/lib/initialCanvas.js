@@ -92,10 +92,6 @@ export const nodes0 = [
     data: { label: '이미지 프롬프트 리뷰', prompt: '(Claude가 생성한 이미지 프롬프트)' },
   },
   { id: 'higgsfieldImage', type: 'higgsfieldNode', position: { x: 660, y: 840 }, data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_pro' } },
-  {
-    id: 'reviewImageResult', type: 'reviewGate', position: { x: 980, y: 840 },
-    data: { label: '이미지 리뷰', prompt: '(생성된 이미지 확인 후 비디오 단계로)' },
-  },
 
   // ── Section 3: 비디오 생성 ──────────────────────────────
   {
@@ -111,10 +107,6 @@ export const nodes0 = [
     data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 },
   },
   { id: 'higgsfieldVideo', type: 'higgsfieldNode', position: { x: 660, y: 1400 }, data: { label: '비디오 생성', type: 'video' } },
-  {
-    id: 'reviewVideoResult', type: 'reviewGate', position: { x: 980, y: 1400 },
-    data: { label: '최종 비디오 리뷰', prompt: '(최종 비디오 확인 후 다운로드)' },
-  },
 ]
 
 // ── 초기 엣지 ─────────────────────────────────────────────────────
@@ -135,14 +127,10 @@ export const edges0 = [
   { id: 'e-ci-rip', source: 'claudeImage', target: 'reviewImagePrompt', targetHandle: 'left' },
   { id: 'e-rip-hi', source: 'reviewImagePrompt', target: 'higgsfieldImage', targetHandle: 'prompt', label: '승인', ...approveLabel },
   { id: 'e-rip-ci', source: 'reviewImagePrompt', target: 'claudeImage', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-  { id: 'e-hi-rir', source: 'higgsfieldImage', target: 'reviewImageResult', targetHandle: 'left' },
-  { id: 'e-rir-rip', source: 'reviewImageResult', target: 'reviewImagePrompt', targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-  { id: 'e-rir-hv', source: 'reviewImageResult', target: 'higgsfieldVideo', targetHandle: 'image', label: '첫 프레임', ...dataEdge },
+  { id: 'e-hi-hv', source: 'higgsfieldImage', target: 'higgsfieldVideo', targetHandle: 'image', label: '첫 프레임', ...dataEdge },
   { id: 'e-cv-rvp', source: 'claudeVideo', target: 'reviewVideoPrompt', targetHandle: 'left' },
   { id: 'e-rvp-hv', source: 'reviewVideoPrompt', target: 'higgsfieldVideo', targetHandle: 'prompt', label: '승인', ...approveLabel },
   { id: 'e-rvp-cv', source: 'reviewVideoPrompt', target: 'claudeVideo', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-  { id: 'e-hv-rvr', source: 'higgsfieldVideo', target: 'reviewVideoResult', targetHandle: 'left' },
-  { id: 'e-rvr-rvp', source: 'reviewVideoResult', target: 'reviewVideoPrompt', targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
 ]
 
 // ── 씬 복제 팩토리 ────────────────────────────────────────────────
@@ -174,8 +162,6 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
         quality: imgDef.quality ?? '1k',
         aspectRatio: imgDef.aspectRatio ?? 'auto',
       } },
-    { id: `reviewImageResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 840 },
-      data: { label: '이미지 리뷰', prompt: '(생성된 이미지 확인 후 비디오 단계로)' } },
     { id: `vidDirection-${u}`, type: 'videoDirectionInput', position: { x: x + 20, y: 1130 },
       data: { label: `비디오 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 영상 연출을 설명해주세요...' } },
     { id: `claudeVideo-${u}`, type: 'claudeNode', position: { x: x + 310, y: 1130 },
@@ -189,8 +175,6 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
         sound: vidDef.sound ?? 'off',
         duration: vidDef.duration ?? 5,
       } },
-    { id: `reviewVideoResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 1400 },
-      data: { label: '최종 비디오 리뷰', prompt: '(최종 비디오 확인 후 다운로드)' } },
   ]
 
   const edges = [
@@ -200,15 +184,11 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
     { id: `e-ci-rip-${u}`, source: `claudeImage-${u}`, target: `reviewImagePrompt-${u}`, targetHandle: 'left' },
     { id: `e-rip-hi-${u}`, source: `reviewImagePrompt-${u}`, target: `higgsfieldImage-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
     { id: `e-rip-ci-${u}`, source: `reviewImagePrompt-${u}`, target: `claudeImage-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-    { id: `e-hi-rir-${u}`, source: `higgsfieldImage-${u}`, target: `reviewImageResult-${u}`, targetHandle: 'left' },
-    { id: `e-rir-rip-${u}`, source: `reviewImageResult-${u}`, target: `reviewImagePrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-    { id: `e-rir-hv-${u}`, source: `reviewImageResult-${u}`, target: `higgsfieldVideo-${u}`, targetHandle: 'image', label: '첫 프레임', ...dataEdge },
+    { id: `e-hi-hv-${u}`, source: `higgsfieldImage-${u}`, target: `higgsfieldVideo-${u}`, targetHandle: 'image', label: '첫 프레임', ...dataEdge },
     { id: `e-vd-cv-${u}`, source: `vidDirection-${u}`, target: `claudeVideo-${u}`, targetHandle: 'command' },
     { id: `e-cv-rvp-${u}`, source: `claudeVideo-${u}`, target: `reviewVideoPrompt-${u}`, targetHandle: 'left' },
     { id: `e-rvp-hv-${u}`, source: `reviewVideoPrompt-${u}`, target: `higgsfieldVideo-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
     { id: `e-rvp-cv-${u}`, source: `reviewVideoPrompt-${u}`, target: `claudeVideo-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-    { id: `e-hv-rvr-${u}`, source: `higgsfieldVideo-${u}`, target: `reviewVideoResult-${u}`, targetHandle: 'left' },
-    { id: `e-rvr-rvp-${u}`, source: `reviewVideoResult-${u}`, target: `reviewVideoPrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
   ]
 
   return { nodes, edges }

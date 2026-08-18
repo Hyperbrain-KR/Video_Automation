@@ -852,6 +852,20 @@ export default function HiggsfieldNode({ id, data, selected }) {
               >👤 캐릭터로 저장</button>
             )
           )}
+
+          {/* 승인 버튼 */}
+          <button className="nopan nodrag"
+            onClick={() => updateNodeData(id, { approved: !data.approved })}
+            style={{
+              width: '100%', padding: '5px 0', marginTop: 6,
+              background: data.approved ? 'rgba(34,197,94,0.13)' : 'var(--node-bg)',
+              border: `1px solid ${data.approved ? 'rgba(34,197,94,0.5)' : 'var(--sep2)'}`,
+              borderRadius: 6, fontSize: 11, fontWeight: 700,
+              color: data.approved ? '#22c55e' : 'var(--t4)',
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'all 0.15s',
+            }}
+          >{data.approved ? '✓ 승인됨' : '✓ 승인'}</button>
           </>}
         </div>
       )}
