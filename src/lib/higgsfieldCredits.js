@@ -7,8 +7,8 @@ export function calcHiggsfieldCredits(data) {
       : 4.5 + (duration - 3) * 1.5
   }
   // image
-  const model = data.model ?? 'nano_banana_pro'
-  const quality = data.quality ?? '1k'
+  const model = data.model ?? 'gpt_image_2'
+  const quality = data.quality ?? 'high'
   if (model === 'gpt_image_2') {
     return { low: 0.5, medium: 2, high: 4 }[quality] ?? 2
   }

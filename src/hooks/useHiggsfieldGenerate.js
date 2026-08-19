@@ -6,10 +6,11 @@ import { CANVAS_API } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
 import { calcHiggsfieldCredits } from '../lib/higgsfieldCredits'
 
-export function useHiggsfieldGenerate(characters, assets = []) {
+export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
 
   const handleHiggsfieldGenerate = useCallback(async (nodeId) => {
+    const epoch = epochRef?.current ?? 0
     const currentNodes = getNodes()
     const currentEdges = getEdges()
 
@@ -249,6 +250,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
       console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
 
+      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
       const doneNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(doneNode?.data ?? node?.data ?? {})
       const prevCredits = doneNode?.data?.creditsUsed ?? 0
@@ -265,6 +267,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
   }, [getNodes, getEdges, updateNodeData, characters, assets])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
+    const epoch = epochRef?.current ?? 0
     console.log(`[폴링 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
     updateNodeData(nodeId, { status: 'generating', jobId })
     try {
@@ -292,6 +295,7 @@ export function useHiggsfieldGenerate(characters, assets = []) {
         await new Promise(r => setTimeout(r, 5000))
       }
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
+      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
       const resumeNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(resumeNode?.data ?? {})
       const prevCredits = resumeNode?.data?.creditsUsed ?? 0

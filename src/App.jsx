@@ -142,6 +142,7 @@ function FlowCanvas() {
   const isMountedRef = useRef(false)
   const initialLoadDoneRef = useRef(false)
   const pollingNodeIds = useRef(new Set())
+  const generationEpochRef = useRef(0)
 
   // ── Undo history ─────────────────────────────────────────────────────
   const historyRef = useRef([])
@@ -273,7 +274,7 @@ function FlowCanvas() {
 
   useClaudeGenerate(activeId)
   const { assets, saveAsset, deleteAsset } = useAssets(user)
-  const resumePolling = useHiggsfieldGenerate(characters, assets)
+  const resumePolling = useHiggsfieldGenerate(characters, assets, generationEpochRef)
 
   const resumeInProgressPolling = useCallback((loadedNodes) => {
     loadedNodes
@@ -347,6 +348,7 @@ function FlowCanvas() {
   }, [nodes, edges, characters])
 
   const handleSwitchProject = useCallback(async (id) => {
+    generationEpochRef.current++
     clearTimeout(saveTimerRef.current)
     if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
     const data = await switchProject(id)
@@ -399,6 +401,7 @@ function FlowCanvas() {
   }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes, normalizeEdges])
 
   const handleCreateProject = useCallback(async (name) => {
+    generationEpochRef.current++
     clearTimeout(saveTimerRef.current)
     if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
     const freshNodes = JSON.parse(JSON.stringify(nodes0))
