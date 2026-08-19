@@ -331,6 +331,8 @@ function FlowCanvas() {
     const snapActiveId = activeId
     saveTimerRef.current = setTimeout(async () => {
       try {
+        const dirtyNodes = snapNodes.filter(n => n.data?.resultUrl)
+        console.log(`[auto-save] → projectId: ${snapActiveId}, resultUrl 있는 노드:`, dirtyNodes.map(n => `${n.id}(${n.data?.resultUrl?.slice(0,40)})`))
         if (snapActiveId) {
           await saveProject(snapActiveId, snapNodes, snapEdges, snapChars)
         } else {
@@ -355,6 +357,8 @@ function FlowCanvas() {
     if (data) {
       isMountedRef.current = false
       const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
+      const dirtyLoaded = loadedNodes.filter(n => n.data?.resultUrl)
+      console.log(`[switchProject] 로드된 projectId: ${id}, resultUrl 있는 노드:`, dirtyLoaded.map(n => `${n.id}(${n.data?.resultUrl?.slice(0,40)})`))
       setNodes(resetInProgressNodes(loadedNodes))
       setEdges(normalizeEdges(data.edges ?? edges0, loadedNodes))
       setCharacters(data.characters ?? [])
