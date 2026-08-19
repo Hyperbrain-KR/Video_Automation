@@ -600,7 +600,12 @@ function SceneCard({ scene, onClick, onDelete }) {
   const [vidThumb, setVidThumb] = useState(null)
   const thumbAttempted = React.useRef(false)
   React.useEffect(() => {
-    if (imgResultUrl || !vidResultUrl || thumbAttempted.current) return
+    if (!vidResultUrl || imgResultUrl) {
+      setVidThumb(null)
+      thumbAttempted.current = false
+      return
+    }
+    if (thumbAttempted.current) return
     thumbAttempted.current = true
     const video = document.createElement('video')
     video.crossOrigin = 'anonymous'
