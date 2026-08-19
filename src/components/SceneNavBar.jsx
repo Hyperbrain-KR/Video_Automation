@@ -738,10 +738,11 @@ function SceneCard({ scene, onClick, onDelete }) {
 export default function SceneNavBar({
   nodes, onAddScene, onDeleteScene,
   projects, activeProject, saveState, savedAt,
-  onSwitchProject, onCreateProject, onDeleteProject, onRenameProject,
+  onSwitchProject, onCreateProject, onDeleteProject, onRenameProject, onResetProject,
 }) {
   const { fitBounds, getNodes, setNodes } = useReactFlow()
   const scenesRef = useRef()
+  const [resetConfirm, setResetConfirm] = useState(false)
 
   const totalCredits = useMemo(() =>
     nodes
@@ -921,7 +922,71 @@ export default function SceneNavBar({
         </div>
         </div>
 
+        {/* 오른쪽 끝: 초기화 버튼 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', padding: '0 10px', flexShrink: 0,
+          borderLeft: '1px solid var(--sep)',
+        }}>
+          <button
+            onClick={() => setResetConfirm(true)}
+            title="현재 프로젝트 생성 결과 초기화"
+            style={{
+              background: 'none', border: '1px solid rgba(227,64,84,0.3)',
+              borderRadius: 5, padding: '3px 9px', fontSize: 10,
+              color: 'rgba(227,64,84,0.65)', cursor: 'pointer', fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            초기화
+          </button>
+        </div>
+
       </div>
+
+      {/* 초기화 확인 모달 */}
+      {resetConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => setResetConfirm(false)}>
+          <div style={{
+            background: 'var(--node-bg)', border: '1px solid rgba(227,64,84,0.4)',
+            borderRadius: 12, padding: '24px 28px', maxWidth: 360, width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>
+              생성 결과 초기화
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', lineHeight: 1.7, marginBottom: 22 }}>
+              <strong style={{ color: 'var(--t2)' }}>「{activeProject?.name ?? '현재 프로젝트'}」</strong>의 모든 Higgsfield 생성 결과(이미지·비디오)를 삭제합니다.<br />
+              프롬프트·설정은 유지되며, 이 작업은 되돌릴 수 없습니다.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setResetConfirm(false)}
+                style={{
+                  background: 'none', border: '1px solid var(--sep)',
+                  borderRadius: 6, padding: '6px 16px', fontSize: 12,
+                  color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { onResetProject?.(); setResetConfirm(false) }}
+                style={{
+                  background: 'rgba(227,64,84,0.15)', border: '1px solid rgba(227,64,84,0.5)',
+                  borderRadius: 6, padding: '6px 16px', fontSize: 12,
+                  color: '#E34054', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

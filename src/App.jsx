@@ -420,6 +420,18 @@ function FlowCanvas() {
     setSavedAt(null)
   }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
 
+  const handleResetProject = useCallback(() => {
+    const DROP = ['resultUrl', 'status', 'jobId', 'creditsUsed', 'approved',
+                  'error', 'generatingStartedAt', 'generatedAt']
+    setNodes(nds => nds.map(n => {
+      if (n.type !== 'higgsfieldNode') return n
+      const clean = { ...n.data }
+      DROP.forEach(k => delete clean[k])
+      clean.status = 'idle'
+      return { ...n, data: clean }
+    }))
+  }, [setNodes])
+
   // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
   const saveCharacter = useCallback((name, resultUrl) => {
     const id = `char-${Date.now()}`
@@ -718,6 +730,7 @@ function FlowCanvas() {
         onCreateProject={handleCreateProject}
         onDeleteProject={handleDeleteProject}
         onRenameProject={renameProject}
+        onResetProject={handleResetProject}
       />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
       {!isDataReady && (
