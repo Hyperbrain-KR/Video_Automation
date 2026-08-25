@@ -923,10 +923,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
             data.sheetGenerating ? (
               <div style={{
                 marginTop: 6, padding: '7px 10px',
-                background: 'rgba(200,241,53,0.06)',
-                border: '1px solid rgba(200,241,53,0.2)',
+                background: 'rgba(200,241,53,0.07)',
+                border: '1px solid rgba(200,241,53,0.35)',
                 borderRadius: 6, fontSize: 10, fontWeight: 600,
-                color: 'rgba(200,241,53,0.7)', fontFamily: 'inherit',
+                color: 'var(--t1)', fontFamily: 'inherit',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
                 <span style={{ animation: 'pulse 1.2s ease-in-out infinite' }}>⚙</span>
