@@ -14,10 +14,24 @@
     "cost": 0.135858
   },
   "proj_1784764961433": {
-    "inputTokens": 4712,
-    "outputTokens": 5814,
+    "inputTokens": 16280,
+    "outputTokens": 19036,
     "cacheReadTokens": 0,
     "cacheWriteTokens": 0,
-    "cost": 0.101346
+    "cost": 0.33438
+  },
+  "proj_1784788515620": {
+    "inputTokens": 4163,
+    "outputTokens": 5657,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cost": 0.097344
+  },
+  "proj_1785118809773": {
+    "inputTokens": 6790,
+    "outputTokens": 6623,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cost": 0.119715
   }
 }

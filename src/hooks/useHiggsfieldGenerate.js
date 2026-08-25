@@ -260,7 +260,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const doneNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(doneNode?.data ?? node?.data ?? {})
       const prevCredits = doneNode?.data?.creditsUsed ?? 0
-      const prevHistory = doneNode?.data?.resultHistory ?? (doneNode?.data?.resultUrl ? [doneNode.data.resultUrl] : [])
+      const prevHistory = doneNode?.data?.resultHistory ?? []
       const newHistory = [...prevHistory, resultUrl].slice(-5)
       updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: newHistory, resultIndex: newHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
@@ -307,7 +307,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const resumeNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(resumeNode?.data ?? {})
       const prevCredits = resumeNode?.data?.creditsUsed ?? 0
-      const resumePrevHistory = resumeNode?.data?.resultHistory ?? (resumeNode?.data?.resultUrl ? [resumeNode.data.resultUrl] : [])
+      const resumePrevHistory = resumeNode?.data?.resultHistory ?? []
       const resumeNewHistory = [...resumePrevHistory, resultUrl].slice(-5)
       updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: resumeNewHistory, resultIndex: resumeNewHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
@@ -320,6 +320,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   }, [getNodes, getEdges, updateNodeData])
 
   const handleSheetGenerate = useCallback(async (nodeId) => {
+    const epoch = epochRef?.current ?? 0
     const currentNodes = getNodes()
     const node = currentNodes.find(n => n.id === nodeId)
     if (!node?.data?.resultUrl) return
@@ -328,7 +329,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     const anchor = anchorNode?.data?.imageAnchor ?? ''
     const prompt = anchor ? `${SHEET_PROMPT}\n\n${anchor}` : SHEET_PROMPT
 
-    updateNodeData(nodeId, { sheetGenerating: true })
+    updateNodeData(nodeId, { sheetGenerating: true, sheetError: null })
 
     const importRefUrl = async (urlOrBase64) => {
       const isBase64 = urlOrBase64?.startsWith('data:')
@@ -374,19 +375,22 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       while (true) {
         const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
+        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         if (!statusRes.ok) {
           if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
+        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
         await new Promise(r => setTimeout(r, 5000))
       }
 
       if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
 
+      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
       const doneNode = getNodes().find(n => n.id === nodeId)
-      const prevHistory = doneNode?.data?.resultHistory ?? (doneNode?.data?.resultUrl ? [doneNode.data.resultUrl] : [])
+      const prevHistory = doneNode?.data?.resultHistory ?? []
       const newHistory = [...prevHistory, resultUrl].slice(-5)
       const cost = calcHiggsfieldCredits(doneNode?.data ?? node.data)
       const prevCredits = doneNode?.data?.creditsUsed ?? 0

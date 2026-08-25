@@ -920,34 +920,36 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
           {/* 캐릭터 시트 생성 버튼 (캐릭터 생성 노드만) */}
           {!isVideo && data.label === '캐릭터 생성' && (
-            data.sheetGenerating ? (
-              <div style={{
-                marginTop: 6, padding: '7px 10px',
-                background: 'rgba(200,241,53,0.07)',
-                border: '1px solid rgba(200,241,53,0.35)',
-                borderRadius: 6, fontSize: 10, fontWeight: 600,
-                color: 'var(--t1)', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ animation: 'pulse 1.2s ease-in-out infinite' }}>⚙</span>
-                캐릭터 시트 생성 중...
-              </div>
-            ) : (
-              <button className="nopan nodrag"
-                onClick={() => higgsfieldSheetHandlerRef.current?.(id)}
-                style={{
-                  width: '100%', padding: '5px 0', marginTop: 6,
-                  background: 'rgba(200,241,53,0.07)', border: '1px solid rgba(200,241,53,0.45)',
-                  borderRadius: 6, fontSize: 11, fontWeight: 700,
-                  color: 'var(--t1)', cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >📋 캐릭터 시트 생성</button>
-            )
-          )}
-          {data.sheetError && (
-            <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(227,64,84,0.8)' }}>
-              ⚠ {data.sheetError}
-            </div>
+            <>
+              {data.sheetGenerating ? (
+                <div style={{
+                  marginTop: 6, padding: '7px 10px',
+                  background: 'rgba(200,241,53,0.07)',
+                  border: '1px solid rgba(200,241,53,0.35)',
+                  borderRadius: 6, fontSize: 10, fontWeight: 600,
+                  color: 'var(--t1)', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ animation: 'pulse 1.2s ease-in-out infinite' }}>⚙</span>
+                  캐릭터 시트 생성 중...
+                </div>
+              ) : (
+                <button className="nopan nodrag"
+                  onClick={() => higgsfieldSheetHandlerRef.current?.(id)}
+                  style={{
+                    width: '100%', padding: '5px 0', marginTop: 6,
+                    background: 'rgba(200,241,53,0.07)', border: '1px solid rgba(200,241,53,0.45)',
+                    borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    color: 'var(--t1)', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >📋 캐릭터 시트 생성</button>
+              )}
+              {data.sheetError && (
+                <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(227,64,84,0.8)' }}>
+                  ⚠ {data.sheetError}
+                </div>
+              )}
+            </>
           )}
           </>}
         </div>
