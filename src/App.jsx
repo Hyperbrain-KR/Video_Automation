@@ -513,7 +513,7 @@ function FlowCanvas() {
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openDates, setOpenDates] = useState(new Set())
   const [changelogSeen, setChangelogSeen] = useState(() => {
-    try { return localStorage.getItem('changelog-seen-v2') ?? '' } catch { return '' }
+    try { return localStorage.getItem('changelog-seen-v3') ?? '' } catch { return '' }
   })
   const changelogNewKey = useMemo(() => {
     if (!changelog.length) return ''
@@ -531,7 +531,7 @@ function FlowCanvas() {
     setShowChangelog(true)
   }, [changelog])
   const closeChangelog = useCallback(() => {
-    try { localStorage.setItem('changelog-seen-v2', changelogNewKey) } catch (e) { void e }
+    try { localStorage.setItem('changelog-seen-v3', changelogNewKey) } catch (e) { void e }
     setChangelogSeen(changelogNewKey)
     setShowChangelog(false)
   }, [changelogNewKey])
@@ -1257,20 +1257,22 @@ function FlowCanvas() {
                                         : tag === 'ADD'
                                         ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
                                         : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
-                                      return (
+                                      const isNew = showNewBadge && hasNewTag
+                                    return (
                                         <div key={j}>
                                           {j === lastNewIdx + 1 && lastNewIdx >= 0 && (
                                             <div style={{
                                               display: 'flex', alignItems: 'center', gap: 8,
-                                              margin: '6px 0',
+                                              margin: '8px 0',
                                             }}>
-                                              <div style={{ flex: 1, height: 1, background: 'var(--sep)' }} />
+                                              <div style={{ flex: 1, height: 1, background: 'rgba(41,217,217,0.3)' }} />
                                               <span style={{
                                                 fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
-                                                padding: '2px 7px', borderRadius: 10,
-                                                color: 'var(--t4)', border: '1px solid var(--sep)',
+                                                padding: '2px 8px', borderRadius: 10,
+                                                color: '#29D9D9', border: '1px solid rgba(41,217,217,0.4)',
+                                                background: 'rgba(41,217,217,0.07)',
                                               }}>이전 업데이트</span>
-                                              <div style={{ flex: 1, height: 1, background: 'var(--sep)' }} />
+                                              <div style={{ flex: 1, height: 1, background: 'rgba(41,217,217,0.3)' }} />
                                             </div>
                                           )}
                                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
@@ -1278,7 +1280,7 @@ function FlowCanvas() {
                                               ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
                                               : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
                                             }
-                                            <span style={{ fontSize: 12, color: hasNewTag ? 'var(--t1)' : 'var(--t3)', fontWeight: hasNewTag ? 600 : 400, lineHeight: 1.55 }}>{text}</span>
+                                            <span style={{ fontSize: 12, color: isNew ? 'var(--t1)' : 'var(--t3)', fontWeight: isNew ? 600 : 400, lineHeight: 1.55 }}>{text}</span>
                                           </div>
                                         </div>
                                       )
