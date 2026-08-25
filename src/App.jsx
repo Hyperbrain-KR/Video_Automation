@@ -1242,36 +1242,48 @@ function FlowCanvas() {
                               </button>
                               {isDateOpen && (
                                 <div style={{ margin: '2px 0 6px', paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {entry.items.map((item, j) => {
-                                    const hasNewTag = item.startsWith('[NEW]')
-                                    const stripped = hasNewTag ? item.slice(5) : item
-                                    const match = stripped.match(/^\[(FIX|ADD|UPD)\]\s*/)
-                                    const tag = match?.[1] ?? null
-                                    const text = match ? stripped.slice(match[0].length) : stripped
-                                    const tagStyle = tag === 'FIX'
-                                      ? { background: 'rgba(227,64,84,0.15)', color: '#E34054', border: '1px solid rgba(227,64,84,0.28)' }
-                                      : tag === 'ADD'
-                                      ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
-                                      : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
-                                    const isNew = showNewBadge && hasNewTag
-                                    return (
-                                      <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                                        {tag
-                                          ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
-                                          : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
-                                        }
-                                        {isNew && (
-                                          <span style={{
-                                            fontSize: 8, fontWeight: 800, letterSpacing: '0.06em',
-                                            padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1,
-                                            background: 'rgba(41,217,217,0.15)', color: '#29D9D9',
-                                            border: '1px solid rgba(41,217,217,0.35)',
-                                          }}>NEW</span>
-                                        )}
-                                        <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: isNew ? 700 : 400, lineHeight: 1.55 }}>{text}</span>
-                                      </div>
-                                    )
-                                  })}
+                                  {(() => {
+                                    const lastNewIdx = showNewBadge
+                                      ? entry.items.reduce((acc, it, i) => it.startsWith('[NEW]') ? i : acc, -1)
+                                      : -1
+                                    return entry.items.map((item, j) => {
+                                      const hasNewTag = item.startsWith('[NEW]')
+                                      const stripped = hasNewTag ? item.slice(5) : item
+                                      const match = stripped.match(/^\[(FIX|ADD|UPD)\]\s*/)
+                                      const tag = match?.[1] ?? null
+                                      const text = match ? stripped.slice(match[0].length) : stripped
+                                      const tagStyle = tag === 'FIX'
+                                        ? { background: 'rgba(227,64,84,0.15)', color: '#E34054', border: '1px solid rgba(227,64,84,0.28)' }
+                                        : tag === 'ADD'
+                                        ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
+                                        : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
+                                      return (
+                                        <div key={j}>
+                                          {j === lastNewIdx + 1 && lastNewIdx >= 0 && (
+                                            <div style={{
+                                              display: 'flex', alignItems: 'center', gap: 8,
+                                              margin: '6px 0',
+                                            }}>
+                                              <div style={{ flex: 1, height: 1, background: 'var(--sep)' }} />
+                                              <span style={{
+                                                fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
+                                                padding: '2px 7px', borderRadius: 10,
+                                                color: 'var(--t4)', border: '1px solid var(--sep)',
+                                              }}>이전 업데이트</span>
+                                              <div style={{ flex: 1, height: 1, background: 'var(--sep)' }} />
+                                            </div>
+                                          )}
+                                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                            {tag
+                                              ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
+                                              : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
+                                            }
+                                            <span style={{ fontSize: 12, color: hasNewTag ? 'var(--t1)' : 'var(--t3)', fontWeight: hasNewTag ? 600 : 400, lineHeight: 1.55 }}>{text}</span>
+                                          </div>
+                                        </div>
+                                      )
+                                    })
+                                  })()}
                                 </div>
                               )}
                             </div>
