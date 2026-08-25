@@ -513,7 +513,7 @@ function FlowCanvas() {
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openDates, setOpenDates] = useState(new Set())
   const [changelogSeen, setChangelogSeen] = useState(() => {
-    try { return localStorage.getItem('changelog-seen') ?? '' } catch { return '' }
+    try { return localStorage.getItem('changelog-seen-v2') ?? '' } catch { return '' }
   })
   const changelogNewKey = useMemo(() => {
     if (!changelog.length) return ''
@@ -531,7 +531,7 @@ function FlowCanvas() {
     setShowChangelog(true)
   }, [changelog])
   const closeChangelog = useCallback(() => {
-    try { localStorage.setItem('changelog-seen', changelogNewKey) } catch (e) { void e }
+    try { localStorage.setItem('changelog-seen-v2', changelogNewKey) } catch (e) { void e }
     setChangelogSeen(changelogNewKey)
     setShowChangelog(false)
   }, [changelogNewKey])
@@ -1260,7 +1260,6 @@ function FlowCanvas() {
                                           ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
                                           : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
                                         }
-                                        <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: isNew ? 700 : 400, lineHeight: 1.55 }}>{text}</span>
                                         {isNew && (
                                           <span style={{
                                             fontSize: 8, fontWeight: 800, letterSpacing: '0.06em',
@@ -1269,6 +1268,7 @@ function FlowCanvas() {
                                             border: '1px solid rgba(41,217,217,0.35)',
                                           }}>NEW</span>
                                         )}
+                                        <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: isNew ? 700 : 400, lineHeight: 1.55 }}>{text}</span>
                                       </div>
                                     )
                                   })}
