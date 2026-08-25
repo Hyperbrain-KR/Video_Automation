@@ -918,8 +918,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
             }}
           >{data.approved ? '✓ 승인됨' : '✓ 승인'}</button>
 
-          {/* 캐릭터 시트 생성 버튼 (이미지 노드만) */}
-          {!isVideo && (
+          {/* 캐릭터 시트 생성 버튼 (캐릭터 생성 노드만) */}
+          {!isVideo && data.label === '캐릭터 생성' && (
             data.sheetGenerating ? (
               <div style={{
                 marginTop: 6, padding: '7px 10px',
