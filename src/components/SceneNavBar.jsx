@@ -807,7 +807,7 @@ export default function SceneNavBar({
           imgStatus:    imgNode?.data?.status    ?? 'idle',
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
-          vidResultUrl: vidNode?.data?.resultUrl ?? null,
+          vidResultUrl: vidNode?.data?.status === 'done' ? (vidNode?.data?.resultUrl ?? null) : null,
           vidApproved:  vidNode?.data?.approved  ?? false,
         }
       })
