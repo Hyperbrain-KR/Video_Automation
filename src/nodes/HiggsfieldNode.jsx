@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
-import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
@@ -917,6 +917,38 @@ export default function HiggsfieldNode({ id, data, selected }) {
               transition: 'all 0.15s',
             }}
           >{data.approved ? '✓ 승인됨' : '✓ 승인'}</button>
+
+          {/* 캐릭터 시트 생성 버튼 (이미지 노드만) */}
+          {!isVideo && (
+            data.sheetGenerating ? (
+              <div style={{
+                marginTop: 6, padding: '7px 10px',
+                background: 'rgba(200,241,53,0.06)',
+                border: '1px solid rgba(200,241,53,0.2)',
+                borderRadius: 6, fontSize: 10, fontWeight: 600,
+                color: 'rgba(200,241,53,0.7)', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span style={{ animation: 'pulse 1.2s ease-in-out infinite' }}>⚙</span>
+                캐릭터 시트 생성 중...
+              </div>
+            ) : (
+              <button className="nopan nodrag"
+                onClick={() => higgsfieldSheetHandlerRef.current?.(id)}
+                style={{
+                  width: '100%', padding: '5px 0', marginTop: 6,
+                  background: 'var(--node-bg)', border: '1px solid rgba(200,241,53,0.3)',
+                  borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  color: 'rgba(200,241,53,0.75)', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >📋 캐릭터 시트 생성</button>
+            )
+          )}
+          {data.sheetError && (
+            <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(227,64,84,0.8)' }}>
+              ⚠ {data.sheetError}
+            </div>
+          )}
           </>}
         </div>
       )}

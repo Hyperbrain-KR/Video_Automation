@@ -1,10 +1,16 @@
 import { useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import { higgsfieldHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
 import { CANVAS_API } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
 import { calcHiggsfieldCredits } from '../lib/higgsfieldCredits'
+
+const SHEET_PROMPT = `Keeping the referenced character unchanged, a clean character reference sheet layout featuring the character displayed in three body views arranged in a row: front-facing pose, side profile (left), side profile (right), and back view — full body each, neutral standing pose, evenly spaced against a plain light background.
+
+Below the body views, a row of six close-up facial expression panels, each labeled and depicting distinct emotions: joy (bright wide smile, sparkling eyes), sadness (downcast eyes, subtle tears, trembling lips), anger (furrowed brows, sharp glare, clenched jaw), pain/agony (scrunched brows, eyes squeezed shut, grimacing mouth), neutral/serious (flat calm expression, steady gaze, composed lips), and excitement (wide sparkling eyes, open elated smile, raised eyebrows).
+
+The overall layout is organized like a professional animation character sheet, clean white or very light gray background, soft even ambient light across all panels, consistent character scale throughout, mood is professional and reference-ready. Clean guide lines separating each section.`
 
 export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
@@ -313,9 +319,97 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     }
   }, [getNodes, getEdges, updateNodeData])
 
+  const handleSheetGenerate = useCallback(async (nodeId) => {
+    const currentNodes = getNodes()
+    const node = currentNodes.find(n => n.id === nodeId)
+    if (!node?.data?.resultUrl) return
+
+    const anchorNode = currentNodes.find(n => n.type === 'styleAnchorInput')
+    const anchor = anchorNode?.data?.imageAnchor ?? ''
+    const prompt = anchor ? `${SHEET_PROMPT}\n\n${anchor}` : SHEET_PROMPT
+
+    updateNodeData(nodeId, { sheetGenerating: true })
+
+    const importRefUrl = async (urlOrBase64) => {
+      const isBase64 = urlOrBase64?.startsWith('data:')
+      const contentType = isBase64
+        ? (urlOrBase64.match(/^data:([^;]+)/) ?? [])[1] ?? 'image/jpeg'
+        : null
+      const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg'
+      const body = isBase64
+        ? { fileBase64: urlOrBase64, filename: `reference.${ext}`, contentType }
+        : { url: urlOrBase64 }
+      const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.mediaId) throw new Error(data.error || '레퍼런스 업로드 실패')
+      return data.mediaId
+    }
+
+    try {
+      const refMediaId = await importRefUrl(node.data.resultUrl)
+
+      const body = {
+        prompt,
+        model: node.data.model ?? 'gpt_image_2',
+        quality: node.data.quality ?? 'high',
+        aspectRatio: node.data.aspectRatio ?? '9:16',
+        referenceMediaIds: refMediaId ? [refMediaId] : [],
+      }
+
+      const genRes = await fetch(`${CANVAS_API}/api/higgsfield/image`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!genRes.ok) {
+        const err = await genRes.json().catch(() => ({}))
+        throw new Error(err.error || `서버 오류 ${genRes.status}`)
+      }
+      const { jobId } = await genRes.json()
+      if (!jobId) throw new Error('jobId를 받지 못했습니다')
+
+      let resultUrl = null
+      while (true) {
+        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusData = await statusRes.json()
+        if (!statusRes.ok) {
+          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
+        }
+        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
+        if (statusData.error) throw new Error(statusData.error)
+        await new Promise(r => setTimeout(r, 5000))
+      }
+
+      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
+
+      const doneNode = getNodes().find(n => n.id === nodeId)
+      const prevHistory = doneNode?.data?.resultHistory ?? (doneNode?.data?.resultUrl ? [doneNode.data.resultUrl] : [])
+      const newHistory = [...prevHistory, resultUrl].slice(-5)
+      const cost = calcHiggsfieldCredits(doneNode?.data ?? node.data)
+      const prevCredits = doneNode?.data?.creditsUsed ?? 0
+      updateNodeData(nodeId, {
+        sheetGenerating: false,
+        resultUrl,
+        resultHistory: newHistory,
+        resultIndex: newHistory.length - 1,
+        creditsUsed: prevCredits + cost,
+      })
+    } catch (err) {
+      console.error('[시트 생성 실패]', err.message)
+      updateNodeData(nodeId, { sheetGenerating: false, sheetError: friendlyError(err.message) })
+    }
+  }, [getNodes, updateNodeData])
+
   useEffect(() => {
     higgsfieldHandlerRef.current = handleHiggsfieldGenerate
   }, [handleHiggsfieldGenerate])
+
+  useEffect(() => {
+    higgsfieldSheetHandlerRef.current = handleSheetGenerate
+  }, [handleSheetGenerate])
 
   return resumePolling
 }

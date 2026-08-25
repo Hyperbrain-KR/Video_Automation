@@ -422,7 +422,7 @@ function FlowCanvas() {
 
   const handleResetProject = useCallback(() => {
     const DROP = ['resultUrl', 'resultHistory', 'resultIndex', 'status', 'jobId', 'creditsUsed', 'approved',
-                  'error', 'generatingStartedAt', 'generatedAt']
+                  'error', 'generatingStartedAt', 'generatedAt', 'sheetGenerating', 'sheetError']
     setNodes(nds => nds.map(n => {
       if (n.type !== 'higgsfieldNode') return n
       const clean = { ...n.data }
