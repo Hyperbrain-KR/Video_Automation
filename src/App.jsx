@@ -421,7 +421,7 @@ function FlowCanvas() {
   }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
 
   const handleResetProject = useCallback(() => {
-    const DROP = ['resultUrl', 'status', 'jobId', 'creditsUsed', 'approved',
+    const DROP = ['resultUrl', 'resultHistory', 'resultIndex', 'status', 'jobId', 'creditsUsed', 'approved',
                   'error', 'generatingStartedAt', 'generatedAt']
     setNodes(nds => nds.map(n => {
       if (n.type !== 'higgsfieldNode') return n

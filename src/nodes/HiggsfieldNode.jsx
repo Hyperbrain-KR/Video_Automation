@@ -213,6 +213,18 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const isDone = status === 'done'
   const isAuthError = status === 'auth_error'
 
+  const resultHistory = data.resultHistory ?? (data.resultUrl ? [data.resultUrl] : [])
+  const resultIndex = data.resultIndex ?? (resultHistory.length - 1)
+
+  const navigateHistory = (newIndex) => {
+    const newUrl = resultHistory[newIndex]
+    if (!newUrl) return
+    updateNodeData(id, { resultIndex: newIndex, resultUrl: newUrl })
+    getEdges()
+      .filter(e => e.source === id && e.target !== id)
+      .forEach(e => updateNodeData(e.target, { resultUrl: newUrl }))
+  }
+
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
     if (status !== 'generating' && status !== 'slow') return
@@ -790,6 +802,36 @@ export default function HiggsfieldNode({ id, data, selected }) {
           {!thumbCollapsed && (isVideo
             ? <video src={data.resultUrl} controls style={{ width: '100%', borderRadius: 7 }} />
             : <img src={data.resultUrl} alt="생성 결과" style={{ width: '100%', borderRadius: 7, display: 'block' }} />
+          )}
+          {!thumbCollapsed && resultHistory.length > 1 && (
+            <div className="nopan nodrag" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 8, marginTop: 6,
+            }}>
+              <button
+                onClick={() => navigateHistory(resultIndex - 1)}
+                disabled={resultIndex === 0}
+                style={{
+                  background: 'none', border: 'none', padding: '2px 6px',
+                  cursor: resultIndex === 0 ? 'default' : 'pointer',
+                  fontSize: 16, lineHeight: 1,
+                  color: resultIndex === 0 ? 'var(--t5)' : 'var(--t2)',
+                }}
+              >‹</button>
+              <span style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, minWidth: 30, textAlign: 'center' }}>
+                {resultIndex + 1} / {resultHistory.length}
+              </span>
+              <button
+                onClick={() => navigateHistory(resultIndex + 1)}
+                disabled={resultIndex === resultHistory.length - 1}
+                style={{
+                  background: 'none', border: 'none', padding: '2px 6px',
+                  cursor: resultIndex === resultHistory.length - 1 ? 'default' : 'pointer',
+                  fontSize: 16, lineHeight: 1,
+                  color: resultIndex === resultHistory.length - 1 ? 'var(--t5)' : 'var(--t2)',
+                }}
+              >›</button>
+            </div>
           )}
           {!thumbCollapsed && <>
             <a

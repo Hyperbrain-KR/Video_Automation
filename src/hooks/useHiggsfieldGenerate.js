@@ -254,7 +254,9 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const doneNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(doneNode?.data ?? node?.data ?? {})
       const prevCredits = doneNode?.data?.creditsUsed ?? 0
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
+      const prevHistory = doneNode?.data?.resultHistory ?? (doneNode?.data?.resultUrl ? [doneNode.data.resultUrl] : [])
+      const newHistory = [...prevHistory, resultUrl].slice(-5)
+      updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: newHistory, resultIndex: newHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
 
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
@@ -299,7 +301,9 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const resumeNode = getNodes().find(n => n.id === nodeId)
       const cost = calcHiggsfieldCredits(resumeNode?.data ?? {})
       const prevCredits = resumeNode?.data?.creditsUsed ?? 0
-      updateNodeData(nodeId, { status: 'done', resultUrl, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
+      const resumePrevHistory = resumeNode?.data?.resultHistory ?? (resumeNode?.data?.resultUrl ? [resumeNode.data.resultUrl] : [])
+      const resumeNewHistory = [...resumePrevHistory, resultUrl].slice(-5)
+      updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: resumeNewHistory, resultIndex: resumeNewHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
       getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
