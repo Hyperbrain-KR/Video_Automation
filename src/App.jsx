@@ -1265,14 +1265,14 @@ function FlowCanvas() {
                                               display: 'flex', alignItems: 'center', gap: 8,
                                               margin: '8px 0',
                                             }}>
-                                              <div style={{ flex: 1, height: 1, background: 'rgba(41,217,217,0.3)' }} />
+                                              <div style={{ flex: 1, height: 1, background: 'rgba(139,92,246,0.35)' }} />
                                               <span style={{
                                                 fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
                                                 padding: '2px 8px', borderRadius: 10,
-                                                color: '#29D9D9', border: '1px solid rgba(41,217,217,0.4)',
-                                                background: 'rgba(41,217,217,0.07)',
+                                                color: '#a78bfa', border: '1px solid rgba(139,92,246,0.4)',
+                                                background: 'rgba(139,92,246,0.08)',
                                               }}>이전 업데이트</span>
-                                              <div style={{ flex: 1, height: 1, background: 'rgba(41,217,217,0.3)' }} />
+                                              <div style={{ flex: 1, height: 1, background: 'rgba(139,92,246,0.35)' }} />
                                             </div>
                                           )}
                                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
