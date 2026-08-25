@@ -512,6 +512,9 @@ function FlowCanvas() {
   const [showChangelog, setShowChangelog] = useState(false)
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openDates, setOpenDates] = useState(new Set())
+  const [changelogSeen, setChangelogSeen] = useState(() => {
+    try { return localStorage.getItem('changelog-seen') ?? '' } catch { return '' }
+  })
   const openChangelogModal = useCallback(() => {
     if (changelog.length) {
       const first = changelog[0]
@@ -520,6 +523,15 @@ function FlowCanvas() {
       setOpenDates(new Set([first.date]))
     }
     setShowChangelog(true)
+  }, [changelog])
+  const closeChangelog = useCallback(() => {
+    if (changelog.length) {
+      const first = changelog[0]
+      const key = `${first.date}-${first.highlight ?? 0}`
+      try { localStorage.setItem('changelog-seen', key) } catch {}
+      setChangelogSeen(key)
+    }
+    setShowChangelog(false)
   }, [changelog])
 
   // ── Higgsfield 인증 오류 감지 ────────────────────────────
@@ -1140,7 +1152,7 @@ function FlowCanvas() {
       {/* 업데이트 내역 모달 */}
       {showChangelog && (
         <div
-          onClick={() => setShowChangelog(false)}
+          onClick={closeChangelog}
           style={{
             position: 'fixed', inset: 0, zIndex: 10000,
             background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1159,7 +1171,7 @@ function FlowCanvas() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)' }}>🚀 업데이트 내역</span>
               <button
-                onClick={() => setShowChangelog(false)}
+                onClick={closeChangelog}
                 style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
               >✕</button>
             </div>
@@ -1183,6 +1195,9 @@ function FlowCanvas() {
                 next.has(date) ? next.delete(date) : next.add(date)
                 return next
               })
+              const latestEntry = changelog[0]
+              const latestKey = latestEntry ? `${latestEntry.date}-${latestEntry.highlight ?? 0}` : ''
+              const showNewBadge = latestKey !== changelogSeen && (latestEntry?.highlight ?? 0) > 0
               return monthOrder.map(mKey => {
                 const [y, m] = mKey.split('-')
                 const label = `${y}년 ${parseInt(m)}월`
@@ -1236,13 +1251,22 @@ function FlowCanvas() {
                                       : tag === 'ADD'
                                       ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
                                       : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
+                                    const isNew = showNewBadge && entry === latestEntry && j < (entry.highlight ?? 0)
                                     return (
                                       <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                                         {tag
                                           ? <span style={{ ...tagStyle, fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1 }}>{tag}</span>
                                           : <span style={{ color: 'var(--t4)', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
                                         }
-                                        <span style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.55 }}>{text}</span>
+                                        <span style={{ fontSize: 12, color: 'var(--t1)', fontWeight: isNew ? 700 : 400, lineHeight: 1.55 }}>{text}</span>
+                                        {isNew && (
+                                          <span style={{
+                                            fontSize: 8, fontWeight: 800, letterSpacing: '0.06em',
+                                            padding: '2px 5px', borderRadius: 3, flexShrink: 0, marginTop: 1,
+                                            background: 'rgba(41,217,217,0.15)', color: '#29D9D9',
+                                            border: '1px solid rgba(41,217,217,0.35)',
+                                          }}>NEW</span>
+                                        )}
                                       </div>
                                     )
                                   })}
