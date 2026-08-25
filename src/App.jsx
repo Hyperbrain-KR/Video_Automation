@@ -515,6 +515,12 @@ function FlowCanvas() {
   const [changelogSeen, setChangelogSeen] = useState(() => {
     try { return localStorage.getItem('changelog-seen') ?? '' } catch { return '' }
   })
+  const changelogNewKey = useMemo(() => {
+    if (!changelog.length) return ''
+    const first = changelog[0]
+    const newCount = first.items?.filter(i => i.startsWith('[NEW]')).length ?? 0
+    return `${first.date}-${newCount}`
+  }, [changelog])
   const openChangelogModal = useCallback(() => {
     if (changelog.length) {
       const first = changelog[0]
@@ -525,14 +531,10 @@ function FlowCanvas() {
     setShowChangelog(true)
   }, [changelog])
   const closeChangelog = useCallback(() => {
-    if (changelog.length) {
-      const first = changelog[0]
-      const key = `${first.date}-${first.highlight ?? 0}`
-      try { localStorage.setItem('changelog-seen', key) } catch {}
-      setChangelogSeen(key)
-    }
+    try { localStorage.setItem('changelog-seen', changelogNewKey) } catch (e) { void e }
+    setChangelogSeen(changelogNewKey)
     setShowChangelog(false)
-  }, [changelog])
+  }, [changelogNewKey])
 
   // ── Higgsfield 인증 오류 감지 ────────────────────────────
   const hasHiggsfieldAuthError = useMemo(
@@ -1195,9 +1197,7 @@ function FlowCanvas() {
                 next.has(date) ? next.delete(date) : next.add(date)
                 return next
               })
-              const latestEntry = changelog[0]
-              const latestKey = latestEntry ? `${latestEntry.date}-${latestEntry.highlight ?? 0}` : ''
-              const showNewBadge = latestKey !== changelogSeen && (latestEntry?.highlight ?? 0) > 0
+              const showNewBadge = changelogNewKey !== changelogSeen && changelogNewKey !== ''
               return monthOrder.map(mKey => {
                 const [y, m] = mKey.split('-')
                 const label = `${y}년 ${parseInt(m)}월`
@@ -1243,15 +1243,17 @@ function FlowCanvas() {
                               {isDateOpen && (
                                 <div style={{ margin: '2px 0 6px', paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                   {entry.items.map((item, j) => {
-                                    const match = item.match(/^\[(FIX|ADD|UPD)\]\s*/)
+                                    const hasNewTag = item.startsWith('[NEW]')
+                                    const stripped = hasNewTag ? item.slice(5) : item
+                                    const match = stripped.match(/^\[(FIX|ADD|UPD)\]\s*/)
                                     const tag = match?.[1] ?? null
-                                    const text = match ? item.slice(match[0].length) : item
+                                    const text = match ? stripped.slice(match[0].length) : stripped
                                     const tagStyle = tag === 'FIX'
                                       ? { background: 'rgba(227,64,84,0.15)', color: '#E34054', border: '1px solid rgba(227,64,84,0.28)' }
                                       : tag === 'ADD'
                                       ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
                                       : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
-                                    const isNew = showNewBadge && entry === latestEntry && j < (entry.highlight ?? 0)
+                                    const isNew = showNewBadge && hasNewTag
                                     return (
                                       <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                                         {tag
