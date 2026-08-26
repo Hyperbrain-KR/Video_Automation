@@ -147,6 +147,7 @@ function FlowCanvas() {
   // ── Undo history ─────────────────────────────────────────────────────
   const historyRef = useRef([])
   const historyIdxRef = useRef(-1)
+  const isUndoRedoRef = useRef(false)
   const pushHistory = useCallback(() => {
     historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1)
     historyRef.current.push({ nodes, edges })
@@ -320,9 +321,10 @@ function FlowCanvas() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
-  // 노드/엣지 변경 시 auto-save (마운트 직후 첫 렌더는 skip)
+  // 노드/엣지 변경 시 auto-save (마운트 직후 첫 렌더는 skip, undo/redo 중은 skip)
   useEffect(() => {
     if (!isMountedRef.current) { isMountedRef.current = true; return }
+    if (isUndoRedoRef.current) { isUndoRedoRef.current = false; return }
     setSaveState('pending')
     clearTimeout(saveTimerRef.current)
     const snapNodes = stripLargeData(nodes)
@@ -659,19 +661,31 @@ function FlowCanvas() {
   }, [contextMenu, pushHistory, setEdges])
 
   useEffect(() => {
-    const handleUndo = (e) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z' || e.shiftKey) return
+    const handleUndoRedo = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z') return
       const el = document.activeElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       e.preventDefault()
-      if (historyIdxRef.current < 0) return
-      const snap = historyRef.current[historyIdxRef.current]
-      historyIdxRef.current--
-      setNodes(snap.nodes)
-      setEdges(snap.edges)
+      if (e.shiftKey) {
+        // Redo: idx를 앞으로
+        if (historyIdxRef.current >= historyRef.current.length - 1) return
+        historyIdxRef.current++
+        const snap = historyRef.current[historyIdxRef.current]
+        isUndoRedoRef.current = true
+        setNodes(snap.nodes)
+        setEdges(snap.edges)
+      } else {
+        // Undo: 현재 상태를 history에 push한 뒤 idx를 뒤로
+        if (historyIdxRef.current < 0) return
+        const snap = historyRef.current[historyIdxRef.current]
+        historyIdxRef.current--
+        isUndoRedoRef.current = true
+        setNodes(snap.nodes)
+        setEdges(snap.edges)
+      }
     }
-    window.addEventListener('keydown', handleUndo)
-    return () => window.removeEventListener('keydown', handleUndo)
+    window.addEventListener('keydown', handleUndoRedo)
+    return () => window.removeEventListener('keydown', handleUndoRedo)
   }, [setNodes, setEdges])
 
   useEffect(() => {
