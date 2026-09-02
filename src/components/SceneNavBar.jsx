@@ -209,34 +209,6 @@ const STYLES = `
   [data-theme="dark"]  .scene-confirm-overlay { background: rgba(10,15,30,0.88); }
   [data-theme="light"] .scene-confirm-overlay { background: rgba(220,228,248,0.92); }
 
-  /* ── 씬 스크롤 화살표 ── */
-  .scene-scroll-arrow {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    z-index: 15; height: 40px; width: 26px;
-    border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 800;
-    transition: opacity 0.15s;
-    pointer-events: auto;
-  }
-  .scene-scroll-arrow-left  { left: 0;  border-radius: 0 6px 6px 0; }
-  .scene-scroll-arrow-right { right: 0; border-radius: 6px 0 0 6px; }
-  [data-theme="dark"]  .scene-scroll-arrow {
-    background: linear-gradient(90deg, rgba(8,13,28,0.92) 60%, transparent 100%);
-    color: rgba(255,255,255,0.55);
-  }
-  [data-theme="dark"]  .scene-scroll-arrow-right {
-    background: linear-gradient(270deg, rgba(8,13,28,0.92) 60%, transparent 100%);
-  }
-  [data-theme="light"] .scene-scroll-arrow {
-    background: linear-gradient(90deg, rgba(238,244,255,0.95) 60%, transparent 100%);
-    color: rgba(0,0,0,0.4);
-  }
-  [data-theme="light"] .scene-scroll-arrow-right {
-    background: linear-gradient(270deg, rgba(238,244,255,0.95) 60%, transparent 100%);
-  }
-  .scene-scroll-arrow:hover { opacity: 0.75; }
-
   /* ── + 씬 추가 버튼 ── */
   .scene-add-btn {
     flex-shrink: 0;
@@ -749,30 +721,6 @@ export default function SceneNavBar({
       .filter(n => n.type === 'higgsfieldNode' && (n.data?.creditsUsed ?? 0) > 0)
       .reduce((sum, n) => sum + (n.data.creditsUsed ?? 0), 0)
   , [nodes])
-  const [scrollX, setScrollX]     = useState(0)
-  const [maxScroll, setMaxScroll] = useState(0)
-
-  // 스크롤 위치 동기화 (네이티브 scroll 이벤트)
-  useEffect(() => {
-    const el = scenesRef.current
-    if (!el) return
-    const sync = () => {
-      setScrollX(el.scrollLeft)
-      setMaxScroll(Math.max(0, el.scrollWidth - el.clientWidth))
-    }
-    el.addEventListener('scroll', sync, { passive: true })
-    return () => el.removeEventListener('scroll', sync)
-  }, [])
-
-  // 콘텐츠 너비 변경 시 maxScroll 재계산
-  useEffect(() => {
-    const el = scenesRef.current
-    if (!el) return
-    requestAnimationFrame(() => {
-      setMaxScroll(Math.max(0, el.scrollWidth - el.clientWidth))
-    })
-  }, [nodes])
-
   // non-passive wheel → 페이지 스크롤 방지 후 씬 영역만 스크롤
   useEffect(() => {
     const el = scenesRef.current
@@ -785,12 +733,6 @@ export default function SceneNavBar({
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [])
-
-  const scrollBy = (dir) => {
-    const el = scenesRef.current
-    if (!el) return
-    el.scrollLeft += dir * 200
-  }
 
   const scenes = useMemo(() => {
     return nodes
@@ -899,11 +841,6 @@ export default function SceneNavBar({
         {/* 오른쪽: 씬 카드 스크롤 영역 */}
         <div className="scene-nav-scenes-wrap">
         <div ref={scenesRef} className="scene-nav-scenes">
-          {/* 왼쪽 스크롤 화살표 */}
-          {scrollX > 0 && (
-            <button className="scene-scroll-arrow scene-scroll-arrow-left" onClick={() => scrollBy(-1)}>◀</button>
-          )}
-
           <div className="scene-nav-inner">
             {scenes.map(scene => (
               <SceneCard key={scene.uid ?? 'scene1'} scene={scene} onClick={() => goToScene(scene)} onDelete={onDeleteScene} />
@@ -914,11 +851,6 @@ export default function SceneNavBar({
               씬 추가
             </button>
           </div>
-
-          {/* 오른쪽 스크롤 화살표 */}
-          {scrollX < maxScroll && (
-            <button className="scene-scroll-arrow scene-scroll-arrow-right" onClick={() => scrollBy(1)}>▶</button>
-          )}
         </div>
         </div>
 
