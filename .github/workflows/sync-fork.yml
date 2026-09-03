@@ -13,5 +13,5 @@ jobs:
           fetch-depth: 0
       - name: Push to ihyu-bit fork
         run: |
-          git remote add fork https://x-access-token:${{ secrets.FORK_PAT }}@github.com/ihyu-bit/video_automation.git
+          git remote add fork https://ihyu-bit:${{ secrets.FORK_PAT }}@github.com/ihyu-bit/video_automation.git
           git push fork main --force
