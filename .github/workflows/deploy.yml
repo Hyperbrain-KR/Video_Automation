@@ -1,8 +1,7 @@
 name: Deploy to Vercel
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch: # 수동 실행만 가능 (자동 비활성화)
 
 jobs:
   deploy:
