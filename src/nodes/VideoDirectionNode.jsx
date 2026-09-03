@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
-import { CANVAS_API } from '../lib/config'
+import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 
@@ -56,7 +56,7 @@ Output ONLY the Korean direction — no labels, no explanations.`
 
       const images = directionImage ? [directionImage] : undefined
 
-      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+      const res = await apiFetch('/api/claude/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ systemPrompt, userMessage, maxTokens: 600, projectId: projectId ?? undefined, images }),

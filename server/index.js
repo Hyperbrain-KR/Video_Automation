@@ -16,6 +16,16 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
+const API_SECRET = process.env.API_SECRET
+app.use('/api', (req, res, next) => {
+  if (!API_SECRET) return next()
+  if (req.path === '/version' || req.path === '/download') return next()
+  if (req.headers['x-api-secret'] !== API_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  next()
+})
+
 const anthropic = new Anthropic({ apiKey: globalThis.process?.env?.ANTHROPIC_API_KEY })
 const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
 
@@ -151,6 +161,17 @@ app.post('/auth/receive-token', async (req, res) => {
 
 // ── Health ────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
+
+// ── 이메일 허용 목록 체크 ──────────────────────────────────
+const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
+  ? process.env.ALLOWED_EMAILS.split(',').map(e => e.trim().toLowerCase())
+  : []
+
+app.post('/api/auth/check', (req, res) => {
+  if (!ALLOWED_EMAILS.length) return res.json({ allowed: true })
+  const email = req.body.email?.toLowerCase()
+  res.json({ allowed: !!email && ALLOWED_EMAILS.includes(email) })
+})
 
 // ── 버전 / 업데이트 내역 ──────────────────────────────────
 const SERVER_START_TIME = new Date().toISOString()

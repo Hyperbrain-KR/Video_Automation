@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CANVAS_API } from '../lib/config'
+import { apiFetch } from '../lib/config'
 
 const POLL_INTERVAL = 60 * 1000
 
@@ -11,7 +11,7 @@ export function useVersionCheck() {
   useEffect(() => {
     async function check() {
       try {
-        const res = await fetch(`${CANVAS_API}/api/version`)
+        const res = await apiFetch('/api/version')
         if (!res.ok) return
         const data = await res.json()
         if (!baseStartTime.current) {

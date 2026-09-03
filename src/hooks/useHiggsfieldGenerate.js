@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
-import { CANVAS_API } from '../lib/config'
+import { apiFetch } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
 import { calcHiggsfieldCredits } from '../lib/higgsfieldCredits'
 
@@ -35,7 +35,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         fileBase64 = await loadImageByNodeId(srcNode.id) ?? null
       }
       if (!fileBase64 && !url) return null
-      const uploadRes = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+      const uploadRes = await apiFetch('/api/higgsfield/upload-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, fileBase64, filename, contentType }),
@@ -54,7 +54,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const body = isBase64
         ? { fileBase64: urlOrBase64, filename: `reference.${ext}`, contentType }
         : { url: urlOrBase64 }
-      const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+      const res = await apiFetch('/api/higgsfield/upload-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -204,7 +204,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           }
 
       console.log(`[생성 요청] /api/higgsfield/${endpoint} 호출 중...`, body)
-      const genRes = await fetch(`${CANVAS_API}/api/higgsfield/${endpoint}`, {
+      const genRes = await apiFetch(`/api/higgsfield/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -235,7 +235,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       let warnedSlow = false
       while (true) {
         pollCount++
-        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         console.log(`[폴링 #${pollCount}] (${ts()})`, statusData.resultUrl ? `✅ URL: ${statusData.resultUrl.slice(0, 60)}` : `⏳ 대기 중`, statusData.error ? `❌ ${statusData.error}` : '', '\n  Higgsfield 응답:', rawStatus)
@@ -285,7 +285,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       let warnedSlow = false
       while (true) {
         pollCount++
-        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         console.log(`[재개 폴링 #${pollCount}]`, statusData.resultUrl ? `✅ URL` : `⏳ 대기`, statusData.error ? `❌ ${statusData.error}` : '', rawStatus.slice(0, 60))
@@ -340,7 +340,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const body = isBase64
         ? { fileBase64: urlOrBase64, filename: `reference.${ext}`, contentType }
         : { url: urlOrBase64 }
-      const res = await fetch(`${CANVAS_API}/api/higgsfield/upload-reference`, {
+      const res = await apiFetch('/api/higgsfield/upload-reference', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
@@ -360,7 +360,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         referenceMediaIds: refMediaId ? [refMediaId] : [],
       }
 
-      const genRes = await fetch(`${CANVAS_API}/api/higgsfield/image`, {
+      const genRes = await apiFetch('/api/higgsfield/image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
@@ -373,7 +373,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
 
       let resultUrl = null
       while (true) {
-        const statusRes = await fetch(`${CANVAS_API}/api/higgsfield/status/${jobId}`)
+        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         if (!statusRes.ok) {

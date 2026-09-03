@@ -6,7 +6,7 @@ import {
   useNodesState, useEdgesState, useReactFlow,
   addEdge, BackgroundVariant,
 } from '@xyflow/react'
-import { CANVAS_API } from './lib/config'
+import { CANVAS_API, apiFetch } from './lib/config'
 import { CharactersContext } from './lib/CharactersContext'
 import { AssetsContext } from './lib/AssetsContext'
 import { ProjectContext } from './lib/ProjectContext'
@@ -499,7 +499,7 @@ function FlowCanvas() {
   const [hfCredits, setHfCredits] = useState(null)
   const [hfCreditsRaw, setHfCreditsRaw] = useState(null)
   const fetchHfCredits = useCallback(() => {
-    fetch(`${CANVAS_API}/api/higgsfield/credits`)
+    apiFetch('/api/higgsfield/credits')
       .then(r => r.json())
       .then(d => {
         if (d.error) { setHfCredits('error'); return }
@@ -563,7 +563,7 @@ function FlowCanvas() {
   const [claudeCost, setClaudeCost] = useState(null)
   const fetchClaudeCost = useCallback(() => {
     if (!activeId) return
-    fetch(`${CANVAS_API}/api/usage/claude?projectId=${encodeURIComponent(activeId)}`)
+    apiFetch(`/api/usage/claude?projectId=${encodeURIComponent(activeId)}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { setClaudeCost('error'); return }

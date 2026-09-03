@@ -1,6 +1,9 @@
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
 export default function LoginPage() {
+  const { denied } = useAuth()
+
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -23,6 +26,17 @@ export default function LoginPage() {
           AI 콘텐츠 생성 파이프라인
         </div>
       </div>
+
+      {denied && (
+        <div style={{
+          padding: '10px 18px', borderRadius: 8,
+          background: 'rgba(227,64,84,0.15)',
+          border: '1px solid rgba(227,64,84,0.4)',
+          color: '#E34054', fontSize: 13,
+        }}>
+          접근이 허용되지 않은 계정입니다.
+        </div>
+      )}
 
       <button
         onClick={handleGoogleLogin}

@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
-import { CANVAS_API } from '../lib/config'
+import { apiFetch } from '../lib/config'
 import { loadImage } from '../lib/imageDB'
 
 export const CLAUDE_PROMPTS = {
@@ -185,7 +185,7 @@ export function useClaudeGenerate(projectId) {
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
     try {
-      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+      const res = await apiFetch('/api/claude/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

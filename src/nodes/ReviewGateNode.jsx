@@ -1,7 +1,7 @@
 import { useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
-import { CANVAS_API } from '../lib/config'
+import { apiFetch } from '../lib/config'
 
 const C = {
   blue: '#1F41B0',
@@ -243,7 +243,7 @@ export default function ReviewGateNode({ id, data, selected }) {
     if (!feedback.trim() || regenerating) return
     setRegenerating(true)
     try {
-      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+      const res = await apiFetch('/api/claude/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -286,7 +286,7 @@ export default function ReviewGateNode({ id, data, selected }) {
     if (koText) { setShowKo(true); return }
     setTranslating(true)
     try {
-      const res = await fetch(`${CANVAS_API}/api/claude/generate`, {
+      const res = await apiFetch('/api/claude/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
