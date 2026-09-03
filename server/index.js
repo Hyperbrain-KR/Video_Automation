@@ -19,7 +19,7 @@ app.use(express.json({ limit: '10mb' }))
 const API_SECRET = process.env.API_SECRET
 app.use('/api', (req, res, next) => {
   if (!API_SECRET) return next()
-  if (req.path === '/version' || req.path === '/download') return next()
+  if (req.path === '/version' || req.path === '/download' || req.path === '/auth/check') return next()
   if (req.headers['x-api-secret'] !== API_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
