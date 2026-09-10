@@ -21,16 +21,18 @@ WHAT to write:
 - Emotional expression and mood (e.g. "tired but gentle expression", "shy smile")
 - Body posture and gesture (e.g. "slightly slouched", "arms crossed loosely")
 - Silhouette and build (e.g. "petite frame", "broad-shouldered")
+- Ethnicity and nationality if specified by the user (e.g. "Korean woman", "Japanese man") — always include this exactly as given
 - Hair: color, length, and loose shape only (e.g. "loose shoulder-length dark hair")
 - Clothing: fabric feel and color tone only (e.g. "muted oversized knit sweater", "simple linen dress")
+- Shot framing if specified by the user (e.g. "full body", "half-body", "close-up on face") — always include this exactly as given
 - One or two personality-readable details maximum
 
 WHAT NOT to write:
 - No rendering style: no "realistic", "painterly", "3D", "illustration", "cartoon", "chibi"
 - No skin description: no "matte skin", "fine texture", "pores", "skin tone codes"
 - No lighting: no "soft window light", "rim light", "subsurface scattering"
-- No facial anatomy: no "oval face", "defined cheekbones", "almond eyes"
-- No camera or composition: no "three-quarter portrait", "close-up", "depth of field"
+- No facial anatomy beyond what the user explicitly stated: no "oval face", "defined cheekbones", "almond eyes" unless the user said so
+- No depth of field or camera lens language: no "shallow depth of field", "bokeh", "85mm"
 - No quality filler: no "masterpiece", "best quality", "highly detailed"
 
 The style anchor prepended above this prompt already defines the visual style. Your output must not conflict with it.
