@@ -115,7 +115,7 @@ function AssetPanelThumb({ asset, onDelete }) {
 }
 
 function FlowCanvas() {
-  const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const { user } = useAuth()
 
   const [nodes, setNodes, onNodesChange] = useNodesState(nodes0)
@@ -732,6 +732,19 @@ function FlowCanvas() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [confirmDelete])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.shiftKey && e.code === 'Space') {
+        const el = document.activeElement
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+        e.preventDefault()
+        fitView({ padding: 0.1, duration: 400 })
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [fitView])
 
   const handleContextMenuSelect = useCallback((key) => {
     if (contextMenu?.mode === 'node') handleNodeAction(key)
