@@ -26,6 +26,52 @@ const fmtDate = (iso) => {
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
 }
 
+// ── 폴더 헬퍼 ─────────────────────────────────────────────────────────────
+const FOLDER_KEY = 'canvas-folders'
+const genFolderId = () => `fld_${Date.now()}`
+
+function loadFolderData() {
+  try {
+    const raw = localStorage.getItem(FOLDER_KEY)
+    return raw ? JSON.parse(raw) : { folders: [], assignments: {} }
+  } catch { return { folders: [], assignments: {} } }
+}
+
+function saveFolderData(data) {
+  try { localStorage.setItem(FOLDER_KEY, JSON.stringify(data)) } catch {}
+}
+
+function groupByDate(projects) {
+  const now = new Date()
+  const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000)
+  const weekStart      = new Date(todayStart.getTime() - 6 * 86400000)
+  const ORDER = ['오늘', '어제', '이번 주']
+  const grouped = {}
+
+  for (const p of projects) {
+    const d    = new Date(p.updatedAt)
+    const pDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    let key
+    if      (pDay >= todayStart)     key = '오늘'
+    else if (pDay >= yesterdayStart) key = '어제'
+    else if (pDay >= weekStart)      key = '이번 주'
+    else {
+      const showYear = d.getFullYear() !== now.getFullYear()
+      key = d.toLocaleDateString('ko-KR', { ...(showYear ? { year: 'numeric' } : {}), month: 'long' })
+    }
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(p)
+  }
+
+  const result = []
+  for (const k of ORDER) if (grouped[k]) result.push({ label: k, projects: grouped[k] })
+  for (const k of Object.keys(grouped)) {
+    if (!ORDER.includes(k)) result.push({ label: k, projects: grouped[k] })
+  }
+  return result
+}
+
 const STYLES = `
   @keyframes sceneDotPulse {
     0%, 100% { opacity: 1;    transform: scale(1);    }
@@ -259,13 +305,17 @@ const STYLES = `
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    min-width: 210px;
+    min-width: 240px;
+    max-height: 440px;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-radius: 10px;
-    overflow: hidden;
     z-index: 200;
     box-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
     backdrop-filter: blur(20px) saturate(160%);
     -webkit-backdrop-filter: blur(20px) saturate(160%);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
   }
   [data-theme="dark"]  .proj-dropdown { background: rgba(14, 20, 40, 0.96); border: 1px solid rgba(255,255,255,0.09); }
   [data-theme="light"] .proj-dropdown { background: rgba(240, 245, 255, 0.97); border: 1px solid rgba(0,0,0,0.09); }
@@ -294,6 +344,47 @@ const STYLES = `
     transition: background 0.1s;
   }
   .proj-new-btn:hover { background: rgba(41,217,217,0.07); }
+
+  /* ── 날짜 그룹 헤더 ── */
+  .proj-date-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px 3px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.07em;
+    text-transform: uppercase; pointer-events: none;
+  }
+  [data-theme="dark"]  .proj-date-header { color: rgba(255,255,255,0.28); }
+  [data-theme="light"] .proj-date-header { color: rgba(0,0,0,0.32); }
+  .proj-date-header::after {
+    content: ''; flex: 1; height: 1px;
+  }
+  [data-theme="dark"]  .proj-date-header::after { background: rgba(255,255,255,0.07); }
+  [data-theme="light"] .proj-date-header::after { background: rgba(0,0,0,0.07); }
+
+  /* ── 폴더 행 ── */
+  .proj-folder-row {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 10px 5px 12px;
+    cursor: pointer; transition: background 0.1s;
+    border: none; background: none; width: 100%; font-family: inherit; text-align: left;
+  }
+  .proj-folder-row:hover { background: rgba(41,217,217,0.07); }
+
+  /* ── 폴더 이동 피커 ── */
+  .proj-move-picker {
+    margin: 0 10px 4px;
+    border-radius: 7px; padding: 5px 0;
+  }
+  [data-theme="dark"]  .proj-move-picker { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+  [data-theme="light"] .proj-move-picker { background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.07); }
+
+  .proj-move-opt {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; cursor: pointer;
+    font-size: 11px; color: var(--t2);
+    border: none; background: none; width: 100%; font-family: inherit; text-align: left;
+    transition: background 0.1s;
+  }
+  .proj-move-opt:hover { background: rgba(41,217,217,0.09); }
 `
 
 // ── ProjectSelector ────────────────────────────────────────────────────────
@@ -304,54 +395,181 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
   const [renamingId, setRenamingId] = useState(null)
   const [renameName, setRenameName] = useState('')
   const [deletingId, setDeletingId] = useState(null)
-  // 트리거에서 직접 이름 편집 중인지
   const [editingTrigger, setEditingTrigger] = useState(false)
   const [triggerName, setTriggerName]       = useState('')
-  const dropRef    = useRef()
+
+  // 폴더 상태
+  const [folderData, setFolderData]           = useState(loadFolderData)
+  const [creatingFolder, setCreatingFolder]   = useState(false)
+  const [newFolderName, setNewFolderName]     = useState('')
+  const [collapsedFolders, setCollapsedFolders] = useState({})
+  const [movingId, setMovingId]               = useState(null)  // 이동 중인 프로젝트 id
+  const [renamingFId, setRenamingFId]         = useState(null)
+  const [renameFName, setRenameFName]         = useState('')
+  const [deletingFId, setDeletingFId]         = useState(null)
+
+  const dropRef         = useRef()
   const triggerInputRef = useRef()
+
+  // 폴더 데이터 → localStorage 동기화
+  useEffect(() => { saveFolderData(folderData) }, [folderData])
 
   // Click outside → close
   useEffect(() => {
     if (!open && !editingTrigger) return
     const handler = (e) => {
       if (!dropRef.current?.contains(e.target)) {
-        setOpen(false)
-        setCreating(false)
-        setRenamingId(null)
-        setDeletingId(null)
+        setOpen(false); setCreating(false); setRenamingId(null)
+        setDeletingId(null); setMovingId(null); setCreatingFolder(false)
+        setRenamingFId(null); setDeletingFId(null)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open, editingTrigger])
 
-  // 트리거 이름 편집 시작
+  // 파생 데이터
+  const { folders, assignments } = folderData  // assignments: { projId: folderId }
+  const ungrouped  = projects.filter(p => !assignments[p.id])
+  const dateGroups = groupByDate(ungrouped)
+  const projsInFolder = (fid) => projects.filter(p => assignments[p.id] === fid)
+
+  // 폴더 액션
+  const assignFolder = (projId, folderId) => {
+    setFolderData(d => {
+      const next = { ...d.assignments }
+      if (folderId) next[projId] = folderId
+      else delete next[projId]
+      return { ...d, assignments: next }
+    })
+    setMovingId(null)
+  }
+
+  const createFolder = () => {
+    const name = newFolderName.trim() || `폴더 ${folders.length + 1}`
+    const id = genFolderId()
+    setFolderData(d => ({ ...d, folders: [...d.folders, { id, name }] }))
+    setCreatingFolder(false); setNewFolderName('')
+  }
+
+  const renameFolder = (id) => {
+    if (!renameFName.trim()) return setRenamingFId(null)
+    setFolderData(d => ({ ...d, folders: d.folders.map(f => f.id === id ? { ...f, name: renameFName.trim() } : f) }))
+    setRenamingFId(null)
+  }
+
+  const deleteFolder = (id) => {
+    setFolderData(d => {
+      const next = { ...d.assignments }
+      Object.keys(next).forEach(k => { if (next[k] === id) delete next[k] })
+      return { ...d, folders: d.folders.filter(f => f.id !== id), assignments: next }
+    })
+    setDeletingFId(null)
+  }
+
+  // 트리거 이름 편집
   const startTriggerEdit = (e) => {
     e.stopPropagation()
     if (!activeProject) return
-    setTriggerName(activeProject.name)
-    setEditingTrigger(true)
-    setOpen(false)
+    setTriggerName(activeProject.name); setEditingTrigger(true); setOpen(false)
     setTimeout(() => triggerInputRef.current?.select(), 0)
   }
-
   const commitTriggerEdit = () => {
     if (triggerName.trim() && activeProject) onRename(activeProject.id, triggerName.trim())
     setEditingTrigger(false)
   }
 
+  // 프로젝트 액션
   const handleCreate = () => {
     const name = newName.trim() || `프로젝트 ${projects.length + 1}`
-    onCreate(name)
-    setCreating(false)
-    setNewName('')
-    setOpen(false)
+    onCreate(name); setCreating(false); setNewName(''); setOpen(false)
   }
-
   const handleRename = (id) => {
     if (renameName.trim()) onRename(id, renameName.trim())
-    setRenamingId(null)
-    setRenameName('')
+    setRenamingId(null); setRenameName('')
+  }
+
+  // ── 프로젝트 행 렌더 (공통) ──
+  const renderProject = (p) => {
+    if (renamingId === p.id) return (
+      <div key={p.id} style={{ display: 'flex', gap: 6, padding: '6px 10px' }}>
+        <input autoFocus value={renameName} onChange={e => setRenameName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setRenamingId(null) }}
+          style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
+            borderRadius: 5, padding: '3px 7px', fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }} />
+        <button onClick={() => handleRename(p.id)} style={{ background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
+          borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>✓</button>
+      </div>
+    )
+    if (deletingId === p.id) return (
+      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '7px 12px', gap: 8, background: 'rgba(227,64,84,0.08)' }}>
+        <span style={{ fontSize: 11, color: '#E34054', fontWeight: 600 }}>「{p.name}」 삭제?</span>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button onClick={() => setDeletingId(null)} style={{ background: 'none', border: '1px solid var(--sep2)',
+            borderRadius: 5, padding: '3px 8px', fontSize: 11, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+          <button onClick={() => { onDelete(p.id); setDeletingId(null) }} style={{ background: 'rgba(227,64,84,0.15)',
+            border: '1px solid rgba(227,64,84,0.4)', borderRadius: 5, padding: '3px 8px', fontSize: 11,
+            fontWeight: 700, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+        </div>
+      </div>
+    )
+    const isActive = p.id === activeProject?.id
+    const isMoving = movingId === p.id
+    return (
+      <div key={p.id}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <button className={`proj-item${isActive ? ' active' : ''}`} style={{ flex: 1 }}
+            onClick={() => { if (!isActive) onSwitch(p.id); setOpen(false) }}>
+            <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>{isActive ? '✓' : ''}</span>
+            <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: 'var(--t1)', flex: 1,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+            <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 6 }}>{fmtDate(p.updatedAt)}</span>
+          </button>
+          {/* 폴더 이동 */}
+          <button title="폴더로 이동" onClick={e => { e.stopPropagation(); setMovingId(isMoving ? null : p.id) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+              color: isMoving ? '#29D9D9' : 'var(--t4)', padding: '0 5px', flexShrink: 0, transition: 'color 0.1s' }}
+            onMouseEnter={e => { if (!isMoving) e.currentTarget.style.color = '#29D9D9' }}
+            onMouseLeave={e => { if (!isMoving) e.currentTarget.style.color = 'var(--t4)' }}>📂</button>
+          {/* 이름 변경 */}
+          <button title="이름 변경" onClick={e => { e.stopPropagation(); setRenamingId(p.id); setRenameName(p.name) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+              color: 'var(--t4)', padding: '0 5px', flexShrink: 0, transition: 'color 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
+          {/* 삭제 */}
+          <button title="삭제" onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+              color: 'var(--t4)', padding: '0 10px 0 3px', flexShrink: 0, transition: 'color 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+        </div>
+
+        {/* 폴더 이동 피커 */}
+        {isMoving && (
+          <div className="proj-move-picker">
+            <div style={{ padding: '3px 10px 4px', fontSize: 9, fontWeight: 700, color: 'var(--t5)', letterSpacing: '0.06em' }}>MOVE TO</div>
+            {folders.map(f => (
+              <button key={f.id} className="proj-move-opt"
+                onClick={() => assignFolder(p.id, f.id)}>
+                <span>📂</span>
+                <span style={{ flex: 1 }}>{f.name}</span>
+                {assignments[p.id] === f.id && <span style={{ color: '#29D9D9', fontSize: 9 }}>✓</span>}
+              </button>
+            ))}
+            {folders.length === 0 && (
+              <div style={{ padding: '4px 10px', fontSize: 11, color: 'var(--t5)' }}>폴더 없음</div>
+            )}
+            {assignments[p.id] && (
+              <button className="proj-move-opt" onClick={() => assignFolder(p.id, null)}>
+                <span>🗂</span><span>미분류로 이동</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -359,43 +577,25 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
       <div style={{ width: '100%' }}>
         {/* 트리거 */}
         {editingTrigger ? (
-          // 이름 인라인 편집 모드
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 6px' }}>
             <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
-            <input
-              ref={triggerInputRef}
-              autoFocus
-              value={triggerName}
+            <input ref={triggerInputRef} autoFocus value={triggerName}
               onChange={e => setTriggerName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitTriggerEdit()
-                if (e.key === 'Escape') setEditingTrigger(false)
-              }}
+              onKeyDown={e => { if (e.key === 'Enter') commitTriggerEdit(); if (e.key === 'Escape') setEditingTrigger(false) }}
               onBlur={commitTriggerEdit}
-              style={{
-                flex: 1, background: 'transparent',
-                border: 'none', borderBottom: '1.5px solid rgba(41,217,217,0.6)',
+              style={{ flex: 1, background: 'transparent', border: 'none',
+                borderBottom: '1.5px solid rgba(41,217,217,0.6)',
                 fontSize: 12, fontWeight: 700, color: 'var(--t1)',
-                outline: 'none', fontFamily: 'inherit', padding: '1px 2px',
-              }}
-            />
+                outline: 'none', fontFamily: 'inherit', padding: '1px 2px' }} />
           </div>
         ) : (
-          <button
-            className="proj-trigger"
-            onClick={() => { setOpen(o => !o); setCreating(false); setRenamingId(null) }}
-          >
+          <button className="proj-trigger"
+            onClick={() => { setOpen(o => !o); setCreating(false); setRenamingId(null) }}>
             <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
-            {/* 이름 부분: 더블클릭으로 편집 */}
-            <span
-              style={{
-                fontSize: 12, fontWeight: 700, color: 'var(--t1)',
-                maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                flex: 1, textAlign: 'left',
-              }}
-              onDoubleClick={startTriggerEdit}
-              title="더블클릭으로 이름 변경"
-            >
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)',
+              maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              flex: 1, textAlign: 'left' }}
+              onDoubleClick={startTriggerEdit} title="더블클릭으로 이름 변경">
               {activeProject?.name ?? '새 프로젝트'}
             </span>
             <span style={{ fontSize: 8, color: 'var(--t4)', flexShrink: 0 }}>▾</span>
@@ -417,134 +617,118 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
       {/* 드롭다운 */}
       {open && (
         <div className="proj-dropdown">
-          {projects.length === 0 && (
-            <div style={{ padding: '9px 14px', fontSize: 11, color: 'var(--t5)' }}>
-              저장된 프로젝트 없음
-            </div>
-          )}
-          {projects.map(p => (
-            <div key={p.id}>
-              {renamingId === p.id ? (
-                <div style={{ display: 'flex', gap: 6, padding: '6px 10px' }}>
-                  <input
-                    autoFocus
-                    value={renameName}
-                    onChange={e => setRenameName(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleRename(p.id)
-                      if (e.key === 'Escape') setRenamingId(null)
-                    }}
-                    style={{
-                      flex: 1, background: 'var(--node-input)',
-                      border: '1px solid rgba(41,217,217,0.35)',
-                      borderRadius: 5, padding: '3px 7px',
-                      fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
-                    }}
-                  />
-                  <button onClick={() => handleRename(p.id)} style={{
-                    background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
-                    borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 700,
-                    color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit',
-                  }}>✓</button>
-                </div>
-              ) : deletingId === p.id ? (
-                // 삭제 확인
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '7px 12px', gap: 8,
-                  background: 'rgba(227,64,84,0.08)',
-                }}>
-                  <span style={{ fontSize: 11, color: '#E34054', fontWeight: 600 }}>
-                    「{p.name}」 삭제할까요?
-                  </span>
-                  <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                    <button onClick={() => setDeletingId(null)} style={{
-                      background: 'none', border: '1px solid var(--sep2)',
-                      borderRadius: 5, padding: '3px 8px', fontSize: 11,
-                      color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
-                    }}>취소</button>
-                    <button onClick={() => { onDelete(p.id); setDeletingId(null) }} style={{
-                      background: 'rgba(227,64,84,0.15)', border: '1px solid rgba(227,64,84,0.4)',
-                      borderRadius: 5, padding: '3px 8px', fontSize: 11, fontWeight: 700,
-                      color: '#E34054', cursor: 'pointer', fontFamily: 'inherit',
-                    }}>삭제</button>
+
+          {/* ── 폴더 섹션 ── */}
+          {folders.length > 0 && (
+            <>
+              {folders.map(f => {
+                const collapsed = !!collapsedFolders[f.id]
+                const fProjects = projsInFolder(f.id)
+                if (deletingFId === f.id) return (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 12px', gap: 8, background: 'rgba(227,64,84,0.08)' }}>
+                    <span style={{ fontSize: 11, color: '#E34054', fontWeight: 600 }}>「{f.name}」 폴더 삭제?</span>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <button onClick={() => setDeletingFId(null)} style={{ background: 'none', border: '1px solid var(--sep2)',
+                        borderRadius: 5, padding: '3px 8px', fontSize: 10, color: 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                      <button onClick={() => deleteFolder(f.id)} style={{ background: 'rgba(227,64,84,0.15)',
+                        border: '1px solid rgba(227,64,84,0.4)', borderRadius: 5, padding: '3px 8px', fontSize: 10,
+                        fontWeight: 700, color: '#E34054', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <button
-                    className={`proj-item${p.id === activeProject?.id ? ' active' : ''}`}
-                    style={{ flex: 1 }}
-                    onClick={() => { if (p.id !== activeProject?.id) onSwitch(p.id); setOpen(false) }}
-                  >
-                    <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>
-                      {p.id === activeProject?.id ? '✓' : ''}
-                    </span>
-                    <span style={{
-                      fontSize: 12, fontWeight: p.id === activeProject?.id ? 700 : 500,
-                      color: 'var(--t1)', flex: 1,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {p.name}
-                    </span>
-                    <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 6 }}>
-                      {fmtDate(p.updatedAt)}
-                    </span>
-                  </button>
-                  {/* 이름 변경 */}
-                  <button
-                    title="이름 변경"
-                    onClick={e => { e.stopPropagation(); setRenamingId(p.id); setRenameName(p.name) }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, color: 'var(--t4)', padding: '0 7px',
-                      flexShrink: 0, transition: 'color 0.1s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
-                  >✎</button>
-                  {/* 삭제 */}
-                  <button
-                    title="삭제"
-                    onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, color: 'var(--t4)', padding: '0 10px 0 4px',
-                      flexShrink: 0, transition: 'color 0.1s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
-                  >🗑</button>
-                </div>
-              )}
+                )
+                if (renamingFId === f.id) return (
+                  <div key={f.id} style={{ display: 'flex', gap: 6, padding: '5px 10px' }}>
+                    <input autoFocus value={renameFName} onChange={e => setRenameFName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') renameFolder(f.id); if (e.key === 'Escape') setRenamingFId(null) }}
+                      style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
+                        borderRadius: 5, padding: '3px 7px', fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }} />
+                    <button onClick={() => renameFolder(f.id)} style={{ background: 'rgba(41,217,217,0.15)',
+                      border: '1px solid rgba(41,217,217,0.4)', borderRadius: 5, padding: '3px 9px',
+                      fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>✓</button>
+                  </div>
+                )
+                return (
+                  <div key={f.id}>
+                    {/* 폴더 헤더 행 */}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <button className="proj-folder-row" style={{ flex: 1 }}
+                        onClick={() => setCollapsedFolders(c => ({ ...c, [f.id]: !c[f.id] }))}>
+                        <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', flex: 1,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                        <span style={{ fontSize: 9, color: 'var(--t5)', marginRight: 4 }}>{fProjects.length}</span>
+                        <span style={{ fontSize: 8, color: 'var(--t4)', transition: 'transform 0.15s',
+                          transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
+                      </button>
+                      <button title="폴더 이름 변경" onClick={e => { e.stopPropagation(); setRenamingFId(f.id); setRenameFName(f.name) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
+                          color: 'var(--t4)', padding: '0 5px', flexShrink: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
+                      <button title="폴더 삭제" onClick={e => { e.stopPropagation(); setDeletingFId(f.id) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
+                          color: 'var(--t4)', padding: '0 10px 0 3px', flexShrink: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+                    </div>
+                    {/* 폴더 내 프로젝트 */}
+                    {!collapsed && (
+                      <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(41,217,217,0.15)', marginLeft: 14, marginBottom: 2 }}>
+                        {fProjects.length === 0
+                          ? <div style={{ padding: '4px 12px', fontSize: 10, color: 'var(--t5)' }}>비어있음</div>
+                          : fProjects.map(renderProject)
+                        }
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div className="proj-sep" />
+            </>
+          )}
+
+          {/* ── 날짜 그룹 섹션 ── */}
+          {projects.length === 0 && (
+            <div style={{ padding: '9px 14px', fontSize: 11, color: 'var(--t5)' }}>저장된 프로젝트 없음</div>
+          )}
+          {dateGroups.map(({ label, projects: gProjects }) => (
+            <div key={label}>
+              <div className="proj-date-header">{label}</div>
+              {gProjects.map(renderProject)}
             </div>
           ))}
 
           <div className="proj-sep" />
 
+          {/* ── 새 폴더 ── */}
+          {creatingFolder ? (
+            <div style={{ display: 'flex', gap: 6, padding: '6px 10px 4px' }}>
+              <input autoFocus value={newFolderName} placeholder={`폴더 ${folders.length + 1}`}
+                onChange={e => setNewFolderName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') setCreatingFolder(false) }}
+                style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
+                  borderRadius: 5, padding: '4px 8px', fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }} />
+              <button onClick={createFolder} style={{ background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
+                borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>확인</button>
+            </div>
+          ) : (
+            <button className="proj-new-btn" style={{ color: 'var(--t3)', fontSize: 11 }} onClick={() => setCreatingFolder(true)}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+              새 폴더
+            </button>
+          )}
+
+          {/* ── 새 프로젝트 ── */}
           {creating ? (
-            <div style={{ display: 'flex', gap: 6, padding: '6px 10px 8px' }}>
-              <input
-                autoFocus
-                value={newName}
-                placeholder={`프로젝트 ${projects.length + 1}`}
+            <div style={{ display: 'flex', gap: 6, padding: '4px 10px 8px' }}>
+              <input autoFocus value={newName} placeholder={`프로젝트 ${projects.length + 1}`}
                 onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handleCreate()
-                  if (e.key === 'Escape') setCreating(false)
-                }}
-                style={{
-                  flex: 1, background: 'var(--node-input)',
-                  border: '1px solid rgba(41,217,217,0.35)',
-                  borderRadius: 5, padding: '4px 8px',
-                  fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
-                }}
-              />
-              <button onClick={handleCreate} style={{
-                background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
-                borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700,
-                color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit',
-              }}>확인</button>
+                onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false) }}
+                style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
+                  borderRadius: 5, padding: '4px 8px', fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }} />
+              <button onClick={handleCreate} style={{ background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
+                borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>확인</button>
             </div>
           ) : (
             <button className="proj-new-btn" onClick={() => setCreating(true)}>
