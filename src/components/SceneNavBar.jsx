@@ -28,7 +28,19 @@ const fmtDate = (iso) => {
 
 // ── 폴더 헬퍼 ─────────────────────────────────────────────────────────────
 const FOLDER_KEY = 'canvas-folders'
+const CREDITS_KEY = 'canvas-project-credits'
 const genFolderId = () => `fld_${Date.now()}`
+
+function loadCreditsByProject() {
+  try {
+    const raw = localStorage.getItem(CREDITS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function saveCreditsByProject(map) {
+  try { localStorage.setItem(CREDITS_KEY, JSON.stringify(map)) } catch {}
+}
 
 function loadFolderData() {
   try {
@@ -388,7 +400,7 @@ const STYLES = `
 `
 
 // ── ProjectSelector ────────────────────────────────────────────────────────
-function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCredits, onSwitch, onCreate, onDelete, onRename }) {
+function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCredits, creditsByProject, onSwitch, onCreate, onDelete, onRename }) {
   const [open, setOpen]             = useState(false)
   const [creating, setCreating]     = useState(false)
   const [newName, setNewName]       = useState('')
@@ -516,6 +528,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
     )
     const isActive = p.id === activeProject?.id
     const isMoving = movingId === p.id
+    const projCredits = isActive ? totalCredits : (creditsByProject[p.id] ?? 0)
     return (
       <div key={p.id}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -524,7 +537,10 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
             <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>{isActive ? '✓' : ''}</span>
             <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: 'var(--t1)', flex: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 6 }}>{fmtDate(p.updatedAt)}</span>
+            {projCredits > 0 && (
+              <span style={{ fontSize: 9, color: '#29D9D9', fontWeight: 700, flexShrink: 0, marginLeft: 5 }}>💎{projCredits}</span>
+            )}
+            <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 4 }}>{fmtDate(p.updatedAt)}</span>
           </button>
           {/* 폴더 이동 */}
           <button title="폴더로 이동" onClick={e => { e.stopPropagation(); setMovingId(isMoving ? null : p.id) }}
@@ -648,6 +664,10 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
                       fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>✓</button>
                   </div>
                 )
+                const folderCredits = fProjects.reduce((sum, fp) => {
+                  const c = fp.id === activeProject?.id ? totalCredits : (creditsByProject[fp.id] ?? 0)
+                  return sum + c
+                }, 0)
                 return (
                   <div key={f.id}>
                     {/* 폴더 헤더 행 */}
@@ -657,6 +677,9 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
                         <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', flex: 1,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                        {folderCredits > 0 && (
+                          <span style={{ fontSize: 9, color: '#29D9D9', fontWeight: 700, marginRight: 5 }}>💎{folderCredits}</span>
+                        )}
                         <span style={{ fontSize: 9, color: 'var(--t5)', marginRight: 4 }}>{fProjects.length}</span>
                         <span style={{ fontSize: 8, color: 'var(--t4)', transition: 'transform 0.15s',
                           transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
@@ -899,12 +922,23 @@ export default function SceneNavBar({
   const { fitBounds, getNodes, setNodes } = useReactFlow()
   const scenesRef = useRef()
   const [resetConfirm, setResetConfirm] = useState(false)
+  const [creditsByProject, setCreditsByProject] = useState(loadCreditsByProject)
 
   const totalCredits = useMemo(() =>
     nodes
       .filter(n => n.type === 'higgsfieldNode' && (n.data?.creditsUsed ?? 0) > 0)
       .reduce((sum, n) => sum + (n.data.creditsUsed ?? 0), 0)
   , [nodes])
+
+  // 현재 프로젝트 크레딧이 바뀔 때마다 localStorage에 저장
+  useEffect(() => {
+    if (!activeProject?.id) return
+    setCreditsByProject(prev => {
+      const updated = { ...prev, [activeProject.id]: totalCredits }
+      saveCreditsByProject(updated)
+      return updated
+    })
+  }, [activeProject?.id, totalCredits])
   // non-passive wheel → 페이지 스크롤 방지 후 씬 영역만 스크롤
   useEffect(() => {
     const el = scenesRef.current
@@ -1016,6 +1050,7 @@ export default function SceneNavBar({
           saveState={saveState}
           savedAt={savedAt}
           totalCredits={totalCredits}
+          creditsByProject={creditsByProject}
           onSwitch={onSwitchProject}
           onCreate={onCreateProject}
           onDelete={onDeleteProject}
