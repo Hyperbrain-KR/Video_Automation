@@ -81,34 +81,38 @@ Output rules:
 
 Your job is to convert the user's video direction into a strong English video-generation prompt. A reference image (first frame) will be provided to the AI model.
 
-Follow the Main Principle:
-- If the reference image is provided and will be used during generation, do not redundantly restate visible appearance details that are already clearly shown in the image
-- Use the prompt mainly to describe: what happens, what changes, what moves, how the camera behaves, what mood develops
+## Main Principle
+A reference image is provided and will be used as the first frame. Do not restate appearance details already visible in the image. Focus on: what happens, what changes, how the camera moves, what mood develops.
 
-Always write the prompt in this order:
-1. Motion header — camera behavior and movement intensity (e.g. "Head Tracking (70) + Dolly In (40)")
-2. Main subject state
-3. Main action or event
-4. Character reaction
-5. Camera behavior
-6. Atmosphere and lighting
-7. Secondary motion details
-8. Final visual quality or style note
+## Prompt Structure — follow exactly in this order
+1. Motion header — camera behavior and intensity (e.g. "Head Tracking (70) + Dolly In (40)")
+2. Style lock line — if a style anchor is provided, embed it immediately after the motion header: distill the core visual style terms into one natural sentence (e.g. "Visual style maintained: [key terms].") — never skip this when an anchor is provided
+3. Main subject state
+4. Main action or event
+5. Character reaction
+6. Camera behavior
+7. Atmosphere and lighting
+8. Secondary motion details
+9. Closing consistency line — always end with a phrase such as: "Character appearance and visual style remain fully consistent with the reference image throughout — no morphing, no drift, no style deviation."
 
 Motion header phrases: Head Tracking, Eye-Level Tracking, Static Shot, Dolly In, Dolly Out, Slow Push, Fast Push, Pan Left, Pan Right, Tilt Up, Tilt Down, Orbit Left, Orbit Right, Handheld Motion, Locked Frame
 
-Kling 3.0 Style Rules:
+## Character Preservation
+- Keep the referenced character unchanged unless the user explicitly asks for changes
+- Preserve identity, facial structure, clothing, and design throughout the entire video
+- Do not introduce outfit, hairstyle, age, or body changes unless requested
+
+## Kling 3.0 Style Rules
 - Write as a flowing sequence, not keyword stacking
 - Describe the scene as it unfolds over time
 - Prioritize: motion > action > reaction > atmosphere > detail
 - Avoid filler like "masterpiece" or "best quality"
-- Use phrasing like "keeping the referenced character unchanged", "based on the attached reference frame"
 
-MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
+## MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
 - You MUST include it EXACTLY as given, word for word. Never paraphrase, shorten, or omit it.
-- NEVER translate dialogue. Korean Dialogue must remain in Korean. English Dialogue must remain in English. The language of the dialogue is intentional and must be preserved exactly.
+- NEVER translate dialogue. Korean Dialogue must remain in Korean. English Dialogue must remain in English.
 - Copy the dialogue lines verbatim into the prompt using the exact label format (e.g. "Korean Dialogue: 안녕하세요", "English Dialogue: Hello")
-- Also add natural speaking motion cues that match the dialogue moment: natural lip movement, directed eye contact or gaze shift, subtle hand gesture or body language that fits the rhythm of speech
+- Also add natural speaking motion cues: natural lip movement, directed eye contact or gaze shift, subtle hand gesture or body language that fits the rhythm of speech
 
 Do not ask follow-up questions.
 
@@ -148,10 +152,19 @@ export function useClaudeGenerate(projectId) {
       if (!edge) return ''
       const src = currentNodes.find(n => n.id === edge.source)
       if (!src) return ''
-      if (src.type === 'styleAnchorInput')
+      if (src.type === 'styleAnchorInput') {
+        const thisNode = currentNodes.find(n => n.id === nodeId)
+        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo'
+        // 비디오 프롬프트는 이미지 앵커 우선 — 첫 프레임과 동일한 스타일로 생성
+        if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
         return edge.sourceHandle === 'video' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
-      if (src.type === 'scriptImport')
+      }
+      if (src.type === 'scriptImport') {
+        const thisNode = currentNodes.find(n => n.id === nodeId)
+        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo'
+        if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
         return edge.sourceHandle === 'videoAnchor' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
+      }
       if (src.type === 'textInput' || src.type === 'videoDirectionInput') return src.data.value || ''
       if (src.type === 'reviewGate') return src.data.prompt || ''
       return ''
