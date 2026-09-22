@@ -5,7 +5,7 @@ import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
 import { CANVAS_API } from '../lib/config'
-import { loadElements, saveElements, addElement, deleteElement, CATEGORY_ICON } from '../lib/elementsStore'
+import { CATEGORY_ICON } from '../lib/elementsStore'
 import { apiFetch } from '../lib/config'
 
 function CharacterThumb({ char }) {
@@ -266,11 +266,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleVideoElements = (v) => updateNodeData(id, { videoElements: v })
 
   // Elements 피커 상태
-  const [elementsLib, setElementsLib] = useState(loadElements)
   const [elemPickerOpen, setElemPickerOpen] = useState(false)
-  const [newElemName, setNewElemName] = useState('')
-  const [newElemCat, setNewElemCat] = useState('Character')
-  const [hfElements, setHfElements] = useState([])   // Higgsfield에서 가져온 목록
+  const [hfElements, setHfElements] = useState([])
   const [hfElemLoading, setHfElemLoading] = useState(false)
   const elemPickerRef = useRef()
 
@@ -300,26 +297,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const selectedElemNames = (data.videoElements ?? '').split(/\s+/).filter(s => s.startsWith('@'))
 
   const toggleElement = (name) => {
-    const cur = selectedElemNames
-    const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]
+    const next = selectedElemNames.includes(name)
+      ? selectedElemNames.filter(n => n !== name)
+      : [...selectedElemNames, name]
     handleVideoElements(next.join(' '))
   }
 
   const removeElement = (name) => {
     handleVideoElements(selectedElemNames.filter(n => n !== name).join(' '))
-  }
-
-  const addNewElement = () => {
-    if (!newElemName.trim()) return
-    const updated = addElement(newElemName, newElemCat)
-    setElementsLib(updated)
-    setNewElemName('')
-  }
-
-  const handleDeleteFromLib = (elemId, elemName) => {
-    const updated = deleteElement(elemId)
-    setElementsLib(updated)
-    removeElement(elemName)
   }
 
   const btnStyle = {
@@ -719,80 +704,11 @@ export default function HiggsfieldNode({ id, data, selected }) {
                   </>
                 )}
 
-                {/* 로컬 라이브러리 목록 */}
-                {elementsLib.length === 0 && hfElements.length === 0 && !hfElemLoading
-                  ? <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--t5)' }}>등록된 Element 없음</div>
-                  : elementsLib.length > 0 && <>
-                    <div style={{ padding: '3px 10px 2px', fontSize: 9, fontWeight: 700, color: 'var(--t5)', letterSpacing: '0.06em' }}>로컬</div>
-                  </>
-                }
-                {elementsLib.map(el => {
-                    const isSelected = selectedElemNames.includes(el.name)
-                    return (
-                      <div key={el.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '7px 14px', cursor: 'pointer',
-                        background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
-                        transition: 'background 0.1s',
-                      }}
-                        onClick={() => toggleElement(el.name)}
-                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
-                      >
-                        <span style={{ fontSize: 18 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
-                        <span style={{ flex: 1, fontSize: 12, fontWeight: 700,
-                          color: isSelected ? '#C8F135' : 'var(--t1)' }}>{el.name}</span>
-                        <span style={{ fontSize: 10, color: 'var(--t5)' }}>{el.category}</span>
-                        {isSelected && <span style={{ fontSize: 10, color: '#C8F135', fontWeight: 700 }}>✓</span>}
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDeleteFromLib(el.id, el.name) }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 11, color: 'var(--t5)', padding: '0 2px', lineHeight: 1 }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--t5)'}
-                        >🗑</button>
-                      </div>
-                    )
-                  })
-                }
-
-                {/* 구분선 */}
-                <div style={{ height: 1, background: 'var(--sep2)', margin: '5px 8px' }} />
-
-                {/* 새 Element 추가 */}
-                <div style={{ padding: '6px 12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 9, color: 'var(--t5)', fontWeight: 700, letterSpacing: '0.06em' }}>NEW ELEMENT</div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <input
-                      className="nopan nodrag"
-                      value={newElemName}
-                      onChange={e => setNewElemName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addNewElement() }}
-                      placeholder="@element_name"
-                      style={{
-                        flex: 1, background: 'var(--node-input)', border: '1px solid var(--sep2)',
-                        borderRadius: 4, padding: '3px 6px', fontSize: 10,
-                        color: 'var(--t1)', fontFamily: 'inherit', outline: 'none',
-                      }}
-                    />
-                    <select
-                      className="nopan nodrag"
-                      value={newElemCat}
-                      onChange={e => setNewElemCat(e.target.value)}
-                      style={{ background: 'var(--node-input)', border: '1px solid var(--sep2)',
-                        borderRadius: 4, padding: '3px 4px', fontSize: 10,
-                        color: 'var(--t2)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
-                    >
-                      {['Character','Location','Prop','Auto'].map(c => (
-                        <option key={c} value={c} style={{ background: '#0d1020' }}>{c}</option>
-                      ))}
-                    </select>
-                    <button className="nopan nodrag" onClick={addNewElement}
-                      style={{ background: 'rgba(200,241,53,0.15)', border: '1px solid rgba(200,241,53,0.4)',
-                        borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 700,
-                        color: '#C8F135', cursor: 'pointer', fontFamily: 'inherit' }}>+</button>
+                {!hfElemLoading && hfElements.length === 0 && (
+                  <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t5)' }}>
+                    Element 없음 — Higgsfield에서 등록하세요
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
