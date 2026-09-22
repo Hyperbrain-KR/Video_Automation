@@ -697,7 +697,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       const isSelected = selectedElemNames.includes(el.name)
                       return (
                         <div key={el.name} style={{
-                          display: 'flex', alignItems: 'center', gap: 6,
+                          display: 'flex', alignItems: 'center', gap: 7,
                           padding: '5px 10px', cursor: 'pointer',
                           background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
                         }}
@@ -705,7 +705,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
                           onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
                           onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                         >
-                          <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                          {el.thumbUrl
+                            ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: isSelected ? '1.5px solid #C8F135' : '1.5px solid var(--sep2)' }} />
+                            : <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                          }
                           <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: isSelected ? '#C8F135' : 'var(--t2)' }}>{el.name}</span>
                           <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
                           {isSelected && <span style={{ fontSize: 9, color: '#C8F135' }}>✓</span>}

@@ -621,16 +621,21 @@ app.get('/api/higgsfield/elements', async (req, res) => {
     const raw = result.content?.map(c => c.text).join('') ?? ''
     console.log('[higgsfield/elements] 응답:', raw.slice(0, 800))
 
-    // 텍스트 파싱: "@name (Category)" 패턴 추출
+    // 파싱: 블록 단위로 분리 후 필드 추출
     const elements = []
-    const lines = raw.split('\n')
-    for (const line of lines) {
-      const m = line.match(/@([\w가-힣]+)\s*\(?([^)]*)\)?/)
-      if (m) {
-        elements.push({ name: `@${m[1]}`, category: m[2]?.trim() || 'Auto' })
-      }
+    const blocks = raw.split(/\n\s*-\s+id:/)
+    for (const block of blocks.slice(1)) {
+      const nameM    = block.match(/name:\s*(.+)/)
+      const catM     = block.match(/category:\s*(.+)/)
+      const mediaM   = block.match(/"(https?:\/\/[^"]+)"/)
+      if (!nameM) continue
+      const name     = nameM[1].trim()
+      const category = catM ? catM[1].trim() : 'auto'
+      const thumbUrl = mediaM ? mediaM[1] : null
+      const capCat   = category.charAt(0).toUpperCase() + category.slice(1)
+      elements.push({ name: `@${name}`, category: capCat, thumbUrl })
     }
-    res.json({ elements, raw })
+    res.json({ elements })
   } catch (err) {
     console.error('[higgsfield/elements] 오류:', err.message)
     res.status(500).json({ error: err.message })
