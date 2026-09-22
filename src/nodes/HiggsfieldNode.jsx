@@ -1,10 +1,11 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
 import { CANVAS_API } from '../lib/config'
+import { loadElements, saveElements, addElement, deleteElement, CATEGORY_ICON } from '../lib/elementsStore'
 
 function CharacterThumb({ char }) {
   const [src, setSrc] = useState(() => char.hasLocalImage ? null : (char.resultUrl ?? null))
@@ -262,6 +263,47 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
   const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
   const handleVideoElements = (v) => updateNodeData(id, { videoElements: v })
+
+  // Elements 피커 상태
+  const [elementsLib, setElementsLib] = useState(loadElements)
+  const [elemPickerOpen, setElemPickerOpen] = useState(false)
+  const [newElemName, setNewElemName] = useState('')
+  const [newElemCat, setNewElemCat] = useState('Character')
+  const elemPickerRef = useRef()
+
+  useEffect(() => {
+    if (!elemPickerOpen) return
+    const handler = (e) => {
+      if (!elemPickerRef.current?.contains(e.target)) setElemPickerOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [elemPickerOpen])
+
+  const selectedElemNames = (data.videoElements ?? '').split(/\s+/).filter(s => s.startsWith('@'))
+
+  const toggleElement = (name) => {
+    const cur = selectedElemNames
+    const next = cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name]
+    handleVideoElements(next.join(' '))
+  }
+
+  const removeElement = (name) => {
+    handleVideoElements(selectedElemNames.filter(n => n !== name).join(' '))
+  }
+
+  const addNewElement = () => {
+    if (!newElemName.trim()) return
+    const updated = addElement(newElemName, newElemCat)
+    setElementsLib(updated)
+    setNewElemName('')
+  }
+
+  const handleDeleteFromLib = (elemId, elemName) => {
+    const updated = deleteElement(elemId)
+    setElementsLib(updated)
+    removeElement(elemName)
+  }
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
@@ -590,23 +632,115 @@ export default function HiggsfieldNode({ id, data, selected }) {
           <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
           <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
 
-          {/* Elements */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>Elements</span>
-            <input
-              className="nopan nodrag"
-              value={data.videoElements ?? ''}
-              onChange={e => handleVideoElements(e.target.value)}
-              placeholder="@element_name"
-              style={{
-                flex: 1, background: 'var(--node-input)',
-                border: data.videoElements ? '1px solid rgba(200,241,53,0.4)' : '1px solid var(--sep2)',
-                borderRadius: 5, padding: '3px 7px',
-                fontSize: 10, color: data.videoElements ? '#C8F135' : 'var(--t3)',
-                fontFamily: 'inherit', outline: 'none',
-                fontWeight: data.videoElements ? 700 : 400,
-              }}
-            />
+          {/* Elements 피커 */}
+          <div style={{ position: 'relative' }} ref={elemPickerRef}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>Elements</span>
+              <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                {selectedElemNames.map(name => (
+                  <span key={name} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                    background: 'rgba(200,241,53,0.12)', border: '1px solid rgba(200,241,53,0.35)',
+                    borderRadius: 4, padding: '2px 6px',
+                    fontSize: 10, fontWeight: 700, color: '#C8F135',
+                  }}>
+                    {name}
+                    <button className="nopan nodrag" onClick={() => removeElement(name)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'rgba(200,241,53,0.5)', fontSize: 9, padding: 0, lineHeight: 1,
+                        display: 'flex', alignItems: 'center' }}>✕</button>
+                  </span>
+                ))}
+                <button className="nopan nodrag" onClick={() => setElemPickerOpen(o => !o)}
+                  style={{
+                    background: elemPickerOpen ? 'rgba(200,241,53,0.1)' : 'var(--node-input)',
+                    border: `1px ${elemPickerOpen ? 'solid rgba(200,241,53,0.5)' : 'dashed var(--sep2)'}`,
+                    borderRadius: 4, padding: '2px 8px', fontSize: 10,
+                    color: 'var(--t4)', cursor: 'pointer', fontFamily: 'inherit',
+                  }}>+ 추가</button>
+              </div>
+            </div>
+
+            {/* 피커 드롭다운 */}
+            {elemPickerOpen && (
+              <div className="nopan nodrag" style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 36, right: 0, zIndex: 100,
+                background: 'var(--node-bg)', border: '1px solid rgba(200,241,53,0.25)',
+                borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                padding: '6px 0', maxHeight: 220, overflowY: 'auto',
+              }}>
+                {/* 라이브러리 목록 */}
+                {elementsLib.length === 0
+                  ? <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--t5)' }}>등록된 Element 없음</div>
+                  : elementsLib.map(el => {
+                    const isSelected = selectedElemNames.includes(el.name)
+                    return (
+                      <div key={el.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '5px 10px', cursor: 'pointer',
+                        background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
+                        transition: 'background 0.1s',
+                      }}
+                        onClick={() => toggleElement(el.name)}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                        <span style={{ flex: 1, fontSize: 11, fontWeight: 700,
+                          color: isSelected ? '#C8F135' : 'var(--t2)' }}>{el.name}</span>
+                        <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
+                        {isSelected && <span style={{ fontSize: 9, color: '#C8F135' }}>✓</span>}
+                        <button
+                          onClick={e => { e.stopPropagation(); handleDeleteFromLib(el.id, el.name) }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer',
+                            fontSize: 9, color: 'var(--t5)', padding: '0 2px', lineHeight: 1 }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--t5)'}
+                        >🗑</button>
+                      </div>
+                    )
+                  })
+                }
+
+                {/* 구분선 */}
+                <div style={{ height: 1, background: 'var(--sep2)', margin: '5px 8px' }} />
+
+                {/* 새 Element 추가 */}
+                <div style={{ padding: '4px 8px 6px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--t5)', fontWeight: 700, letterSpacing: '0.06em' }}>NEW ELEMENT</div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <input
+                      className="nopan nodrag"
+                      value={newElemName}
+                      onChange={e => setNewElemName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addNewElement() }}
+                      placeholder="@element_name"
+                      style={{
+                        flex: 1, background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                        borderRadius: 4, padding: '3px 6px', fontSize: 10,
+                        color: 'var(--t1)', fontFamily: 'inherit', outline: 'none',
+                      }}
+                    />
+                    <select
+                      className="nopan nodrag"
+                      value={newElemCat}
+                      onChange={e => setNewElemCat(e.target.value)}
+                      style={{ background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                        borderRadius: 4, padding: '3px 4px', fontSize: 10,
+                        color: 'var(--t2)', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+                    >
+                      {['Character','Location','Prop','Auto'].map(c => (
+                        <option key={c} value={c} style={{ background: '#0d1020' }}>{c}</option>
+                      ))}
+                    </select>
+                    <button className="nopan nodrag" onClick={addNewElement}
+                      style={{ background: 'rgba(200,241,53,0.15)', border: '1px solid rgba(200,241,53,0.4)',
+                        borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 700,
+                        color: '#C8F135', cursor: 'pointer', fontFamily: 'inherit' }}>+</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 오디오 토글 */}
