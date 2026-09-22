@@ -681,10 +681,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
             {/* 피커 드롭다운 */}
             {elemPickerOpen && (
               <div className="nopan nodrag" style={{
-                position: 'absolute', top: 'calc(100% + 6px)', left: 36, right: 0, zIndex: 100,
+                position: 'absolute', top: 'calc(100% + 6px)', left: -36, right: -14, zIndex: 100,
                 background: 'var(--node-bg)', border: '1px solid rgba(200,241,53,0.25)',
-                borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                padding: '6px 0', maxHeight: 220, overflowY: 'auto',
+                borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+                padding: '8px 0', maxHeight: 300, overflowY: 'auto',
               }}>
                 {/* Higgsfield 실시간 목록 */}
                 {hfElemLoading && (
@@ -697,8 +697,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       const isSelected = selectedElemNames.includes(el.name)
                       return (
                         <div key={el.name} style={{
-                          display: 'flex', alignItems: 'center', gap: 7,
-                          padding: '5px 10px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '7px 14px', cursor: 'pointer',
                           background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
                         }}
                           onClick={() => toggleElement(el.name)}
@@ -706,12 +706,12 @@ export default function HiggsfieldNode({ id, data, selected }) {
                           onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                         >
                           {el.thumbUrl
-                            ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: isSelected ? '1.5px solid #C8F135' : '1.5px solid var(--sep2)' }} />
-                            : <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                            ? <img src={el.thumbUrl} alt={el.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: isSelected ? '2px solid #C8F135' : '1.5px solid var(--sep2)' }} />
+                            : <span style={{ fontSize: 18 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
                           }
-                          <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: isSelected ? '#C8F135' : 'var(--t2)' }}>{el.name}</span>
-                          <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
-                          {isSelected && <span style={{ fontSize: 9, color: '#C8F135' }}>✓</span>}
+                          <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: isSelected ? '#C8F135' : 'var(--t1)' }}>{el.name}</span>
+                          <span style={{ fontSize: 10, color: 'var(--t5)' }}>{el.category}</span>
+                          {isSelected && <span style={{ fontSize: 10, color: '#C8F135', fontWeight: 700 }}>✓</span>}
                         </div>
                       )
                     })}
@@ -730,8 +730,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
                     const isSelected = selectedElemNames.includes(el.name)
                     return (
                       <div key={el.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '5px 10px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '7px 14px', cursor: 'pointer',
                         background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
                         transition: 'background 0.1s',
                       }}
@@ -739,15 +739,15 @@ export default function HiggsfieldNode({ id, data, selected }) {
                         onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                       >
-                        <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
-                        <span style={{ flex: 1, fontSize: 11, fontWeight: 700,
-                          color: isSelected ? '#C8F135' : 'var(--t2)' }}>{el.name}</span>
-                        <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
-                        {isSelected && <span style={{ fontSize: 9, color: '#C8F135' }}>✓</span>}
+                        <span style={{ fontSize: 18 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                        <span style={{ flex: 1, fontSize: 12, fontWeight: 700,
+                          color: isSelected ? '#C8F135' : 'var(--t1)' }}>{el.name}</span>
+                        <span style={{ fontSize: 10, color: 'var(--t5)' }}>{el.category}</span>
+                        {isSelected && <span style={{ fontSize: 10, color: '#C8F135', fontWeight: 700 }}>✓</span>}
                         <button
                           onClick={e => { e.stopPropagation(); handleDeleteFromLib(el.id, el.name) }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 9, color: 'var(--t5)', padding: '0 2px', lineHeight: 1 }}
+                            fontSize: 11, color: 'var(--t5)', padding: '0 2px', lineHeight: 1 }}
                           onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
                           onMouseLeave={e => e.currentTarget.style.color = 'var(--t5)'}
                         >🗑</button>
@@ -760,7 +760,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 <div style={{ height: 1, background: 'var(--sep2)', margin: '5px 8px' }} />
 
                 {/* 새 Element 추가 */}
-                <div style={{ padding: '4px 8px 6px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ padding: '6px 12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ fontSize: 9, color: 'var(--t5)', fontWeight: 700, letterSpacing: '0.06em' }}>NEW ELEMENT</div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <input
