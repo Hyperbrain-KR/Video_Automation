@@ -613,6 +613,32 @@ app.get('/api/higgsfield/tools', async (req, res) => {
   }
 })
 
+// ── Higgsfield: Elements 목록 조회 ────────────────────────
+app.get('/api/higgsfield/elements', async (req, res) => {
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  try {
+    // 사용 가능한 툴 목록에서 element 관련 툴 탐색
+    const tools = await listHiggsfieldTools()
+    const toolNames = tools.map(t => t.name)
+    console.log('[higgsfield/elements] 사용 가능한 툴:', toolNames)
+
+    // element 관련 툴 후보 탐색
+    const elementTool = toolNames.find(n =>
+      n.toLowerCase().includes('element') || n.toLowerCase().includes('asset')
+    )
+    if (!elementTool) {
+      return res.json({ elements: [], debug: { available_tools: toolNames, message: 'element 관련 MCP 툴 없음' } })
+    }
+
+    const result = await callHiggsfieldMCP(elementTool, {}, 15_000)
+    const raw = result.content?.map(c => c.text).join('') ?? ''
+    console.log('[higgsfield/elements] 응답:', raw.slice(0, 500))
+    res.json({ elements: [], raw, tool_used: elementTool })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Higgsfield: 크레딧 조회 ────────────────────────────────
 app.get('/api/higgsfield/credits', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
