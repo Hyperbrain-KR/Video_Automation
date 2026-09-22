@@ -6,6 +6,7 @@ import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
 import { CANVAS_API } from '../lib/config'
 import { loadElements, saveElements, addElement, deleteElement, CATEGORY_ICON } from '../lib/elementsStore'
+import { apiFetch } from '../lib/config'
 
 function CharacterThumb({ char }) {
   const [src, setSrc] = useState(() => char.hasLocalImage ? null : (char.resultUrl ?? null))
@@ -269,6 +270,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const [elemPickerOpen, setElemPickerOpen] = useState(false)
   const [newElemName, setNewElemName] = useState('')
   const [newElemCat, setNewElemCat] = useState('Character')
+  const [hfElements, setHfElements] = useState([])   // Higgsfield에서 가져온 목록
+  const [hfElemLoading, setHfElemLoading] = useState(false)
   const elemPickerRef = useRef()
 
   useEffect(() => {
@@ -278,6 +281,20 @@ export default function HiggsfieldNode({ id, data, selected }) {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
+  }, [elemPickerOpen])
+
+  // 피커 열릴 때 Higgsfield에서 Elements 가져오기
+  useEffect(() => {
+    if (!elemPickerOpen) return
+    setHfElemLoading(true)
+    apiFetch('/api/higgsfield/elements')
+      .then(r => r.json())
+      .then(d => {
+        console.log('[Elements] Higgsfield 응답:', d)
+        if (d.elements?.length > 0) setHfElements(d.elements)
+      })
+      .catch(e => console.warn('[Elements] 조회 실패:', e.message))
+      .finally(() => setHfElemLoading(false))
   }, [elemPickerOpen])
 
   const selectedElemNames = (data.videoElements ?? '').split(/\s+/).filter(s => s.startsWith('@'))
@@ -669,10 +686,44 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                 padding: '6px 0', maxHeight: 220, overflowY: 'auto',
               }}>
-                {/* 라이브러리 목록 */}
-                {elementsLib.length === 0
+                {/* Higgsfield 실시간 목록 */}
+                {hfElemLoading && (
+                  <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--t5)' }}>Higgsfield 불러오는 중…</div>
+                )}
+                {!hfElemLoading && hfElements.length > 0 && (
+                  <>
+                    <div style={{ padding: '3px 10px 2px', fontSize: 9, fontWeight: 700, color: 'var(--t5)', letterSpacing: '0.06em' }}>HIGGSFIELD</div>
+                    {hfElements.map(el => {
+                      const isSelected = selectedElemNames.includes(el.name)
+                      return (
+                        <div key={el.name} style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '5px 10px', cursor: 'pointer',
+                          background: isSelected ? 'rgba(200,241,53,0.08)' : 'transparent',
+                        }}
+                          onClick={() => toggleElement(el.name)}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <span style={{ fontSize: 12 }}>{CATEGORY_ICON[el.category] ?? '✨'}</span>
+                          <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: isSelected ? '#C8F135' : 'var(--t2)' }}>{el.name}</span>
+                          <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
+                          {isSelected && <span style={{ fontSize: 9, color: '#C8F135' }}>✓</span>}
+                        </div>
+                      )
+                    })}
+                    <div style={{ height: 1, background: 'var(--sep2)', margin: '4px 8px' }} />
+                  </>
+                )}
+
+                {/* 로컬 라이브러리 목록 */}
+                {elementsLib.length === 0 && hfElements.length === 0 && !hfElemLoading
                   ? <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--t5)' }}>등록된 Element 없음</div>
-                  : elementsLib.map(el => {
+                  : elementsLib.length > 0 && <>
+                    <div style={{ padding: '3px 10px 2px', fontSize: 9, fontWeight: 700, color: 'var(--t5)', letterSpacing: '0.06em' }}>로컬</div>
+                  </>
+                }
+                {elementsLib.map(el => {
                     const isSelected = selectedElemNames.includes(el.name)
                     return (
                       <div key={el.id} style={{
