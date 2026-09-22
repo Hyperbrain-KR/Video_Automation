@@ -25,7 +25,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
 
     const promptEdge = currentEdges.find(e => e.target === nodeId && e.targetHandle === 'prompt')
     const promptSrc = promptEdge ? currentNodes.find(n => n.id === promptEdge.source) : null
-    const prompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
+    const basePrompt = promptSrc?.data?.prompt || promptSrc?.data?.value || ''
+
+    // @Elements: 비디오 노드에 입력된 element 이름을 프롬프트 맨 앞에 삽입
+    const videoElements = (node?.data?.videoElements ?? '').trim()
+    const prompt = (isVideo && videoElements) ? `${videoElements}\n\n${basePrompt}` : basePrompt
 
     const uploadRefImage = async (srcNode) => {
       const { imageDataUrl, imageUrl, hasLocalImage, filename, contentType } = srcNode.data ?? {}

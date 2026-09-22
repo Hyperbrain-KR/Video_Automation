@@ -261,6 +261,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleVideoMode = (v) => updateNodeData(id, { videoMode: v })
   const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
   const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
+  const handleVideoElements = (v) => updateNodeData(id, { videoElements: v })
 
   const btnStyle = {
     width: '100%', padding: '8px 0', marginTop: 10,
@@ -588,6 +589,25 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
           <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
           <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
+
+          {/* Elements */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>Elements</span>
+            <input
+              className="nopan nodrag"
+              value={data.videoElements ?? ''}
+              onChange={e => handleVideoElements(e.target.value)}
+              placeholder="@element_name"
+              style={{
+                flex: 1, background: 'var(--node-input)',
+                border: data.videoElements ? '1px solid rgba(200,241,53,0.4)' : '1px solid var(--sep2)',
+                borderRadius: 5, padding: '3px 7px',
+                fontSize: 10, color: data.videoElements ? '#C8F135' : 'var(--t3)',
+                fontFamily: 'inherit', outline: 'none',
+                fontWeight: data.videoElements ? 700 : 400,
+              }}
+            />
+          </div>
 
           {/* 오디오 토글 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
