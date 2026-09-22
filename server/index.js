@@ -617,24 +617,22 @@ app.get('/api/higgsfield/tools', async (req, res) => {
 app.get('/api/higgsfield/elements', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   try {
-    // 사용 가능한 툴 목록에서 element 관련 툴 탐색
-    const tools = await listHiggsfieldTools()
-    const toolNames = tools.map(t => t.name)
-    console.log('[higgsfield/elements] 사용 가능한 툴:', toolNames)
-
-    // element 관련 툴 후보 탐색
-    const elementTool = toolNames.find(n =>
-      n.toLowerCase().includes('element') || n.toLowerCase().includes('asset')
-    )
-    if (!elementTool) {
-      return res.json({ elements: [], debug: { available_tools: toolNames, message: 'element 관련 MCP 툴 없음' } })
-    }
-
-    const result = await callHiggsfieldMCP(elementTool, {}, 15_000)
+    const result = await callHiggsfieldMCP('show_reference_elements', {}, 15_000)
     const raw = result.content?.map(c => c.text).join('') ?? ''
-    console.log('[higgsfield/elements] 응답:', raw.slice(0, 500))
-    res.json({ elements: [], raw, tool_used: elementTool })
+    console.log('[higgsfield/elements] 응답:', raw.slice(0, 800))
+
+    // 텍스트 파싱: "@name (Category)" 패턴 추출
+    const elements = []
+    const lines = raw.split('\n')
+    for (const line of lines) {
+      const m = line.match(/@([\w가-힣]+)\s*\(?([^)]*)\)?/)
+      if (m) {
+        elements.push({ name: `@${m[1]}`, category: m[2]?.trim() || 'Auto' })
+      }
+    }
+    res.json({ elements, raw })
   } catch (err) {
+    console.error('[higgsfield/elements] 오류:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
