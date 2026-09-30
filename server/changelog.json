@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-09-30",
+    "items": [
+      "[FIX] Railway 서버 다운 시 허용된 계정도 전원 차단되던 인증 버그 수정 — 서버 응답 없을 때 catch에서 false 반환하던 문제 해결, VITE_ALLOWED_EMAILS 환경변수로 서버 없이 직접 체크하도록 개선"
+    ]
+  },
+  {
     "date": "2026-09-22",
     "items": [
       "[NEW] 힉스필드 비디오 노드 @Elements 피커 — Higgsfield 계정의 Elements 목록 실시간 조회 및 선택 (썸네일 표시), 로컬 라이브러리 직접 등록도 가능, 선택된 element는 비디오 생성 시 프롬프트 앞에 자동 삽입",
