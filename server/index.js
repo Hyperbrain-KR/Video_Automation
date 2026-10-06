@@ -747,7 +747,11 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         const putRes = await fetch(presignedUrl, {
           method: 'PUT', headers: { 'Content-Type': imgContentType }, body: imgBuf,
         })
-        if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+        if (!putRes.ok) {
+          const errBody = await putRes.text().catch(() => '')
+          console.error(`[upload-ref] S3 fallback 오류 응답:`, errBody.slice(0, 500))
+          throw new Error(`S3 업로드 실패: ${putRes.status}`)
+        }
         mediaId = id
         await new Promise(r => setTimeout(r, 1500))
         console.log(`[upload-ref] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
@@ -772,7 +776,11 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         body: buffer,
       })
       console.log(`[upload-ref] ④ S3 PUT 완료: ${putRes.status} (${ts()})`)
-      if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+      if (!putRes.ok) {
+        const errBody = await putRes.text().catch(() => '')
+        console.error(`[upload-ref] S3 오류 응답:`, errBody.slice(0, 500))
+        throw new Error(`S3 업로드 실패: ${putRes.status}`)
+      }
       mediaId = id
     }
 
