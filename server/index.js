@@ -744,8 +744,10 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
         const { presignedUrl, id } = extractPresigned(uploadResult)
         if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+        const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
+        const fallbackPutHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
         const putRes = await fetch(presignedUrl, {
-          method: 'PUT', headers: { 'Content-Type': imgContentType }, body: imgBuf,
+          method: 'PUT', headers: fallbackPutHeaders, body: imgBuf,
         })
         if (!putRes.ok) {
           const errBody = await putRes.text().catch(() => '')
@@ -770,9 +772,11 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
       const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       console.log(`[upload-ref] ③ S3 PUT 업로드 중... (${buffer.length} bytes)`)
+      const mainSignedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
+      const mainPutHeaders = mainSignedHeaders.includes('content-type') ? { 'Content-Type': contentType || 'image/jpeg' } : {}
       const putRes = await fetch(presignedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': contentType || 'image/jpeg' },
+        headers: mainPutHeaders,
         body: buffer,
       })
       console.log(`[upload-ref] ④ S3 PUT 완료: ${putRes.status} (${ts()})`)
