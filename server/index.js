@@ -498,6 +498,7 @@ app.post('/api/higgsfield/video', async (req, res) => {
     firstFrameMediaId,
     endFrameJobId,
     endFrameMediaId,
+    seedanceMediasPayload,
   } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
@@ -508,10 +509,18 @@ app.post('/api/higgsfield/video', async (req, res) => {
 
   // medias 배열 구성
   const medias = []
-  if (firstFrameMediaId) medias.push({ value: firstFrameMediaId, role: 'start_image' })
-  else if (firstFrameJobId) medias.push({ value: firstFrameJobId, role: 'start_image' })
-  if (endFrameMediaId) medias.push({ value: endFrameMediaId, role: 'end_image' })
-  else if (endFrameJobId) medias.push({ value: endFrameJobId, role: 'end_image' })
+  if (seedanceMediasPayload?.length > 0) {
+    // Seedance: role별 지정 medias
+    for (const { mediaId, role } of seedanceMediasPayload) {
+      if (mediaId && role) medias.push({ value: mediaId, role })
+    }
+  } else {
+    // Kling: 첫프레임/끝프레임
+    if (firstFrameMediaId) medias.push({ value: firstFrameMediaId, role: 'start_image' })
+    else if (firstFrameJobId) medias.push({ value: firstFrameJobId, role: 'start_image' })
+    if (endFrameMediaId) medias.push({ value: endFrameMediaId, role: 'end_image' })
+    else if (endFrameJobId) medias.push({ value: endFrameJobId, role: 'end_image' })
+  }
 
   const args = {
     params: {

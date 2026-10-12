@@ -5,7 +5,8 @@
       "[FEAT] 비디오 생성 모델 선택 추가 — Kling 3.0 외 Seedance 2.0 Fast 선택 가능, 모델별 컨트롤 조건부 표시 (Seedance는 모드 옵션 없음)",
       "[FEAT] Seedance 2.0 Fast 크레딧 계산 추가 — 4s~15s 구간별 룩업 테이블 적용, 오디오 유무 무관",
       "[UPD] Seedance 크레딧 세일가 적용 — 현재 30% 할인 적용 중 (세일 종료 시 정가로 교체 예정)",
-      "[FIX] Seedance 오디오 파라미터 수정 — sound 문자열 대신 generate_audio boolean으로 전달, Off 설정 시 오디오 제거 정상 적용"
+      "[FIX] Seedance 오디오 파라미터 수정 — sound 문자열 대신 generate_audio boolean으로 전달, Off 설정 시 오디오 제거 정상 적용",
+      "[FEAT] Seedance 전용 레퍼런스 이미지 선택 UI 추가 — 캐릭터마다 Ref/Start/End 역할 버튼으로 지정, 최대 9장 첨부 가능 (Kling은 기존 첫프레임/끝프레임 그대로)"
     ]
   },
   {

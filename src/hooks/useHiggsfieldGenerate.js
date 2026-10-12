@@ -139,6 +139,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
 
     let firstFrameMediaId = null
     let endFrameMediaId = null
+    let seedanceMediasPayload = null
 
     if (isVideo) {
       // 캐릭터 참조로 프레임 로드하는 헬퍼
@@ -152,38 +153,61 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         return importRefUrl(src)
       }
 
-      // videoFrameCharIds[0] → 첫프레임, [1] → 끝프레임
-      const videoFrameCharIds = node?.data?.videoFrameCharIds ?? []
-      const firstCharId = videoFrameCharIds[0] ?? null
-      const endCharId   = videoFrameCharIds[1] ?? null
+      const videoModel = node?.data?.videoModel ?? 'kling3_0'
 
-      // 엣지 기반 소스 (캐릭터 참조가 없을 때 폴백)
-      const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
-      const mediaEdge = refImgEdge ?? mediaEdges[0]
-      const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
+      if (videoModel === 'seedance_2_0') {
+        // Seedance: seedanceMediaRoles에서 role별 medias 구성
+        const seedanceMediaRoles = node?.data?.seedanceMediaRoles ?? {}
+        const entries = Object.entries(seedanceMediaRoles)
+        if (entries.length > 0) {
+          try {
+            const resolved = await Promise.all(
+              entries.map(async ([charId, role]) => {
+                const mediaId = await loadCharFrame(charId)
+                return mediaId ? { mediaId, role } : null
+              })
+            )
+            seedanceMediasPayload = resolved.filter(Boolean)
+          } catch (err) {
+            console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
+            updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+            return
+          }
+        }
+      } else {
+        // Kling: videoFrameCharIds[0] → 첫프레임, [1] → 끝프레임
+        const videoFrameCharIds = node?.data?.videoFrameCharIds ?? []
+        const firstCharId = videoFrameCharIds[0] ?? null
+        const endCharId   = videoFrameCharIds[1] ?? null
 
-      const endEdges = currentEdges.filter(e => e.target === nodeId && e.targetHandle === 'end_image')
-      const endRefImgEdge = endEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
-      const endEdge = endRefImgEdge ?? endEdges[0]
-      const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
+        // 엣지 기반 소스 (캐릭터 참조가 없을 때 폴백)
+        const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+        const mediaEdge = refImgEdge ?? mediaEdges[0]
+        const mediaSrc = mediaEdge ? currentNodes.find(n => n.id === mediaEdge.source) : null
 
-      try {
-        const [fId, eId] = await Promise.all([
-          firstCharId ? loadCharFrame(firstCharId)
-            : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
-            : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
-            : Promise.resolve(null),
-          endCharId ? loadCharFrame(endCharId)
-            : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
-            : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
-            : Promise.resolve(null),
-        ])
-        if (fId) firstFrameMediaId = fId
-        if (eId) endFrameMediaId = eId
-      } catch (err) {
-        console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
-        updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
-        return
+        const endEdges = currentEdges.filter(e => e.target === nodeId && e.targetHandle === 'end_image')
+        const endRefImgEdge = endEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
+        const endEdge = endRefImgEdge ?? endEdges[0]
+        const endSrc = endEdge ? currentNodes.find(n => n.id === endEdge.source) : null
+
+        try {
+          const [fId, eId] = await Promise.all([
+            firstCharId ? loadCharFrame(firstCharId)
+              : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
+              : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
+              : Promise.resolve(null),
+            endCharId ? loadCharFrame(endCharId)
+              : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
+              : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
+              : Promise.resolve(null),
+          ])
+          if (fId) firstFrameMediaId = fId
+          if (eId) endFrameMediaId = eId
+        } catch (err) {
+          console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
+          updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+          return
+        }
       }
     }
 
@@ -197,6 +221,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
             videoMode: node?.data?.videoMode ?? 'pro',
             sound: node?.data?.sound ?? 'off',
             videoAspect: node?.data?.videoAspect ?? '16:9',
+            ...(seedanceMediasPayload ? { seedanceMediasPayload } : {}),
             ...(firstFrameMediaId ? { firstFrameMediaId } : {}),
             ...(endFrameMediaId ? { endFrameMediaId } : {}),
           }
