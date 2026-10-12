@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-10-12",
+    "items": [
+      "[FEAT] 비디오 생성 모델 선택 추가 — Kling 3.0 외 Seedance 2.0 Fast 선택 가능, 모델별 컨트롤 조건부 표시 (Seedance는 모드 옵션 없음)"
+    ]
+  },
+  {
     "date": "2026-09-30",
     "items": [
       "[FIX] Railway 서버 다운 시 허용된 계정도 전원 차단되던 인증 버그 수정 — 서버 응답 없을 때 catch에서 false 반환하던 문제 해결, VITE_ALLOWED_EMAILS 환경변수로 서버 없이 직접 체크하도록 개선"

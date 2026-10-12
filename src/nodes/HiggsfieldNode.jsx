@@ -159,6 +159,7 @@ function SelectRow({ label, value, onChange, options }) {
 }
 
 
+const VIDEO_MODEL_OPTIONS = [['kling3_0','Kling 3.0'], ['seedance_2_0_fast','Seedance 2.0 Fast']]
 const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
 const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
 
@@ -203,6 +204,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const quality     = data.quality     ?? 'high'
   const aspectRatio = data.aspectRatio ?? '9:16'
   const duration    = Number(data.duration  ?? 5)
+  const videoModel  = data.videoModel  ?? 'kling3_0'
   const videoMode   = data.videoMode   ?? 'pro'
   const sound       = data.sound       ?? 'off'
   const videoAspect = data.videoAspect ?? '1:1'
@@ -260,6 +262,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleQuality = (v) => updateNodeData(id, { quality: v })
   const handleAspect = (v) => updateNodeData(id, { aspectRatio: v })
   const handleDuration = (v) => updateNodeData(id, { duration: String(Number(v)) })
+  const handleVideoModel = (v) => updateNodeData(id, { videoModel: v })
   const handleVideoMode = (v) => updateNodeData(id, { videoMode: v })
   const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
   const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
@@ -598,13 +601,15 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 비디오 노드: Kling 3.0 컨트롤 */}
+      {/* 비디오 노드: 모델 컨트롤 */}
       {isVideo && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10,
           padding: '8px 9px', background: 'var(--node-prompt)',
           border: '1px solid var(--sep)', borderRadius: 7 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(41,217,217,0.6)',
-            letterSpacing: '0.08em', marginBottom: 4 }}>KLING 3.0</div>
+            letterSpacing: '0.08em', marginBottom: 4 }}>VIDEO</div>
+
+          <SelectRow label="모델" value={videoModel} onChange={handleVideoModel} options={VIDEO_MODEL_OPTIONS} />
 
           {/* 길이 슬라이더 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -631,7 +636,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
             </div>
           </div>
 
-          <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
+          {videoModel === 'kling3_0' && (
+            <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
+          )}
           <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
 
           {/* Elements 피커 */}

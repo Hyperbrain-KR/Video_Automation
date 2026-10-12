@@ -192,6 +192,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const body = isVideo
         ? {
             prompt,
+            videoModel: node?.data?.videoModel ?? 'kling3_0',
             duration: node?.data?.duration ?? '5',
             videoMode: node?.data?.videoMode ?? 'pro',
             sound: node?.data?.sound ?? 'off',

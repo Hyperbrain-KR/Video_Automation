@@ -488,6 +488,7 @@ app.post('/api/higgsfield/image', async (req, res) => {
 app.post('/api/higgsfield/video', async (req, res) => {
   const {
     prompt: rawPrompt,
+    videoModel = 'kling3_0',
     duration = '5',
     videoMode = 'std',
     sound = 'on',
@@ -513,7 +514,7 @@ app.post('/api/higgsfield/video', async (req, res) => {
 
   const args = {
     params: {
-      model: 'kling3_0',
+      model: videoModel,
       prompt,
       duration: Number(duration),
       mode: videoMode,
