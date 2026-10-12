@@ -552,7 +552,15 @@ app.post('/api/higgsfield/video', async (req, res) => {
     try {
       const seedRes = await fetch('https://fnf-api-gw.higgsfield.ai/fnf/jobs/v2/seedance_2_0', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Origin': 'https://higgsfield.ai',
+          'Referer': 'https://higgsfield.ai/ai/video',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
         body: JSON.stringify(seedBody),
         signal: AbortSignal.timeout(30_000),
       })
