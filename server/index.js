@@ -901,11 +901,13 @@ Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
           const args = { action: 'list', ...(pageToken ? { page_token: pageToken } : {}) }
           const r = await callHiggsfieldMCP('models_explore', args, 15_000)
           const text = r.content?.map(c => c.text).join('\n') ?? ''
-          console.log(`[models_explore] 페이지 ${page}:\n`, text.slice(0, 3000))
-          let parsed
-          try { parsed = JSON.parse(text) } catch { break }
-          if (!parsed.has_more || !parsed.next_page_token) break
-          pageToken = parsed.next_page_token
+          // id 값만 추출해서 출력
+          const ids = [...text.matchAll(/"id"\s*:\s*"([^"]+)"/g)].map(m => m[1])
+          console.log(`[models_explore] 페이지 ${page} 모델 id:`, ids)
+          const tokenMatch = text.match(/"next_page_token"\s*:\s*"([^"]+)"/)
+          const hasMore = text.includes('"has_more":true') || text.includes('"has_more": true')
+          if (!hasMore || !tokenMatch) break
+          pageToken = tokenMatch[1]
           page++
           if (page > 10) break
         }
