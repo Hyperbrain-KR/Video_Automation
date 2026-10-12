@@ -894,9 +894,22 @@ Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
     console.log(`   API 키: ${process.env.ANTHROPIC_API_KEY ? '✓ 설정됨' : '✗ 미설정 (.env 파일 확인 필요)'}`)
     console.log(`   Supabase: ${supabase ? '✓ 연결됨' : '✗ 미설정 (토큰 영속성 없음)'}`)
     if (process.env.HIGGSFIELD_API_KEY) {
-      callHiggsfieldMCP('models_explore', { action: 'list' }, 15_000)
-        .then(r => console.log('[models_explore] 사용 가능한 모델:\n', r.content?.map(c => c.text).join('\n')))
-        .catch(e => console.warn('[models_explore] 실패:', e.message))
+      ;(async () => {
+        let pageToken = undefined
+        let page = 1
+        while (true) {
+          const args = { action: 'list', ...(pageToken ? { page_token: pageToken } : {}) }
+          const r = await callHiggsfieldMCP('models_explore', args, 15_000)
+          const text = r.content?.map(c => c.text).join('\n') ?? ''
+          console.log(`[models_explore] 페이지 ${page}:\n`, text.slice(0, 3000))
+          let parsed
+          try { parsed = JSON.parse(text) } catch { break }
+          if (!parsed.has_more || !parsed.next_page_token) break
+          pageToken = parsed.next_page_token
+          page++
+          if (page > 10) break
+        }
+      })().catch(e => console.warn('[models_explore] 실패:', e.message))
     }
   })
 })
