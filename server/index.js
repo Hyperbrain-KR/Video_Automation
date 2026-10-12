@@ -604,17 +604,6 @@ app.post('/api/higgsfield/video', async (req, res) => {
   }
 })
 
-// ── Higgsfield: 사용 가능한 비디오 모델 목록 (디버그) ──────
-app.get('/api/higgsfield/models', async (req, res) => {
-  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
-  try {
-    const result = await callHiggsfieldMCP('models_explore', { action: 'list' }, 15_000)
-    const text = result.content?.map(c => c.text).join('\n') ?? ''
-    res.json({ raw: text })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
 
 // ── Higgsfield: 사용 가능한 MCP 툴 목록 (디버그) ──────────
 app.get('/api/higgsfield/tools', async (req, res) => {
@@ -893,25 +882,5 @@ Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
     console.log(`   Claude 모델: ${MODEL}`)
     console.log(`   API 키: ${process.env.ANTHROPIC_API_KEY ? '✓ 설정됨' : '✗ 미설정 (.env 파일 확인 필요)'}`)
     console.log(`   Supabase: ${supabase ? '✓ 연결됨' : '✗ 미설정 (토큰 영속성 없음)'}`)
-    if (process.env.HIGGSFIELD_API_KEY) {
-      ;(async () => {
-        let pageToken = undefined
-        let page = 1
-        while (true) {
-          const args = { action: 'list', ...(pageToken ? { page_token: pageToken } : {}) }
-          const r = await callHiggsfieldMCP('models_explore', args, 15_000)
-          const text = r.content?.map(c => c.text).join('\n') ?? ''
-          // id 값만 추출해서 출력
-          const ids = [...text.matchAll(/"id"\s*:\s*"([^"]+)"/g)].map(m => m[1])
-          console.log(`[models_explore] 페이지 ${page} 모델 id:`, ids)
-          const tokenMatch = text.match(/"next_page_token"\s*:\s*"([^"]+)"/)
-          const hasMore = text.includes('"has_more":true') || text.includes('"has_more": true')
-          if (!hasMore || !tokenMatch) break
-          pageToken = tokenMatch[1]
-          page++
-          if (page > 30) break
-        }
-      })().catch(e => console.warn('[models_explore] 실패:', e.message))
-    }
   })
 })

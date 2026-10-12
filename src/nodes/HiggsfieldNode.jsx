@@ -159,7 +159,7 @@ function SelectRow({ label, value, onChange, options }) {
 }
 
 
-const VIDEO_MODEL_OPTIONS = [['kling3_0','Kling 3.0'], ['seedance_2_0_fast','Seedance 2.0 Fast']]
+const VIDEO_MODEL_OPTIONS = [['kling3_0','Kling 3.0'], ['seedance_2_0','Seedance 2.0 Fast']]
 const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
 const VIDEO_QUALITY_OPTIONS = [['480p','480p'], ['720p','720p']]
 const VIDEO_ASPECT_OPTIONS = [['auto','Auto'], ['16:9','16:9'], ['9:16','9:16'], ['4:3','4:3'], ['3:4','3:4'], ['1:1','1:1'], ['21:9','21:9']]
@@ -265,7 +265,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleAspect = (v) => updateNodeData(id, { aspectRatio: v })
   const handleDuration = (v) => updateNodeData(id, { duration: String(Number(v)) })
   const handleVideoModel = (v) => {
-    const minDur = v === 'seedance_2_0_fast' ? 4 : 3
+    const minDur = v === 'seedance_2_0' ? 4 : 3
     updateNodeData(id, { videoModel: v, duration: String(Math.max(duration, minDur)) })
   }
   const handleVideoQuality = (v) => updateNodeData(id, { videoQuality: v })
@@ -619,7 +619,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
           {/* 길이 슬라이더 */}
           {(() => {
-            const minDur = videoModel === 'seedance_2_0_fast' ? 4 : 3
+            const minDur = videoModel === 'seedance_2_0' ? 4 : 3
             const range = 15 - minDur
             const pct = ((duration - minDur) / range) * 100
             return (
@@ -652,7 +652,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
           {videoModel === 'kling3_0' && (
             <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
           )}
-          {videoModel === 'seedance_2_0_fast' && (
+          {videoModel === 'seedance_2_0' && (
             <SelectRow label="퀄리티" value={videoQuality} onChange={handleVideoQuality} options={VIDEO_QUALITY_OPTIONS} />
           )}
           <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
