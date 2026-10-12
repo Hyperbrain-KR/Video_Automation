@@ -604,6 +604,18 @@ app.post('/api/higgsfield/video', async (req, res) => {
   }
 })
 
+// ── Higgsfield: 사용 가능한 비디오 모델 목록 (디버그) ──────
+app.get('/api/higgsfield/models', async (req, res) => {
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  try {
+    const result = await callHiggsfieldMCP('models_explore', { action: 'list' }, 15_000)
+    const text = result.content?.map(c => c.text).join('\n') ?? ''
+    res.json({ raw: text })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ── Higgsfield: 사용 가능한 MCP 툴 목록 (디버그) ──────────
 app.get('/api/higgsfield/tools', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
