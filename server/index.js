@@ -489,6 +489,7 @@ app.post('/api/higgsfield/video', async (req, res) => {
   const {
     prompt: rawPrompt,
     videoModel = 'kling3_0',
+    videoQuality = '720p',
     duration = '5',
     videoMode = 'std',
     sound = 'on',
@@ -517,7 +518,7 @@ app.post('/api/higgsfield/video', async (req, res) => {
       model: videoModel,
       prompt,
       duration: Number(duration),
-      mode: videoMode,
+      ...(videoModel === 'kling3_0' ? { mode: videoMode } : { quality: videoQuality }),
       sound,
       aspect_ratio: videoAspect,
       seed: Math.floor(Math.random() * 2_147_483_647),
