@@ -262,7 +262,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const handleQuality = (v) => updateNodeData(id, { quality: v })
   const handleAspect = (v) => updateNodeData(id, { aspectRatio: v })
   const handleDuration = (v) => updateNodeData(id, { duration: String(Number(v)) })
-  const handleVideoModel = (v) => updateNodeData(id, { videoModel: v })
+  const handleVideoModel = (v) => {
+    const minDur = v === 'seedance_2_0_fast' ? 4 : 3
+    updateNodeData(id, { videoModel: v, duration: String(Math.max(duration, minDur)) })
+  }
   const handleVideoMode = (v) => updateNodeData(id, { videoMode: v })
   const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
   const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
@@ -612,29 +615,36 @@ export default function HiggsfieldNode({ id, data, selected }) {
           <SelectRow label="모델" value={videoModel} onChange={handleVideoModel} options={VIDEO_MODEL_OPTIONS} />
 
           {/* 길이 슬라이더 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>길이</span>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.cyan }}>{duration}s</span>
-                <span style={{ fontSize: 9, color: 'var(--t5)' }}>3–15</span>
+          {(() => {
+            const minDur = videoModel === 'seedance_2_0_fast' ? 4 : 3
+            const range = 15 - minDur
+            const pct = ((duration - minDur) / range) * 100
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>길이</span>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.cyan }}>{duration}s</span>
+                    <span style={{ fontSize: 9, color: 'var(--t5)' }}>{minDur}–15</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={minDur} max={15} step={1}
+                    value={duration}
+                    onChange={e => handleDuration(e.target.value)}
+                    className="nopan nodrag"
+                    style={{
+                      width: '100%', cursor: 'pointer', height: 4,
+                      accentColor: '#29D9D9', appearance: 'none', WebkitAppearance: 'none',
+                      background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${pct}%, var(--sep2) ${pct}%, var(--sep2) 100%)`,
+                      borderRadius: 2, outline: 'none', border: 'none',
+                      '--pct': `${pct}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <input
-                type="range"
-                min={3} max={15} step={1}
-                value={duration}
-                onChange={e => handleDuration(e.target.value)}
-                className="nopan nodrag"
-                style={{
-                  width: '100%', cursor: 'pointer', height: 4,
-                  accentColor: '#29D9D9', appearance: 'none', WebkitAppearance: 'none',
-                  background: `linear-gradient(to right, #29D9D9 0%, #29D9D9 ${((duration - 3) / 12) * 100}%, var(--sep2) ${((duration - 3) / 12) * 100}%, var(--sep2) 100%)`,
-                  borderRadius: 2, outline: 'none', border: 'none',
-                  '--pct': `${((duration - 3) / 12) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
+            )
+          })()}
 
           {videoModel === 'kling3_0' && (
             <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
