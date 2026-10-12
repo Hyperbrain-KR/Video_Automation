@@ -909,7 +909,7 @@ Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
           if (!hasMore || !tokenMatch) break
           pageToken = tokenMatch[1]
           page++
-          if (page > 10) break
+          if (page > 30) break
         }
       })().catch(e => console.warn('[models_explore] 실패:', e.message))
     }
