@@ -161,7 +161,6 @@ function SelectRow({ label, value, onChange, options }) {
 
 const VIDEO_MODEL_OPTIONS = [['kling3_0','Kling 3.0'], ['seedance_2_0','Seedance 2.0 Fast']]
 const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
-const VIDEO_QUALITY_OPTIONS = [['480p','480p'], ['720p','720p']]
 const VIDEO_ASPECT_OPTIONS = [['auto','Auto'], ['16:9','16:9'], ['9:16','9:16'], ['4:3','4:3'], ['3:4','3:4'], ['1:1','1:1'], ['21:9','21:9']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
@@ -206,7 +205,6 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const aspectRatio = data.aspectRatio ?? '9:16'
   const duration    = Number(data.duration  ?? 5)
   const videoModel   = data.videoModel   ?? 'kling3_0'
-  const videoQuality = data.videoQuality ?? '720p'
   const videoMode    = data.videoMode    ?? 'pro'
   const sound       = data.sound       ?? 'off'
   const videoAspect = data.videoAspect ?? '1:1'
@@ -268,7 +266,6 @@ export default function HiggsfieldNode({ id, data, selected }) {
     const minDur = v === 'seedance_2_0' ? 4 : 3
     updateNodeData(id, { videoModel: v, duration: String(Math.max(duration, minDur)) })
   }
-  const handleVideoQuality = (v) => updateNodeData(id, { videoQuality: v })
   const handleVideoMode = (v) => updateNodeData(id, { videoMode: v })
   const handleSound = () => updateNodeData(id, { sound: sound === 'on' ? 'off' : 'on' })
   const handleVideoAspect = (v) => updateNodeData(id, { videoAspect: v })
@@ -652,9 +649,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
           {videoModel === 'kling3_0' && (
             <SelectRow label="모드" value={videoMode} onChange={handleVideoMode} options={VIDEO_MODE_OPTIONS} />
           )}
-          {videoModel === 'seedance_2_0' && (
-            <SelectRow label="퀄리티" value={videoQuality} onChange={handleVideoQuality} options={VIDEO_QUALITY_OPTIONS} />
-          )}
+
           <SelectRow label="비율" value={videoAspect} onChange={handleVideoAspect} options={VIDEO_ASPECT_OPTIONS} />
 
           {/* Elements 피커 */}
