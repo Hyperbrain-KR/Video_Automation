@@ -161,7 +161,7 @@ function SelectRow({ label, value, onChange, options }) {
 
 const VIDEO_MODEL_OPTIONS = [['kling3_0','Kling 3.0'], ['seedance_2_0_fast','Seedance 2.0 Fast']]
 const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
-const VIDEO_ASPECT_OPTIONS = [['16:9','16:9'], ['9:16','9:16'], ['1:1','1:1']]
+const VIDEO_ASPECT_OPTIONS = [['auto','Auto'], ['16:9','16:9'], ['9:16','9:16'], ['4:3','4:3'], ['3:4','3:4'], ['1:1','1:1'], ['21:9','21:9']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
   const { updateNodeData, getEdges, setNodes } = useReactFlow()
