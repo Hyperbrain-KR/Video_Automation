@@ -1,5 +1,8 @@
-// Seedance 2.0 Fast 정가 (4s~15s), 오디오 무관
-const SEEDANCE_CREDITS = [14, 18, 21, 25, 28, 32, 35, 39, 42, 46, 49, 53]
+// Seedance 2.0 Fast 크레딧 (4s~15s), 오디오 무관
+// 세일 종료 시 SEEDANCE_CREDITS = SEEDANCE_CREDITS_NORMAL 로 교체
+const SEEDANCE_CREDITS_NORMAL = [14, 18, 21, 25, 28, 32, 35, 39, 42, 46, 49, 53]
+const SEEDANCE_CREDITS_SALE   = [10, 13, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38]
+const SEEDANCE_CREDITS = SEEDANCE_CREDITS_SALE
 
 export function calcHiggsfieldCredits(data) {
   if (data.type === 'video') {
