@@ -610,6 +610,10 @@ app.get('/api/higgsfield/tools', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   try {
     const tools = await listHiggsfieldTools()
+    const schema = req.query.tool
+      ? tools.find(t => t.name === req.query.tool)
+      : null
+    if (schema) return res.json(schema)
     res.json({ tools: tools.map(t => ({ name: t.name, description: t.description })) })
   } catch (err) {
     res.status(500).json({ error: err.message })
