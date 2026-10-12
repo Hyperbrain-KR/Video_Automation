@@ -354,6 +354,14 @@ async function callHiggsfieldMCP(toolName, args, timeoutMs = 180_000) {
   throw new Error('Higgsfield MCP 응답 파싱 실패')
 }
 
+function calcDimensions(resolution, aspectRatio) {
+  const base = { '480p': 480, '720p': 720, '1080p': 1080, '4k': 2160 }[resolution] ?? 720
+  const [rw, rh] = (aspectRatio ?? '16:9').split(':').map(Number)
+  return rw >= rh
+    ? { width: Math.round(base * rw / rh), height: base }
+    : { width: base, height: Math.round(base * rh / rw) }
+}
+
 function isHiggsfieldAuthError(msg) {
   const m = msg.toLowerCase()
   return m.includes('invalid or expired token')
@@ -513,12 +521,63 @@ app.post('/api/higgsfield/video', async (req, res) => {
   if (endFrameMediaId) medias.push({ value: endFrameMediaId, role: 'end_image' })
   else if (endFrameJobId) medias.push({ value: endFrameJobId, role: 'end_image' })
 
+  // ── Seedance: 직접 REST API 호출 ──────────────────────────
+  if (videoModel === 'seedance_2_0') {
+    const t0s = Date.now()
+    const tss = () => `+${((Date.now() - t0s) / 1000).toFixed(1)}s`
+    const { width, height } = calcDimensions(videoQuality, videoAspect)
+    const seedanceMedias = medias.map(m => ({
+      role: m.role === 'start_image' ? 'start_image' : m.role === 'end_image' ? 'end_image' : 'image',
+      data: { id: m.value, type: 'image' },
+    }))
+    const seedBody = {
+      params: {
+        model: 'seedance_2_0_fast',
+        mode: 'fast',
+        batch_size: 1,
+        duration: Number(duration),
+        aspect_ratio: videoAspect,
+        resolution: videoQuality,
+        width,
+        height,
+        generate_audio: sound === 'on',
+        bitrate_mode: 'high',
+        prompt,
+        ...(seedanceMedias.length > 0 ? { medias: seedanceMedias } : {}),
+      },
+      use_unlim: false,
+      use_free_gens: false,
+    }
+    console.log('[higgsfield/video] Seedance params:', JSON.stringify(seedBody.params, null, 2))
+    try {
+      const seedRes = await fetch('https://fnf-api-gw.higgsfield.ai/fnf/jobs/v2/seedance_2_0', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.HIGGSFIELD_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(seedBody),
+        signal: AbortSignal.timeout(30_000),
+      })
+      const seedText = await seedRes.text()
+      console.log(`[higgsfield/video] Seedance 응답 (${tss()}):`, seedText.slice(0, 300))
+      if (!seedRes.ok) {
+        if (seedRes.status === 401) return res.status(401).json({ error: 'Higgsfield 토큰 만료 — 재로그인 필요' })
+        return res.status(500).json({ error: `Seedance API 오류 ${seedRes.status}: ${seedText.slice(0, 200)}` })
+      }
+      const seedData = JSON.parse(seedText)
+      const jobId = seedData.id ?? seedData.job_id ?? seedData.jobId
+      if (!jobId) return res.status(500).json({ error: `Seedance jobId 추출 실패: ${seedText.slice(0, 200)}` })
+      return res.json({ jobId, content: [{ type: 'text', text: seedText }] })
+    } catch (err) {
+      console.error(`[higgsfield/video] Seedance 실패 (${tss()}):`, err.message)
+      return res.status(500).json({ error: err.message })
+    }
+  }
+
   const args = {
     params: {
       model: videoModel,
       prompt,
       duration: Number(duration),
-      ...(videoModel === 'kling3_0' ? { mode: videoMode } : { quality: videoQuality }),
+      mode: videoMode,
       sound,
       aspect_ratio: videoAspect,
       seed: Math.floor(Math.random() * 2_147_483_647),
