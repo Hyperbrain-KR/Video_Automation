@@ -204,7 +204,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const quality     = data.quality     ?? 'high'
   const aspectRatio = data.aspectRatio ?? '9:16'
   const duration    = Number(data.duration  ?? 5)
-  const videoModel   = data.videoModel   ?? 'kling3_0'
+  const VALID_VIDEO_MODELS = ['kling3_0', 'seedance_2_0']
+  const videoModel = VALID_VIDEO_MODELS.includes(data.videoModel) ? data.videoModel : 'kling3_0'
   const videoMode    = data.videoMode    ?? 'pro'
   const sound       = data.sound       ?? 'off'
   const videoAspect = data.videoAspect ?? '1:1'

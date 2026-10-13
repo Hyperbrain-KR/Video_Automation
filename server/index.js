@@ -489,7 +489,7 @@ app.post('/api/higgsfield/image', async (req, res) => {
 app.post('/api/higgsfield/video', async (req, res) => {
   const {
     prompt: rawPrompt,
-    videoModel = 'kling3_0',
+    videoModel: rawVideoModel = 'kling3_0',
     duration = '5',
     videoMode = 'std',
     sound = 'on',
@@ -500,6 +500,8 @@ app.post('/api/higgsfield/video', async (req, res) => {
     endFrameMediaId,
     seedanceMediasPayload,
   } = req.body
+  const VALID_VIDEO_MODELS = ['kling3_0', 'seedance_2_0']
+  const videoModel = VALID_VIDEO_MODELS.includes(rawVideoModel) ? rawVideoModel : 'kling3_0'
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
   const trimmed = rawPrompt.length > 2490 ? rawPrompt.slice(0, 2490) : rawPrompt
