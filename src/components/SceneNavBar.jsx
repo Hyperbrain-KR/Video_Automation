@@ -637,6 +637,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
   const renderProjectFolderPicker = (parentId, projId, depth) => {
     return folders
       .filter(f => (f.parentId ?? null) === parentId)
+      .sort((a, b) => b.name.localeCompare(a.name, 'ko', { numeric: true }))
       .flatMap(f => [
         <button key={f.id} className="proj-move-opt" style={{ paddingLeft: 10 + depth * 14 }}
           onClick={() => assignFolder(projId, f.id)}>
@@ -652,6 +653,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
   const renderFolderMovePicker = (parentId, movingId, excludeSet, depth = 0) => {
     return folders
       .filter(f => (f.parentId ?? null) === parentId && !excludeSet.has(f.id))
+      .sort((a, b) => b.name.localeCompare(a.name, 'ko', { numeric: true }))
       .filter(f => {
         const targetDepth = getFolderDepth(f.id, folders)
         return targetDepth + maxSubtreeDepth(movingId, folders) <= 3
