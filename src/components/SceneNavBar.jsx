@@ -449,8 +449,6 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
   const [renameFName, setRenameFName]         = useState('')
   const [deletingFId, setDeletingFId]         = useState(null)
   const [movingFId, setMovingFId]             = useState(null)
-  const [addSubFId, setAddSubFId]             = useState(null)
-  const [newSubFName, setNewSubFName]         = useState('')
 
   const dropRef         = useRef()
   const triggerInputRef = useRef()
@@ -465,7 +463,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
       if (!dropRef.current?.contains(e.target)) {
         setOpen(false); setCreating(false); setRenamingId(null)
         setDeletingId(null); setMovingId(null); setCreatingFolder(false)
-        setRenamingFId(null); setDeletingFId(null); setMovingFId(null); setAddSubFId(null)
+        setRenamingFId(null); setDeletingFId(null); setMovingFId(null)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -512,13 +510,6 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
       return { ...d, folders: d.folders.filter(f => !toDelete.has(f.id)), assignments: next }
     })
     setDeletingFId(null)
-  }
-
-  const createSubFolder = () => {
-    if (!addSubFId) return
-    const name = newSubFName.trim() || `폴더 ${folders.filter(f => f.parentId === addSubFId).length + 1}`
-    setFolderData(d => ({ ...d, folders: [...d.folders, { id: genFolderId(), name, parentId: addSubFId }] }))
-    setAddSubFId(null); setNewSubFName('')
   }
 
   const moveFolderToParent = (folderId, newParentId) => {
@@ -679,13 +670,12 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
     const treeCredits    = treeProjects.reduce((sum, fp) =>
       sum + (fp.id === activeProject?.id ? totalCredits : (creditsByProject[fp.id] ?? 0)), 0)
     const isMovingThis   = movingFId === f.id
-    const canAddSub      = depth < 3
     const indent         = (depth - 1) * 14
     const hasChildren    = f.children.length > 0
 
     if (deletingFId === f.id) return (
-      <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '6px 12px', paddingLeft: 12 + indent, gap: 8, background: 'rgba(227,64,84,0.08)' }}>
+      <div key={f.id} style={{ marginLeft: indent, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '6px 12px', gap: 8, background: 'rgba(227,64,84,0.08)' }}>
         <span style={{ fontSize: 11, color: '#E34054', fontWeight: 600 }}>
           「{f.name}」{hasChildren ? ' + 하위 폴더 전체' : ''} 삭제?
         </span>
@@ -700,7 +690,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
     )
 
     if (renamingFId === f.id) return (
-      <div key={f.id} style={{ display: 'flex', gap: 6, padding: '5px 10px', paddingLeft: 10 + indent }}>
+      <div key={f.id} style={{ marginLeft: indent, display: 'flex', gap: 6, padding: '5px 10px' }}>
         <input autoFocus value={renameFName} onChange={e => setRenameFName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') renameFolder(f.id); if (e.key === 'Escape') setRenamingFId(null) }}
           style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
@@ -711,10 +701,13 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
       </div>
     )
 
+    const excludeSub = subtreeIds(f.id, folders)
+    const validTargets = renderFolderMovePicker(null, f.id, excludeSub)
+
     return (
-      <div key={f.id}>
+      <div key={f.id} style={{ marginLeft: indent }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button className="proj-folder-row" style={{ flex: 1, paddingLeft: 10 + indent }}
+          <button className="proj-folder-row" style={{ flex: 1 }}
             onClick={() => setCollapsedFolders(c => ({ ...c, [f.id]: !c[f.id] }))}>
             <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', flex: 1,
@@ -726,13 +719,6 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
             <span style={{ fontSize: 8, color: 'var(--t4)', transition: 'transform 0.15s',
               transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
           </button>
-          {canAddSub && (
-            <button title="하위 폴더 추가" onClick={e => { e.stopPropagation(); setAddSubFId(f.id); setNewSubFName('') }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-                color: 'var(--t4)', padding: '0 4px', flexShrink: 0 }}
-              onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>+</button>
-          )}
           <button title="폴더 이동" onClick={e => { e.stopPropagation(); setMovingFId(isMovingThis ? null : f.id) }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
               color: isMovingThis ? '#29D9D9' : 'var(--t4)', padding: '0 4px', flexShrink: 0 }}>↗</button>
@@ -749,36 +735,23 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
         </div>
 
         {isMovingThis && (
-          <div className="proj-move-picker" style={{ marginLeft: indent }}>
+          <div className="proj-move-picker">
             <div style={{ padding: '3px 10px 4px', fontSize: 9, fontWeight: 700, color: 'var(--t5)', letterSpacing: '0.06em' }}>이동할 위치</div>
-            {renderFolderMovePicker(null, f.id, subtreeIds(f.id, folders))}
-            {f.parentId !== null && (
-              <button className="proj-move-opt" onClick={() => moveFolderToParent(f.id, null)}>
-                <span>🗂</span><span style={{ flex: 1 }}>최상위로 이동</span>
-              </button>
-            )}
-            {folders.filter(x => !subtreeIds(f.id, folders).has(x.id) && x.id !== f.id).length === 0 && f.parentId === null && (
-              <div style={{ padding: '4px 10px', fontSize: 11, color: 'var(--t5)' }}>이동할 폴더 없음</div>
+            <button className="proj-move-opt" onClick={() => moveFolderToParent(f.id, null)}>
+              <span>🗂</span><span style={{ flex: 1 }}>루트로 이동</span>
+            </button>
+            {validTargets}
+            {validTargets.length === 0 && (
+              <div style={{ padding: '4px 10px', fontSize: 11, color: 'var(--t5)' }}>이동 가능한 폴더 없음</div>
             )}
           </div>
         )}
 
         {!collapsed && (
-          <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(41,217,217,0.15)', marginLeft: 14 + indent, marginBottom: 2 }}>
+          <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(41,217,217,0.15)', marginLeft: 14, marginBottom: 2 }}>
             {f.children.map(child => renderFolderTree(child, depth + 1))}
-            {addSubFId === f.id && (
-              <div style={{ display: 'flex', gap: 6, padding: '4px 8px' }}>
-                <input autoFocus value={newSubFName} placeholder={`폴더 ${f.children.length + 1}`}
-                  onChange={e => setNewSubFName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') createSubFolder(); if (e.key === 'Escape') setAddSubFId(null) }}
-                  style={{ flex: 1, background: 'var(--node-input)', border: '1px solid rgba(41,217,217,0.35)',
-                    borderRadius: 5, padding: '3px 7px', fontSize: 12, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }} />
-                <button onClick={createSubFolder} style={{ background: 'rgba(41,217,217,0.15)', border: '1px solid rgba(41,217,217,0.4)',
-                  borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit' }}>확인</button>
-              </div>
-            )}
             {fProjects.map(renderProject)}
-            {fProjects.length === 0 && f.children.length === 0 && addSubFId !== f.id && (
+            {fProjects.length === 0 && f.children.length === 0 && (
               <div style={{ padding: '4px 12px', fontSize: 10, color: 'var(--t5)' }}>비어있음</div>
             )}
           </div>
