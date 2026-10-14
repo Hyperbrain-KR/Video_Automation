@@ -410,6 +410,12 @@ const STYLES = `
   }
   .proj-folder-row:hover { background: rgba(41,217,217,0.07); }
 
+  /* ── 폴더 / 프로젝트 액션 버튼 (hover 시에만 표시) ── */
+  .proj-row-wrap { display: flex; align-items: center; }
+  .proj-row-actions { display: none; align-items: center; flex-shrink: 0; }
+  .proj-row-wrap:hover .proj-row-actions { display: flex; }
+  .proj-row-wrap:hover .proj-folder-row { background: rgba(41,217,217,0.07); }
+
   /* ── 폴더 이동 피커 ── */
   .proj-move-picker {
     margin: 0 10px 4px;
@@ -578,7 +584,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
     const projCredits = isActive ? totalCredits : (creditsByProject[p.id] ?? 0)
     return (
       <div key={p.id}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="proj-row-wrap">
           <button className={`proj-item${isActive ? ' active' : ''}`} style={{ flex: 1 }}
             onClick={() => { if (!isActive) onSwitch(p.id); setOpen(false) }}>
             <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>{isActive ? '✓' : ''}</span>
@@ -589,24 +595,23 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
             )}
             <span style={{ fontSize: 9, color: 'var(--t5)', flexShrink: 0, marginLeft: 4 }}>{fmtDate(p.updatedAt)}</span>
           </button>
-          {/* 폴더 이동 */}
-          <button title="폴더로 이동" onClick={e => { e.stopPropagation(); setMovingId(isMoving ? null : p.id) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
-              color: isMoving ? '#29D9D9' : 'var(--t4)', padding: '0 5px', flexShrink: 0, transition: 'color 0.1s' }}
-            onMouseEnter={e => { if (!isMoving) e.currentTarget.style.color = '#29D9D9' }}
-            onMouseLeave={e => { if (!isMoving) e.currentTarget.style.color = 'var(--t4)' }}>📂</button>
-          {/* 이름 변경 */}
-          <button title="이름 변경" onClick={e => { e.stopPropagation(); setRenamingId(p.id); setRenameName(p.name) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
-              color: 'var(--t4)', padding: '0 5px', flexShrink: 0, transition: 'color 0.1s' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
-          {/* 삭제 */}
-          <button title="삭제" onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
-              color: 'var(--t4)', padding: '0 10px 0 3px', flexShrink: 0, transition: 'color 0.1s' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+          <div className="proj-row-actions">
+            <button title="폴더로 이동" onClick={e => { e.stopPropagation(); setMovingId(isMoving ? null : p.id) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+                color: isMoving ? '#29D9D9' : 'var(--t4)', padding: '0 5px' }}
+              onMouseEnter={e => { if (!isMoving) e.currentTarget.style.color = '#29D9D9' }}
+              onMouseLeave={e => { if (!isMoving) e.currentTarget.style.color = 'var(--t4)' }}>📂</button>
+            <button title="이름 변경" onClick={e => { e.stopPropagation(); setRenamingId(p.id); setRenameName(p.name) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+                color: 'var(--t4)', padding: '0 5px' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
+            <button title="삭제" onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+                color: 'var(--t4)', padding: '0 10px 0 3px' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+          </div>
         </div>
 
         {/* 폴더 이동 피커 */}
@@ -706,7 +711,7 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
 
     return (
       <div key={f.id} style={{ marginLeft: indent }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="proj-row-wrap">
           <button className="proj-folder-row" style={{ flex: 1 }}
             onClick={() => setCollapsedFolders(c => ({ ...c, [f.id]: !c[f.id] }))}>
             <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
@@ -719,19 +724,21 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
             <span style={{ fontSize: 8, color: 'var(--t4)', transition: 'transform 0.15s',
               transform: collapsed ? 'rotate(-90deg)' : 'none' }}>▾</span>
           </button>
-          <button title="폴더 이동" onClick={e => { e.stopPropagation(); setMovingFId(isMovingThis ? null : f.id) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
-              color: isMovingThis ? '#29D9D9' : 'var(--t4)', padding: '0 4px', flexShrink: 0 }}>↗</button>
-          <button title="폴더 이름 변경" onClick={e => { e.stopPropagation(); setRenamingFId(f.id); setRenameFName(f.name) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
-              color: 'var(--t4)', padding: '0 5px', flexShrink: 0 }}
-            onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
-          <button title="폴더 삭제" onClick={e => { e.stopPropagation(); setDeletingFId(f.id) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
-              color: 'var(--t4)', padding: '0 10px 0 3px', flexShrink: 0 }}
-            onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+          <div className="proj-row-actions">
+            <button title="폴더 이동" onClick={e => { e.stopPropagation(); setMovingFId(isMovingThis ? null : f.id) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11,
+                color: isMovingThis ? '#29D9D9' : 'var(--t4)', padding: '0 4px' }}>↗</button>
+            <button title="폴더 이름 변경" onClick={e => { e.stopPropagation(); setRenamingFId(f.id); setRenameFName(f.name) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
+                color: 'var(--t4)', padding: '0 5px' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#29D9D9'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>✎</button>
+            <button title="폴더 삭제" onClick={e => { e.stopPropagation(); setDeletingFId(f.id) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10,
+                color: 'var(--t4)', padding: '0 10px 0 3px' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#E34054'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}>🗑</button>
+          </div>
         </div>
 
         {isMovingThis && (
