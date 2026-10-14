@@ -34,6 +34,7 @@ const genFolderId = () => `fld_${Date.now()}`
 function buildFolderTree(folders, parentId = null) {
   return folders
     .filter(f => (f.parentId ?? null) === parentId)
+    .sort((a, b) => b.name.localeCompare(a.name, 'ko', { numeric: true }))
     .map(f => ({ ...f, children: buildFolderTree(folders, f.id) }))
 }
 
