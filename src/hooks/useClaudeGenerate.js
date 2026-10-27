@@ -108,6 +108,12 @@ Motion header phrases: Head Tracking, Eye-Level Tracking, Static Shot, Dolly In,
 - Prioritize: motion > action > reaction > atmosphere > detail
 - Avoid filler like "masterpiece" or "best quality"
 
+## @Element Reference Rules — MANDATORY
+- If the direction contains @mention references (e.g. @10@4_pixel_mm, @character_name), these are Higgsfield element IDs that MUST appear verbatim in the output
+- Wherever you would normally write "the character", "a person", "the subject", or any generic noun referring to that entity, use the exact @mention token instead (e.g. "@10@4_pixel_mm")
+- If multiple @mentions appear, preserve each one exactly as written
+- Never drop, rename, paraphrase, or translate @mention tokens — they are technical identifiers, not prose
+
 ## MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
 - You MUST include it EXACTLY as given, word for word. Never paraphrase, shorten, or omit it.
 - NEVER translate dialogue. Korean Dialogue must remain in Korean. English Dialogue must remain in English.
@@ -119,16 +125,21 @@ Do not ask follow-up questions.
 Output rules:
 - Output the English prompt only
 - No code blocks, no explanations
-- Write everything in English EXCEPT dialogue lines — dialogue must appear exactly as provided in its original language
+- Write everything in English EXCEPT dialogue lines and @mention tokens — dialogue and @mentions must appear exactly as provided
 - Maximum 2500 characters total — cut secondary details if needed to stay within this limit`,
     user: (anchor, command, koreanDialogue, englishDialogue) => {
       const dialogueLines = [
         koreanDialogue?.trim() ? `Korean Dialogue: ${koreanDialogue.trim()}` : '',
         englishDialogue?.trim() ? `English Dialogue: ${englishDialogue.trim()}` : '',
       ].filter(Boolean).join('\n')
+      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionWarning = mentionMatches?.length
+        ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output wherever you refer to those subjects:\n${[...new Set(mentionMatches)].join(', ')}`
+        : ''
       return [
         `Video style anchor:\n${anchor || '(none)'}`,
         `Video direction:\n${command || '(no input)'}`,
+        mentionWarning,
         dialogueLines ? `⚠️ MANDATORY DIALOGUE — copy verbatim into the prompt:\n${dialogueLines}` : '',
       ].filter(Boolean).join('\n\n')
     },
