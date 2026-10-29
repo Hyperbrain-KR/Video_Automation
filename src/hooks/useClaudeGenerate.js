@@ -196,15 +196,20 @@ Output rules:
 - No code blocks, no explanations
 - Write everything in English EXCEPT dialogue quotes and @mention tokens
 - Maximum 2500 characters total — cut setting/voice details before cutting shots or dialogue`,
-    user: (anchor, command) => {
+    user: (anchor, command, koreanDialogue, englishDialogue) => {
       const mentionMatches = (command || '').match(/@[\w@]+/g)
       const mentionWarning = mentionMatches?.length
         ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
         : ''
+      const dialogueLines = [
+        koreanDialogue?.trim() ? `Korean Dialogue: ${koreanDialogue.trim()}` : '',
+        englishDialogue?.trim() ? `English Dialogue: ${englishDialogue.trim()}` : '',
+      ].filter(Boolean).join('\n')
       return [
         `Video style anchor:\n${anchor || '(none)'}`,
-        `Video direction (scene, characters, shots, dialogue):\n${command || '(no input)'}`,
+        `Video direction (scene, characters, shots):\n${command || '(no input)'}`,
         mentionWarning,
+        dialogueLines ? `⚠️ DIALOGUE — embed these verbatim inline within the appropriate shot descriptions (never as a separate block, never translated):\n${dialogueLines}` : '',
       ].filter(Boolean).join('\n\n')
     },
   },
