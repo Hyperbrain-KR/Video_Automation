@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-10-29",
+    "items": [
+      "[FEAT] 비디오 프롬프트 노드 Kling/Seedance 모드 토글 추가 — 클로드 비디오 프롬프트 생성 노드에 Kling 3.0(초록) / Seedance 2.0(핑크) 모드 토글 추가, 선택된 모드에 따라 전용 시스템 프롬프트 자동 적용",
+      "[FEAT] Seedance 전용 Claude 프롬프트 추가 — Shot별 분리 구조, 카메라 고정(locked tripod), 대사 인라인 삽입, 다중 캐릭터 공간 배치, 보이스 묘사, @element 다목적 활용(캐릭터/구도/상품) 등 Seedance 특성에 최적화된 프롬프트 생성 로직"
+    ]
+  },
+  {
     "date": "2026-10-27",
     "items": [
       "[UPD] 비디오 프롬프트 추출 시 @element 멘션 보존 — 연출 입력에 @name 형식 멘션이 있으면 Claude가 영어 프롬프트 변환 시 제네릭 단어('the character' 등) 대신 멘션 토큰을 그대로 사용, user 메시지에도 @mention 감지 경고 자동 삽입"

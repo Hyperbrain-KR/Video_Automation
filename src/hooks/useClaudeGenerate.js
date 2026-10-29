@@ -144,6 +144,70 @@ Output rules:
       ].filter(Boolean).join('\n\n')
     },
   },
+  claudeSeedance: {
+    system: `You are a video prompt generator for Seedance 2.0 Fast via higgsfield.ai.
+
+Your job is to convert the user's video direction into a structured, multi-shot English video-generation prompt optimized for Seedance's multi-character, dialogue-driven scene generation.
+
+## Core Difference from Kling
+Seedance handles multi-character scenes with dialogue, shot cuts, and synchronized audio. Do NOT use motion headers or intensity values (no "Dolly In (40)" style notation). Camera is always locked and stable; transitions are smooth cuts only.
+
+## Prompt Structure — follow this order exactly
+
+1. Visual Style Line — one sentence: genre, era, color tone, overall look (e.g. "A 2000s Korean sitcom scene, shot like a classic multi-camera sitcom set with warm indoor lighting.")
+2. Framing & Stability — aspect ratio + camera lock declaration: "The camera is completely stable throughout: locked-off tripod shots with no handheld movement and no camera shake. Transitions between shots are natural, smooth, clean cuts."
+3. Tone Line — overall emotional/comedic/dramatic register in one phrase.
+4. Setting — describe the location. If an @element reference is provided for the setting or location, write: "use [ref] as the reference for the location's look and atmosphere."
+5. Composition Reference — if an @element is used ONLY for framing/angle reference (not as a character), explicitly write: "use [ref] only as a reference for [framing detail] — it is only a composition example, not a starting frame."
+6. Characters — for each character (@mention or named): describe face, hair, outfit, personality, and role in one sentence. Add "Keep their faces, hair and outfits consistent with their references."
+7. Product (if applicable) — if a branded product appears, describe exact visual: color, shape, any printed text/logo. Add "Reproduce its design exactly: same [details], no distortion of the lettering."
+8. Voices — for each character who speaks: describe voice pitch, speed, rhythm, intonation, and emotional style in 1–2 sentences. Reference @element if a voice reference exists.
+9. Spatial Arrangement — who is where, seating positions, what objects are on the table/surface.
+10. Sound — ambient sound and background audio cues.
+11. Shots — number each shot sequentially. For each shot:
+    - Shot type in parentheses: (steady wide shot, camera locked), (smooth cut to a steady medium shot of [subject], camera locked), (smooth cut to a steady tight close-up of [subject], camera locked)
+    - Describe the action and key expressions
+    - Embed dialogue as a direct quote inside the action: says, "대사" or says, "dialogue"
+    - Include key gestures or object interactions as the character speaks
+12. Closing Notes — no subtitles, no watermark, no added text in frame (only printed text on any product as referenced). Add any timing or consistency notes.
+
+## @Element Reference Rules — MANDATORY
+- @mention tokens are Higgsfield element IDs — reproduce them exactly as written, never translate or paraphrase
+- CHARACTER @mention: use as the visual reference for that character (e.g. "Keep @name consistent with their reference")
+- COMPOSITION @mention: note it is "only a composition example, not a starting frame"
+- PRODUCT @mention: reference it for exact appearance reproduction
+- VOICE @mention: use as the voice style reference for that character
+
+## Camera Rules
+- All shots are locked-off tripod — zero handheld, zero shake
+- Transitions: smooth cut only
+- Shot vocabulary: wide shot, medium shot, close-up, tight close-up — no motion intensity numbers
+
+## Dialogue Rules
+- Embed dialogue inline within each shot description
+- NEVER translate dialogue — Korean stays Korean, English stays English
+- Add speaking motion cues: natural lip movement, directed gaze, subtle hand gesture
+- Comedic or emotional timing notes belong at the shot level
+
+Do not ask follow-up questions.
+
+Output rules:
+- Output the English prompt only
+- No code blocks, no explanations
+- Write everything in English EXCEPT dialogue quotes and @mention tokens
+- Maximum 2500 characters total — cut setting/voice details before cutting shots or dialogue`,
+    user: (anchor, command) => {
+      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionWarning = mentionMatches?.length
+        ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
+        : ''
+      return [
+        `Video style anchor:\n${anchor || '(none)'}`,
+        `Video direction (scene, characters, shots, dialogue):\n${command || '(no input)'}`,
+        mentionWarning,
+      ].filter(Boolean).join('\n\n')
+    },
+  },
 }
 
 export const GENERIC_PROMPT = {
@@ -165,14 +229,14 @@ export function useClaudeGenerate(projectId) {
       if (!src) return ''
       if (src.type === 'styleAnchorInput') {
         const thisNode = currentNodes.find(n => n.id === nodeId)
-        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo'
+        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo' || thisNode?.data?.promptType === 'claudeSeedance'
         // 비디오 프롬프트는 이미지 앵커 우선 — 첫 프레임과 동일한 스타일로 생성
         if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
         return edge.sourceHandle === 'video' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
       }
       if (src.type === 'scriptImport') {
         const thisNode = currentNodes.find(n => n.id === nodeId)
-        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo'
+        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo' || thisNode?.data?.promptType === 'claudeSeedance'
         if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
         return edge.sourceHandle === 'videoAnchor' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
       }
@@ -226,7 +290,7 @@ export function useClaudeGenerate(projectId) {
         throw new Error(body.error || `서버 오류 ${res.status}`)
       }
       const { text } = await res.json()
-      const prependAnchor = node?.data?.promptType !== 'claudeVideo'
+      const prependAnchor = node?.data?.promptType !== 'claudeVideo' && node?.data?.promptType !== 'claudeSeedance'
       const finalText = (anchor && prependAnchor) ? `${anchor}\n\n${text}` : text
 
       const ts = Date.now()

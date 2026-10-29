@@ -1,4 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
+import { useReactFlow } from '@xyflow/react'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 
 const C = {
@@ -48,9 +49,14 @@ const statusConfigs = {
   },
 }
 
+const VIDEO_PROMPT_TYPES = ['claudeVideo', 'claudeSeedance']
+
 export default function ClaudeNode({ id, data, selected }) {
+  const { updateNodeData } = useReactFlow()
   const status = data.status ?? 'idle'
   const cfg = statusConfigs[status] ?? statusConfigs.idle
+  const isVideoNode = VIDEO_PROMPT_TYPES.includes(data.promptType)
+  const isKling = data.promptType !== 'claudeSeedance'
 
   const selectedGlow = selected ? {
     borderColor: '#29D9D9',
@@ -127,6 +133,46 @@ export default function ClaudeNode({ id, data, selected }) {
       <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>
         {data.description ?? '앵커 + 입력 → 프롬프트 생성'}
       </div>
+
+      {/* Kling / Seedance 모드 토글 */}
+      {isVideoNode && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+          {[
+            { type: 'claudeVideo',   label: 'Kling 3.0',    active: isKling,  color: '#22c55e', glow: 'rgba(34,197,94,0.55)',   bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.45)' },
+            { type: 'claudeSeedance', label: 'Seedance 2.0', active: !isKling, color: '#e040fb', glow: 'rgba(224,64,251,0.55)', bg: 'rgba(224,64,251,0.15)',  border: 'rgba(224,64,251,0.45)' },
+          ].map(({ type, label, active, color, glow, bg, border }) => (
+            <div
+              key={type}
+              onClick={() => updateNodeData(id, { promptType: type })}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
+            >
+              {/* 필 트랙 */}
+              <div style={{
+                width: 44, height: 22, borderRadius: 11, position: 'relative', flexShrink: 0,
+                background: active ? bg : 'rgba(255,255,255,0.06)',
+                border: `1.5px solid ${active ? border : 'rgba(255,255,255,0.1)'}`,
+                boxShadow: active ? `0 0 10px ${glow}, inset 0 0 6px ${glow}` : 'none',
+                transition: 'all 0.2s',
+              }}>
+                {/* 슬라이딩 서클 */}
+                <div style={{
+                  position: 'absolute', top: 3, width: 14, height: 14, borderRadius: '50%',
+                  background: active ? color : 'rgba(255,255,255,0.25)',
+                  boxShadow: active ? `0 0 8px ${glow}` : 'none',
+                  left: active ? 24 : 4,
+                  transition: 'left 0.2s, background 0.2s, box-shadow 0.2s',
+                }} />
+              </div>
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                color: active ? color : 'var(--t4)',
+                textShadow: active ? `0 0 8px ${glow}` : 'none',
+                transition: 'color 0.2s',
+              }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 상태 뱃지 */}
       <div style={{
