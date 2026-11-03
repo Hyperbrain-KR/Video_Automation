@@ -1280,13 +1280,15 @@ function FlowCanvas() {
                                     return entry.items.map((item, j) => {
                                       const hasNewTag = item.startsWith('[NEW]')
                                       const stripped = hasNewTag ? item.slice(5) : item
-                                      const match = stripped.match(/^\[(FIX|ADD|UPD)\]\s*/)
+                                      const match = stripped.match(/^\[(FIX|ADD|UPD|FEAT)\]\s*/)
                                       const tag = match?.[1] ?? null
                                       const text = match ? stripped.slice(match[0].length) : stripped
                                       const tagStyle = tag === 'FIX'
                                         ? { background: 'rgba(227,64,84,0.15)', color: '#E34054', border: '1px solid rgba(227,64,84,0.28)' }
                                         : tag === 'ADD'
                                         ? { background: 'rgba(41,217,217,0.12)', color: '#29D9D9', border: '1px solid rgba(41,217,217,0.25)' }
+                                        : tag === 'FEAT'
+                                        ? { background: 'rgba(41,217,100,0.12)', color: '#29D964', border: '1px solid rgba(41,217,100,0.25)' }
                                         : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
                                       const isNew = showNewBadge && hasNewTag
                                     return (
