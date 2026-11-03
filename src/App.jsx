@@ -354,10 +354,13 @@ function FlowCanvas() {
   const handleSwitchProject = useCallback(async (id) => {
     generationEpochRef.current++
     clearTimeout(saveTimerRef.current)
-    if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
+    // setActiveId가 switchProject 내부에서 먼저 호출되어 activeId=new, nodes=old인
+    // 중간 렌더가 발생할 수 있으므로 미리 auto-save를 막음
+    isMountedRef.current = false
+    // 클로저 stale 방지: getNodes()/getEdges()로 Zustand 스토어 최신값 사용
+    if (activeId) await saveProject(activeId, stripLargeData(getNodes()), getEdges(), characters)
     const data = await switchProject(id)
     if (data) {
-      isMountedRef.current = false
       const loadedNodes = normalizeNodes(data.nodes ?? nodes0)
       const dirtyLoaded = loadedNodes.filter(n => n.data?.resultUrl)
       console.log(`[switchProject] 로드된 projectId: ${id}, resultUrl 있는 노드:`, dirtyLoaded.map(n => `${n.id}(${n.data?.resultUrl?.slice(0,40)})`))
@@ -372,13 +375,14 @@ function FlowCanvas() {
     setSaveState('idle')
     setSavedAt(null)
     isMountedRef.current = false
-  }, [activeId, nodes, edges, characters, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeNodes, normalizeEdges])
+  }, [activeId, characters, getNodes, getEdges, saveProject, switchProject, setNodes, setEdges, setCharacters, setCanvasKey, resumeInProgressPolling, normalizeNodes, normalizeEdges])
 
   const handleDeleteProject = useCallback(async (id) => {
     clearTimeout(saveTimerRef.current)
+    isMountedRef.current = false
     // 삭제할 프로젝트의 노드/캐릭터 데이터로 이미지 키 수집
     if (id === activeId) {
-      deleteProjectImages(nodes, characters, id).catch(() => {})
+      deleteProjectImages(getNodes(), characters, id).catch(() => {})
     } else {
       loadProject(id).then(data => {
         if (data) deleteProjectImages(data.nodes, data.characters, id).catch(() => {})
@@ -404,23 +408,23 @@ function FlowCanvas() {
       setSavedAt(null)
       isMountedRef.current = false
     }
-  }, [activeId, nodes, characters, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes, normalizeEdges])
+  }, [activeId, characters, getNodes, loadProject, deleteProject, switchProject, setNodes, setEdges, setCharacters, normalizeNodes, normalizeEdges])
 
   const handleCreateProject = useCallback(async (name) => {
     generationEpochRef.current++
     clearTimeout(saveTimerRef.current)
-    if (activeId) await saveProject(activeId, stripLargeData(nodes), edges, characters)
+    isMountedRef.current = false
+    if (activeId) await saveProject(activeId, stripLargeData(getNodes()), getEdges(), characters)
     const freshNodes = JSON.parse(JSON.stringify(nodes0))
     const freshEdges = JSON.parse(JSON.stringify(edges0))
     const newId = await createProject(name, freshNodes, freshEdges, [])
-    isMountedRef.current = false
     setNodes(freshNodes)
     setEdges(freshEdges)
     setCharacters([])
     setCanvasKey(newId ?? `new-${Date.now()}`)
     setSaveState('idle')
     setSavedAt(null)
-  }, [activeId, nodes, edges, characters, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
+  }, [activeId, characters, getNodes, getEdges, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
 
   const handleResetProject = useCallback(() => {
     const DROP = ['resultUrl', 'resultHistory', 'resultIndex', 'status', 'jobId', 'creditsUsed', 'approved',

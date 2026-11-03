@@ -2,6 +2,7 @@
   {
     "date": "2026-11-03",
     "items": [
+      "[FIX] 프로젝트 전환 시 노드 아웃풋/크레딧 오염 버그 수정 — switchProject 내부의 setActiveId 호출이 setNodes보다 먼저 React 렌더를 유발해 auto-save가 activeId=신규, nodes=구프로젝트 상태로 저장되는 race condition 수정. isMountedRef.current=false를 switchProject 호출 전으로 당기고, 저장 시 클로저 stale nodes 대신 getNodes()/getEdges() 사용",
       "[FEAT] Higgsfield 모델 목록 조회 엔드포인트 추가 — GET /api/higgsfield/models 로 현재 사용 가능한 모델 목록 확인 가능 (디버그용)"
     ]
   },
