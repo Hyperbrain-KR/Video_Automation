@@ -1290,7 +1290,7 @@ function FlowCanvas() {
                                         : tag === 'FEAT'
                                         ? { background: 'rgba(41,217,100,0.12)', color: '#29D964', border: '1px solid rgba(41,217,100,0.25)' }
                                         : { background: 'rgba(100,136,255,0.13)', color: '#6488ff', border: '1px solid rgba(100,136,255,0.28)' }
-                                      const isNew = showNewBadge && hasNewTag
+                                      const isNew = hasNewTag
                                     return (
                                         <div key={j}>
                                           {j === lastNewIdx + 1 && lastNewIdx >= 0 && (
