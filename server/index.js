@@ -429,6 +429,16 @@ function extractResultUrl(result) {
   return null
 }
 
+// ── Higgsfield: 모델 목록 조회 (디버그용) ─────────────────
+app.get('/api/higgsfield/models', async (req, res) => {
+  try {
+    const result = await callHiggsfieldMCP('models_explore', { action: 'list' })
+    res.json({ raw: result.content?.map(c => c.text).join('\n') })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
 app.post('/api/higgsfield/image', async (req, res) => {
   const { prompt, model = 'nano_banana_pro', quality, aspectRatio,
