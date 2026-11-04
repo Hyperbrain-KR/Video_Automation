@@ -227,6 +227,20 @@ html.theme-transitioning *::after {
 }
 
 
+/* Claude 노드 생성 중 — 테두리 순환 (긴 꼬리) */
+@keyframes claude-border-run {
+  0%   { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -950; }
+}
+.claude-border-runner {
+  fill: none;
+  stroke: #FF9040;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 180 10000;
+  animation: claude-border-run 2.2s linear infinite;
+}
+
 /* 연결선 숨기기 토글 */
 .edges-hidden .react-flow__edges,
 .edges-hidden .react-flow__connectionline {

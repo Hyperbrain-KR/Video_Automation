@@ -102,7 +102,12 @@ export default function ClaudeNode({ id, data, selected }) {
   }
 
   return (
-    <div style={{ ...nodeBase, ...selectedGlow }}>
+    <div style={{ ...nodeBase, ...selectedGlow, position: 'relative' }}>
+      {isLoading && (
+        <svg xmlns="http://www.w3.org/2000/svg" style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none', overflow:'visible', zIndex:2 }}>
+          <rect className="claude-border-runner" x="1" y="1" width="238" height="99.5%" rx="11" ry="11"/>
+        </svg>
+      )}
 
       {/* 타겟 핸들: 앵커(상단), 명령(하단) */}
       <Handle

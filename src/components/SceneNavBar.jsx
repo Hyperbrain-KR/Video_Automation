@@ -1090,8 +1090,23 @@ export default function SceneNavBar({
     const uid = scene.uid
     const imgNode        = liveNodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}`    : 'higgsfieldImage'))
     const vidNode        = liveNodes.find(n => n.id === (uid ? `higgsfieldVideo-${uid}`    : 'higgsfieldVideo'))
+    const claudeImgNode  = liveNodes.find(n => n.id === (uid ? `claudeImage-${uid}`        : 'claudeImage'))
+    const claudeVidNode  = liveNodes.find(n => n.id === (uid ? `claudeVideo-${uid}`        : 'claudeVideo'))
     const reviewImgPmt   = liveNodes.find(n => n.id === (uid ? `reviewImagePrompt-${uid}` : 'reviewImagePrompt'))
     const reviewVidPmt   = liveNodes.find(n => n.id === (uid ? `reviewVideoPrompt-${uid}` : 'reviewVideoPrompt'))
+
+    // 진행 중인 노드 우선: loading 상태이면 그 노드로 화면 고정
+    const loadingNode = [imgNode, vidNode, claudeImgNode, claudeVidNode].find(n => n?.data?.status === 'loading')
+    if (loadingNode) {
+      const w = loadingNode.measured?.width  ?? 280
+      const h = loadingNode.measured?.height ?? 400
+      setNodes(nds => nds.map(n => ({ ...n, selected: n.id === loadingNode.id })))
+      fitBounds(
+        { x: loadingNode.position.x, y: loadingNode.position.y, width: w, height: h },
+        { duration: 420, padding: 0.15 },
+      )
+      return
+    }
 
     // 결과 노드: measured.height에서 결과 섹션 추정 높이를 빼서 yOff 동적 계산
     const resultBounds = (node, resultSectionH, w) => {
@@ -1124,7 +1139,7 @@ export default function SceneNavBar({
         { duration: 420, padding: 0.05 },
       )
     }
-  }, [fitBounds, getNodes])
+  }, [fitBounds, getNodes, setNodes])
 
   // 키보드 단축키:
   // 1~9, 0           → 씬 1~10
