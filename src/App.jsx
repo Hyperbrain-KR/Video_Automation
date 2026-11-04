@@ -539,6 +539,7 @@ function FlowCanvas() {
   // ── 업데이트 알림 ─────────────────────────────────────────
   const { hasUpdate, changelog } = useVersionCheck()
   const [showChangelog, setShowChangelog] = useState(false)
+  const [showTagLegend, setShowTagLegend] = useState(false)
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openDates, setOpenDates] = useState(new Set())
   const [changelogSeen, setChangelogSeen] = useState(() => {
@@ -563,6 +564,7 @@ function FlowCanvas() {
     try { localStorage.setItem('changelog-seen-v3', changelogNewKey) } catch (e) { void e }
     setChangelogSeen(changelogNewKey)
     setShowChangelog(false)
+    setShowTagLegend(false)
   }, [changelogNewKey])
 
   // ── Higgsfield 인증 오류 감지 ────────────────────────────
@@ -1229,13 +1231,46 @@ function FlowCanvas() {
               boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showTagLegend ? 12 : 20 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)' }}>🚀 업데이트 내역</span>
-              <button
-                onClick={closeChangelog}
-                style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
-              >✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => setShowTagLegend(v => !v)}
+                  title="태그 설명 보기"
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', border: `1px solid ${showTagLegend ? 'rgba(100,140,255,0.6)' : 'var(--sep2)'}`,
+                    background: showTagLegend ? 'rgba(100,140,255,0.15)' : 'transparent',
+                    color: showTagLegend ? 'rgba(100,140,255,0.9)' : 'var(--t4)',
+                    cursor: 'pointer', fontSize: 11, fontWeight: 700, lineHeight: 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >?</button>
+                <button
+                  onClick={closeChangelog}
+                  style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+                >✕</button>
+              </div>
             </div>
+            {showTagLegend && (
+              <div style={{
+                marginBottom: 16, padding: '10px 12px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--sep2)',
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px',
+              }}>
+                {[
+                  { tag: 'FEAT', label: '새로운 기능 추가', style: { background: 'rgba(41,217,100,0.12)', color: '#29D964', border: '1px solid rgba(41,217,100,0.25)' } },
+                  { tag: 'UPD',  label: '기존 기능 개선·변경', style: { background: 'rgba(100,140,255,0.12)', color: 'rgba(100,140,255,0.9)', border: '1px solid rgba(100,140,255,0.25)' } },
+                  { tag: 'ADD',  label: '버튼·단축키 등 소규모 추가', style: { background: 'rgba(41,197,217,0.12)', color: '#29C9D9', border: '1px solid rgba(41,197,217,0.25)' } },
+                  { tag: 'FIX',  label: '버그 수정', style: { background: 'rgba(227,100,84,0.12)', color: '#E36454', border: '1px solid rgba(227,100,84,0.25)' } },
+                ].map(({ tag, label, style }) => (
+                  <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ ...style, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, letterSpacing: '0.05em', flexShrink: 0 }}>{tag}</span>
+                    <span style={{ fontSize: 10, color: 'var(--t3)' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ overflowY: 'auto', flex: 1, marginBottom: 16 }}>
             {(() => {
               const monthGroups = {}
