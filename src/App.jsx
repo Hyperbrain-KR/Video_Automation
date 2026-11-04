@@ -209,8 +209,10 @@ function FlowCanvas() {
       }
     })
     return afterSection
-      .filter(n => n.id !== 'reviewImageResult' && n.id !== 'reviewVideoResult' &&
-                   !n.id.startsWith('reviewImageResult-') && !n.id.startsWith('reviewVideoResult-'))
+      .filter(n => n.type !== 'scriptImport' &&
+                   n.id !== 'reviewImageResult' && n.id !== 'reviewVideoResult' &&
+                   !n.id.startsWith('reviewImageResult-') && !n.id.startsWith('reviewVideoResult-') &&
+                   n.id !== 'reviewCharResult' && !n.id.startsWith('reviewCharResult-'))
       .map(n => {
         if (n.type === 'textInput' && n.data?.label?.includes('비디오 연출'))
           return { ...n, type: 'videoDirectionInput' }
