@@ -180,6 +180,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
   )
   const connected = new Set(connectedHandleStr.split(',').filter(Boolean))
 
+  // Seedance: Step02 이미지가 start로 자동 첨부되는지 여부 (Start 버튼 잠금용)
+  const step02HasResult = useStore(s => {
+    const imgEdge = s.edges.find(e => e.target === id && e.targetHandle === 'image')
+    if (!imgEdge) return false
+    const srcNode = s.nodes.find(n => n.id === imgEdge.source)
+    return srcNode?.type === 'higgsfieldNode' && srcNode?.data?.type === 'image' && !!srcNode?.data?.resultUrl
+  })
+
   // 뱃지 클릭 → 해당 핸들에 연결된 모든 소스 노드 flash
   const flashSource = (handle) => {
     const srcIds = new Set(
@@ -555,9 +563,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 const roles = data.seedanceMediaRoles ?? {}
                 const curRole = roles[c.id] ?? null
                 const ROLE_BTNS = [
-                  { role: 'image',       label: 'Ref', color: '#29D9D9', bg: 'rgba(41,217,217,0.12)', border: 'rgba(41,217,217,0.35)' },
-                  { role: 'start_image', label: 'Start', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)' },
-                  { role: 'end_image',   label: 'End',  color: '#e040a0', bg: 'rgba(224,64,160,0.12)', border: 'rgba(224,64,160,0.35)' },
+                  { role: 'image',       label: 'Ref',   color: '#29D9D9', bg: 'rgba(41,217,217,0.12)', border: 'rgba(41,217,217,0.35)', locked: false },
+                  { role: 'start_image', label: 'Start', color: '#22c55e', bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.35)',  locked: step02HasResult },
+                  { role: 'end_image',   label: 'End',   color: '#e040a0', bg: 'rgba(224,64,160,0.12)', border: 'rgba(224,64,160,0.35)', locked: false },
                 ]
                 return (
                   <div key={c.id} className="nopan nodrag"
@@ -575,11 +583,14 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       {c.name}
                     </span>
                     <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                      {ROLE_BTNS.map(({ role, label, color, bg, border }) => {
+                      {ROLE_BTNS.map(({ role, label, color, bg, border, locked }) => {
                         const active = curRole === role
                         return (
                           <button key={role} className="nopan nodrag"
+                            disabled={locked && !active}
+                            title={locked && !active ? 'Step 02 이미지가 Start 프레임으로 자동 설정됩니다' : undefined}
                             onClick={() => {
+                              if (locked && !active) return
                               const next = { ...(data.seedanceMediaRoles ?? {}) }
                               if (active) delete next[c.id]
                               else next[c.id] = role
@@ -587,10 +598,12 @@ export default function HiggsfieldNode({ id, data, selected }) {
                             }}
                             style={{
                               padding: '2px 5px', fontSize: 9, fontWeight: 700,
-                              borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit',
-                              color: active ? color : 'var(--t4)',
+                              borderRadius: 3, fontFamily: 'inherit',
+                              cursor: locked && !active ? 'not-allowed' : 'pointer',
+                              color: locked && !active ? 'var(--t5)' : active ? color : 'var(--t4)',
                               background: active ? bg : 'transparent',
-                              border: `1px solid ${active ? border : 'var(--sep2)'}`,
+                              border: `1px solid ${locked && !active ? 'var(--sep1)' : active ? border : 'var(--sep2)'}`,
+                              opacity: locked && !active ? 0.4 : 1,
                               transition: 'all 0.1s',
                             }}
                           >{label}</button>

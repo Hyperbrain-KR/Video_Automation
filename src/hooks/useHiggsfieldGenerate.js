@@ -156,15 +156,34 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const videoModel = node?.data?.videoModel ?? 'kling3_0'
 
       if (videoModel === 'seedance_2_0') {
-        // Seedance: seedanceMediaRoles에서 role별 medias 구성
+        // Seedance: Step02 이미지(start) → seedanceMediaRoles 순으로 medias 구성
         const seedanceMediaRoles = node?.data?.seedanceMediaRoles ?? {}
-        const entries = Object.entries(seedanceMediaRoles)
-        if (entries.length > 0) {
+
+        // Step 02 higgsfieldImage 노드 (targetHandle: 'image' 엣지 소스)
+        const step02Edge = mediaEdges.find(e => {
+          const src = currentNodes.find(n => n.id === e.source)
+          return src?.type === 'higgsfieldNode' && src?.data?.type === 'image'
+        })
+        const step02Src = step02Edge ? currentNodes.find(n => n.id === step02Edge.source) : null
+
+        const tasks = []
+        // 1. Step 02 이미지 → start 역할로 첫 번째
+        if (step02Src?.data?.resultUrl) {
+          tasks.push({ type: 'url', url: step02Src.data.resultUrl, role: 'start' })
+        }
+        // 2. 사용자가 선택한 레퍼런스 이미지 → 지정 역할로 그 다음
+        for (const [charId, role] of Object.entries(seedanceMediaRoles)) {
+          tasks.push({ type: 'char', charId, role })
+        }
+
+        if (tasks.length > 0) {
           try {
             const resolved = await Promise.all(
-              entries.map(async ([charId, role]) => {
-                const mediaId = await loadCharFrame(charId)
-                return mediaId ? { mediaId, role } : null
+              tasks.map(async (task) => {
+                const mediaId = task.type === 'url'
+                  ? await importRefUrl(task.url)
+                  : await loadCharFrame(task.charId)
+                return mediaId ? { mediaId, role: task.role } : null
               })
             )
             seedanceMediasPayload = resolved.filter(Boolean)
@@ -194,11 +213,9 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           const [fId, eId] = await Promise.all([
             firstCharId ? loadCharFrame(firstCharId)
               : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
-              : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
               : Promise.resolve(null),
             endCharId ? loadCharFrame(endCharId)
               : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
-              : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
               : Promise.resolve(null),
           ])
           if (fId) firstFrameMediaId = fId
