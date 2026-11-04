@@ -4,7 +4,6 @@ const paneItems = [
   { key: 'claudeNode',       icon: '🤖', label: 'Claude',             desc: '프롬프트 생성' },
   { key: 'higgsfieldImage',  icon: '🖼', label: 'Higgsfield 이미지',  desc: '이미지 생성' },
   { key: 'higgsfieldVideo',  icon: '🎬', label: 'Higgsfield 비디오',  desc: '비디오 생성' },
-  { key: 'reviewGate',       icon: '✅', label: '리뷰 게이트',         desc: '검토 / 승인' },
   { key: 'styleAnchorInput', icon: '🎨', label: '스타일 앵커',         desc: '스타일 앵커 입력' },
 ]
 
