@@ -63,7 +63,7 @@ function SlotCounter({ value }) {
 
 const DEFAULT_PROJ_DEFAULTS = {
   image: { model: 'nano_banana_pro', quality: '1k', aspectRatio: 'auto' },
-  video: { videoMode: 'pro', videoAspect: '9:16', sound: 'off', duration: 5 },
+  video: { videoModel: 'kling3_0', videoMode: 'pro', videoAspect: '9:16', sound: 'off', duration: 5 },
 }
 
 const nodeTypes = {
@@ -484,7 +484,10 @@ function FlowCanvas() {
 
   const applyDefaultsToAll = useCallback((defaults) => {
     const d = defaults ?? projectDefaults
+    const targetPromptType = d.video?.videoModel === 'seedance_2_0' ? 'claudeSeedance' : 'claudeVideo'
     setNodes(nds => nds.map(n => {
+      if (n.type === 'claudeNode' && ['claudeVideo', 'claudeSeedance'].includes(n.data?.promptType))
+        return { ...n, data: { ...n.data, promptType: targetPromptType } }
       if (n.type !== 'higgsfieldNode') return n
       if (n.data.type === 'image' && n.data.label !== '캐릭터 생성')
         return { ...n, data: { ...n.data, ...d.image } }
@@ -858,23 +861,28 @@ function FlowCanvas() {
             {/* 비디오 */}
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(170,110,255,1)', marginBottom: 8, letterSpacing: '0.06em' }}>비디오</div>
-              {[
-                { label: '모드', key: 'videoMode', opts: [['std','Standard'],['pro','Pro'],['4k','4K']] },
-                { label: '비율', key: 'videoAspect', opts: [['16:9','16:9'],['9:16','9:16'],['1:1','1:1']] },
-                { label: '오디오', key: 'sound', opts: [['off','Off'],['on','On']] },
-              ].map(({ label, key, opts }) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>{label}</span>
-                  <select
-                    value={draftDefaults.video[key]}
-                    onChange={e => setDraftDefaults(d => ({ ...d, video: { ...d.video, [key]: e.target.value } }))}
-                    style={{ flex: 1, background: 'var(--node-input,#1a1b2e)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 5, color: 'var(--t2)', padding: '4px 6px', fontSize: 10, fontFamily: 'inherit' }}
-                  >
-                    {opts.map(([v, l]) => <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>)}
-                  </select>
-                </div>
-              ))}
+              {(() => {
+                const isSeedance = draftDefaults.video.videoModel === 'seedance_2_0'
+                const rows = [
+                  { label: '모델', key: 'videoModel', opts: [['kling3_0','Kling 3.0'],['seedance_2_0','Seedance 2.0']] },
+                  ...(!isSeedance ? [{ label: '모드', key: 'videoMode', opts: [['std','Standard'],['pro','Pro'],['4k','4K']] }] : []),
+                  { label: '비율', key: 'videoAspect', opts: [['16:9','16:9'],['9:16','9:16'],['1:1','1:1']] },
+                  { label: '오디오', key: 'sound', opts: [['off','Off'],['on','On']] },
+                ]
+                return rows.map(({ label, key, opts }) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>{label}</span>
+                    <select
+                      value={draftDefaults.video[key]}
+                      onChange={e => setDraftDefaults(d => ({ ...d, video: { ...d.video, [key]: e.target.value } }))}
+                      style={{ flex: 1, background: 'var(--node-input,#1a1b2e)', border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 5, color: 'var(--t2)', padding: '4px 6px', fontSize: 10, fontFamily: 'inherit' }}
+                    >
+                      {opts.map(([v, l]) => <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>)}
+                    </select>
+                  </div>
+                ))
+              })()}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 10, color: 'var(--t4)', width: 44, flexShrink: 0 }}>길이</span>
                 <input
