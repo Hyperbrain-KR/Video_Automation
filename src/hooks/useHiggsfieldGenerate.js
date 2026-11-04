@@ -169,7 +169,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         const tasks = []
         // 1. Step 02 이미지 → start 역할로 첫 번째
         if (step02Src?.data?.resultUrl) {
-          tasks.push({ type: 'url', url: step02Src.data.resultUrl, role: 'start' })
+          tasks.push({ type: 'url', url: step02Src.data.resultUrl, role: 'start_image' })
         }
         // 2. 사용자가 선택한 레퍼런스 이미지 → 지정 역할로 그 다음
         for (const [charId, role] of Object.entries(seedanceMediaRoles)) {
