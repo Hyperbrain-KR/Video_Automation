@@ -136,7 +136,7 @@ export default function ClaudeNode({ id, data, selected }) {
 
       {/* Kling / Seedance 모드 토글 */}
       {isVideoNode && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: !isKling ? 8 : 10 }}>
           {[
             { type: 'claudeVideo',   label: 'Kling 3.0',    active: isKling,  color: '#22c55e', glow: 'rgba(34,197,94,0.55)',   bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.45)' },
             { type: 'claudeSeedance', label: 'Seedance 2.0', active: !isKling, color: '#e040fb', glow: 'rgba(224,64,251,0.55)', bg: 'rgba(224,64,251,0.15)',  border: 'rgba(224,64,251,0.45)' },
@@ -173,6 +173,48 @@ export default function ClaudeNode({ id, data, selected }) {
           ))}
         </div>
       )}
+
+      {/* Seedance 샷 수 설정 */}
+      {isVideoNode && !isKling && (() => {
+        const shotCount = data.seedanceShotCount  // number | undefined
+        const isFree = shotCount === undefined || shotCount === null
+        return (
+          <div className="nopan nodrag" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>샷 수</span>
+            <input
+              type="number" min={1} max={10}
+              className="nopan nodrag"
+              disabled={isFree}
+              value={isFree ? '' : shotCount}
+              onChange={e => {
+                const v = parseInt(e.target.value)
+                if (!isNaN(v) && v >= 1 && v <= 10) updateNodeData(id, { seedanceShotCount: v })
+              }}
+              placeholder="—"
+              style={{
+                width: 42, textAlign: 'center', padding: '3px 4px',
+                background: isFree ? 'transparent' : 'var(--node-bg)',
+                border: `1px solid ${isFree ? 'var(--sep1)' : 'var(--sep2)'}`,
+                borderRadius: 4, color: isFree ? 'var(--t5)' : 'var(--t1)',
+                fontSize: 11, fontFamily: 'inherit',
+                opacity: isFree ? 0.4 : 1,
+              }}
+            />
+            <button
+              className="nopan nodrag"
+              onClick={() => updateNodeData(id, { seedanceShotCount: isFree ? 3 : undefined })}
+              style={{
+                padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 4,
+                fontFamily: 'inherit', cursor: 'pointer',
+                color: isFree ? '#e040fb' : 'var(--t4)',
+                background: isFree ? 'rgba(224,64,251,0.12)' : 'transparent',
+                border: `1px solid ${isFree ? 'rgba(224,64,251,0.4)' : 'var(--sep2)'}`,
+                transition: 'all 0.15s',
+              }}
+            >Free</button>
+          </div>
+        )
+      })()}
 
       {/* 상태 뱃지 */}
       <div style={{

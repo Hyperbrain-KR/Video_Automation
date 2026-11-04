@@ -196,7 +196,7 @@ Output rules:
 - No code blocks, no explanations
 - Write everything in English EXCEPT dialogue quotes and @mention tokens
 - Maximum 2500 characters total — cut setting/voice details before cutting shots or dialogue`,
-    user: (anchor, command, koreanDialogue, englishDialogue) => {
+    user: (anchor, command, koreanDialogue, englishDialogue, shotCount) => {
       const mentionMatches = (command || '').match(/@[\w@]+/g)
       const mentionWarning = mentionMatches?.length
         ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
@@ -205,8 +205,10 @@ Output rules:
         koreanDialogue?.trim() ? `Korean Dialogue: ${koreanDialogue.trim()}` : '',
         englishDialogue?.trim() ? `English Dialogue: ${englishDialogue.trim()}` : '',
       ].filter(Boolean).join('\n')
+      const shotInstruction = shotCount ? `🎬 SHOT COUNT — generate exactly ${shotCount} shot${shotCount > 1 ? 's' : ''}, no more, no less` : ''
       return [
         `Video style anchor:\n${anchor || '(none)'}`,
+        shotInstruction,
         `Video direction (scene, characters, shots):\n${command || '(no input)'}`,
         mentionWarning,
         dialogueLines ? `⚠️ DIALOGUE — embed these verbatim inline within the appropriate shot descriptions (never as a separate block, never translated):\n${dialogueLines}` : '',
@@ -277,6 +279,10 @@ export function useClaudeGenerate(projectId) {
     const koreanDialogue = cmdSrc?.type === 'videoDirectionInput' ? (cmdSrc.data.koreanDialogue ?? '') : ''
     const englishDialogue = cmdSrc?.type === 'videoDirectionInput' ? (cmdSrc.data.englishDialogue ?? '') : ''
 
+    // Seedance 샷 수 (숫자이면 전달, 없거나 'free'면 null → Claude 자유)
+    const rawShotCount = node?.data?.promptType === 'claudeSeedance' ? node?.data?.seedanceShotCount : null
+    const shotCount = typeof rawShotCount === 'number' && rawShotCount >= 1 ? rawShotCount : null
+
     updateNodeData(nodeId, { status: 'loading', error: undefined })
 
     try {
@@ -285,7 +291,7 @@ export function useClaudeGenerate(projectId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemPrompt: cfg.system,
-          userMessage: cfg.user(anchor, command, koreanDialogue, englishDialogue),
+          userMessage: cfg.user(anchor, command, koreanDialogue, englishDialogue, shotCount),
           projectId: projectId ?? undefined,
           ...(images ? { images } : {}),
         }),
