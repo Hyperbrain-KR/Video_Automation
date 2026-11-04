@@ -176,42 +176,32 @@ export default function ClaudeNode({ id, data, selected }) {
 
       {/* Seedance 샷 수 설정 */}
       {isVideoNode && !isKling && (() => {
-        const shotCount = data.seedanceShotCount  // number | undefined
+        const shotCount = data.seedanceShotCount  // number | undefined/null = Free
         const isFree = shotCount === undefined || shotCount === null
+        const SHOT_OPTIONS = [null, 1, 2, 3, 4, 5]
         return (
-          <div className="nopan nodrag" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <span style={{ fontSize: 10, color: 'var(--t3)', flexShrink: 0 }}>샷 수</span>
-            <input
-              type="number" min={1} max={10}
-              className="nopan nodrag"
-              disabled={isFree}
-              value={isFree ? '' : shotCount}
-              onChange={e => {
-                const v = parseInt(e.target.value)
-                if (!isNaN(v) && v >= 1 && v <= 10) updateNodeData(id, { seedanceShotCount: v })
-              }}
-              placeholder="—"
-              style={{
-                width: 42, textAlign: 'center', padding: '3px 4px',
-                background: isFree ? 'transparent' : 'var(--node-bg)',
-                border: `1px solid ${isFree ? 'var(--sep1)' : 'var(--sep2)'}`,
-                borderRadius: 4, color: isFree ? 'var(--t5)' : 'var(--t1)',
-                fontSize: 11, fontFamily: 'inherit',
-                opacity: isFree ? 0.4 : 1,
-              }}
-            />
-            <button
-              className="nopan nodrag"
-              onClick={() => updateNodeData(id, { seedanceShotCount: isFree ? 3 : undefined })}
-              style={{
-                padding: '3px 8px', fontSize: 10, fontWeight: 700, borderRadius: 4,
-                fontFamily: 'inherit', cursor: 'pointer',
-                color: isFree ? '#e040fb' : 'var(--t4)',
-                background: isFree ? 'rgba(224,64,251,0.12)' : 'transparent',
-                border: `1px solid ${isFree ? 'rgba(224,64,251,0.4)' : 'var(--sep2)'}`,
-                transition: 'all 0.15s',
-              }}
-            >Free</button>
+          <div className="nopan nodrag" style={{ marginBottom: 10 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--t4)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>샷 수</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {SHOT_OPTIONS.map(opt => {
+                const active = opt === null ? isFree : shotCount === opt
+                return (
+                  <button
+                    key={opt ?? 'free'}
+                    className="nopan nodrag"
+                    onClick={() => updateNodeData(id, { seedanceShotCount: opt ?? undefined })}
+                    style={{
+                      flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
+                      borderRadius: 4, fontFamily: 'inherit', cursor: 'pointer',
+                      color: active ? '#e040fb' : 'var(--t4)',
+                      background: active ? 'rgba(224,64,251,0.12)' : 'transparent',
+                      border: `1px solid ${active ? 'rgba(224,64,251,0.4)' : 'var(--sep2)'}`,
+                      transition: 'all 0.15s',
+                    }}
+                  >{opt === null ? 'Free' : opt}</button>
+                )
+              })}
+            </div>
           </div>
         )
       })()}
