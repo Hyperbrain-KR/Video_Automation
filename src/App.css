@@ -228,19 +228,19 @@ html.theme-transitioning *::after {
 
 
 /* Claude 노드 생성 중 — 테두리 순환
-   seamless loop: dasharray total(1380) = dashoffset 변화량(1380)
-   gap 1200 > 최대 perimeter(~1063) → 대시 1개만 항상 표시 */
+   pathLength="1000" 정규화: dashoffset 0→-1000 = 항상 정확히 한 바퀴
+   노드 높이와 무관하게 seamless loop */
 @keyframes claude-border-run {
   0%   { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -1380; }
+  100% { stroke-dashoffset: -1000; }
 }
 .claude-border-runner {
   fill: none;
   stroke: #FF9040;
   stroke-width: 2;
   stroke-linecap: round;
-  stroke-dasharray: 180 1200;
-  animation: claude-border-run 3.2s linear infinite;
+  stroke-dasharray: 160 840;
+  animation: claude-border-run 2.2s linear infinite;
 }
 
 /* 연결선 숨기기 토글 */
