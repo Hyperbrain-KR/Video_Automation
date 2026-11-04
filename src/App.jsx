@@ -13,7 +13,8 @@ import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from './lib/imageDB'
 import { useProjects } from './hooks/useProjects'
 import { useAssets } from './hooks/useAssets'
-import { nodes0, edges0, buildScene, nodeTemplates, resetInProgressNodes, dataEdge } from './lib/initialCanvas'
+import { nodes0, edges0, buildScene, buildCharSection, nodeTemplates, resetInProgressNodes, dataEdge } from './lib/initialCanvas'
+import { addCharSectionRef, deleteCharSectionRef } from './lib/charSectionHandlerRef'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
 import { useVersionCheck } from './hooks/useVersionCheck'
@@ -465,6 +466,25 @@ function FlowCanvas() {
     setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350)
   }
 
+
+  // ── 캐릭터 섹션 추가/삭제 ────────────────────────────────────
+  const addCharSection = useCallback(() => {
+    pushHistory()
+    const charCount = getNodes().filter(n => n.id === 'bg-s1' || n.id.startsWith('bg-s1-')).length
+    const { nodes: newNodes, edges: newEdges } = buildCharSection(charCount + 1)
+    setNodes(nds => [...nds, ...newNodes])
+    setEdges(eds => [...eds, ...newEdges])
+  }, [pushHistory, getNodes, setNodes, setEdges])
+
+  const deleteCharSection = useCallback((uid) => {
+    if (!uid) return
+    pushHistory()
+    setNodes(nds => nds.filter(n => !n.id.endsWith(`-${uid}`)))
+    setEdges(eds => eds.filter(e => !e.id.endsWith(`-${uid}`)))
+  }, [pushHistory, setNodes, setEdges])
+
+  useEffect(() => { addCharSectionRef.current = addCharSection }, [addCharSection])
+  useEffect(() => { deleteCharSectionRef.current = deleteCharSection }, [deleteCharSection])
 
   // ── 씬 삭제 ──────────────────────────────────────────────────
   const deleteScene = useCallback((uid) => {

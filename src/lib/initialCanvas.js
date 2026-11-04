@@ -133,6 +133,44 @@ export const edges0 = [
   { id: 'e-rvp-cv', source: 'reviewVideoPrompt', target: 'claudeVideo', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
 ]
 
+// ── 캐릭터 섹션 복제 팩토리 ──────────────────────────────────────
+export const CHAR_X_STEP = 1000
+
+export function buildCharSection(charIdx) {
+  const uid = `ch${Date.now()}`
+  const x = 350 + (charIdx - 1) * CHAR_X_STEP
+  const u = uid
+
+  const nodes = [
+    { id: `bg-s1-${u}`, type: 'sectionBackground', position: { x, y: -30 },
+      data: { width: 945, height: 498, step: `Step 01 · 캐릭터 ${charIdx}`, label: '캐릭터 생성',
+        bg: 'rgba(31,65,176,0.09)', border: 'rgba(31,65,176,0.42)', accent: 'rgba(100,140,255,0.9)', headerIncluded: true },
+      selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
+    { id: `charDirection-${u}`, type: 'textInput', position: { x: x + 20, y: 20 },
+      data: { label: `캐릭터 연출 · ${charIdx}`, placeholder: '원하는 캐릭터를 설명해주세요.\n예) 20대 여성, 짧은 검은 머리...' } },
+    { id: `claudeChar-${u}`, type: 'claudeNode', position: { x: x + 310, y: 20 },
+      data: { label: '캐릭터 프롬프트 생성', description: '이미지 앵커 + 캐릭터 연출 → 캐릭터 생성 프롬프트', promptType: 'claudeChar' } },
+    { id: `reviewCharPrompt-${u}`, type: 'reviewGate', position: { x: x + 630, y: 20 },
+      data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' } },
+    { id: `higgsfieldChar-${u}`, type: 'higgsfieldNode', position: { x: x + 310, y: 270 },
+      data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' } },
+    { id: `reviewCharResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 270 },
+      data: { label: '생성된 캐릭터 리뷰', prompt: '(Higgsfield가 생성한 캐릭터 이미지 확인)' } },
+  ]
+
+  const edges = [
+    { id: `e-sa-cc-${u}`, source: 'styleAnchor', sourceHandle: 'image', target: `claudeChar-${u}`, targetHandle: 'anchor', label: '이미지 앵커', ...dataEdge },
+    { id: `e-cd-cc-${u}`, source: `charDirection-${u}`, target: `claudeChar-${u}`, targetHandle: 'command' },
+    { id: `e-cc-rcp-${u}`, source: `claudeChar-${u}`, target: `reviewCharPrompt-${u}`, targetHandle: 'left' },
+    { id: `e-rcp-hc-${u}`, source: `reviewCharPrompt-${u}`, target: `higgsfieldChar-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
+    { id: `e-rcp-cc-${u}`, source: `reviewCharPrompt-${u}`, target: `claudeChar-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+    { id: `e-hc-rcr-${u}`, source: `higgsfieldChar-${u}`, target: `reviewCharResult-${u}`, targetHandle: 'left' },
+    { id: `e-rcr-rcp-${u}`, source: `reviewCharResult-${u}`, target: `reviewCharPrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
+  ]
+
+  return { nodes, edges, uid }
+}
+
 // ── 씬 복제 팩토리 ────────────────────────────────────────────────
 export const SCENE_X_STEP = 1000
 
