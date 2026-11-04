@@ -1095,8 +1095,9 @@ export default function SceneNavBar({
     const reviewImgPmt   = liveNodes.find(n => n.id === (uid ? `reviewImagePrompt-${uid}` : 'reviewImagePrompt'))
     const reviewVidPmt   = liveNodes.find(n => n.id === (uid ? `reviewVideoPrompt-${uid}` : 'reviewVideoPrompt'))
 
-    // 진행 중인 노드 우선: loading 상태이면 그 노드로 화면 고정
-    const loadingNode = [imgNode, vidNode, claudeImgNode, claudeVidNode].find(n => n?.data?.status === 'loading')
+    // 진행 중인 노드 우선: loading/generating/slow 상태이면 그 노드로 화면 고정
+    const IN_PROGRESS = ['loading', 'generating', 'slow']
+    const loadingNode = [imgNode, vidNode, claudeImgNode, claudeVidNode].find(n => IN_PROGRESS.includes(n?.data?.status))
     if (loadingNode) {
       const w = loadingNode.measured?.width  ?? 280
       const h = loadingNode.measured?.height ?? 400

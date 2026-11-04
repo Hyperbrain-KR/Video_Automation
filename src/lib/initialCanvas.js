@@ -73,10 +73,6 @@ export const nodes0 = [
     data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' },
   },
   { id: 'higgsfieldChar', type: 'higgsfieldNode', position: { x: 660, y: 270 }, data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' } },
-  {
-    id: 'reviewCharResult', type: 'reviewGate', position: { x: 980, y: 270 },
-    data: { label: '생성된 캐릭터 리뷰', prompt: '(Higgsfield가 생성한 캐릭터 이미지 확인)' },
-  },
 
   // ── Section 2: 이미지 생성 ──────────────────────────────
   {
@@ -119,11 +115,8 @@ export const edges0 = [
   { id: 'e-cc-rcp', source: 'claudeChar', target: 'reviewCharPrompt', targetHandle: 'left' },
   { id: 'e-rcp-hc', source: 'reviewCharPrompt', target: 'higgsfieldChar', targetHandle: 'prompt', label: '승인', ...approveLabel },
   { id: 'e-rcp-cc', source: 'reviewCharPrompt', target: 'claudeChar', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-  { id: 'e-hc-rcr', source: 'higgsfieldChar', target: 'reviewCharResult', targetHandle: 'left' },
-  { id: 'e-rcr-rcp', source: 'reviewCharResult', target: 'reviewCharPrompt', targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-  { id: 'e-rcr-ci', source: 'reviewCharResult', target: 'claudeImage', targetHandle: 'anchor', label: '캐릭터 참조', ...dataEdge },
+  { id: 'e-hc-hi', source: 'higgsfieldChar', target: 'higgsfieldImage', targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge },
   { id: 'e-id-ci', source: 'imageDirection', target: 'claudeImage', targetHandle: 'command' },
-  { id: 'e-rcr-hi', source: 'reviewCharResult', target: 'higgsfieldImage', targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge },
   { id: 'e-ci-rip', source: 'claudeImage', target: 'reviewImagePrompt', targetHandle: 'left' },
   { id: 'e-rip-hi', source: 'reviewImagePrompt', target: 'higgsfieldImage', targetHandle: 'prompt', label: '승인', ...approveLabel },
   { id: 'e-rip-ci', source: 'reviewImagePrompt', target: 'claudeImage', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
@@ -154,8 +147,6 @@ export function buildCharSection(charIdx) {
       data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' } },
     { id: `higgsfieldChar-${u}`, type: 'higgsfieldNode', position: { x: x + 310, y: 270 },
       data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' } },
-    { id: `reviewCharResult-${u}`, type: 'reviewGate', position: { x: x + 630, y: 270 },
-      data: { label: '생성된 캐릭터 리뷰', prompt: '(Higgsfield가 생성한 캐릭터 이미지 확인)' } },
   ]
 
   const edges = [
@@ -164,8 +155,6 @@ export function buildCharSection(charIdx) {
     { id: `e-cc-rcp-${u}`, source: `claudeChar-${u}`, target: `reviewCharPrompt-${u}`, targetHandle: 'left' },
     { id: `e-rcp-hc-${u}`, source: `reviewCharPrompt-${u}`, target: `higgsfieldChar-${u}`, targetHandle: 'prompt', label: '승인', ...approveLabel },
     { id: `e-rcp-cc-${u}`, source: `reviewCharPrompt-${u}`, target: `claudeChar-${u}`, label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
-    { id: `e-hc-rcr-${u}`, source: `higgsfieldChar-${u}`, target: `reviewCharResult-${u}`, targetHandle: 'left' },
-    { id: `e-rcr-rcp-${u}`, source: `reviewCharResult-${u}`, target: `reviewCharPrompt-${u}`, targetHandle: 'top', label: '프롬프트 수정', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
   ]
 
   return { nodes, edges, uid }
