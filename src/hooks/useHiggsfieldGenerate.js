@@ -213,9 +213,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           const [fId, eId] = await Promise.all([
             firstCharId ? loadCharFrame(firstCharId)
               : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
+              : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
               : Promise.resolve(null),
             endCharId ? loadCharFrame(endCharId)
               : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
+              : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
               : Promise.resolve(null),
           ])
           if (fId) firstFrameMediaId = fId
