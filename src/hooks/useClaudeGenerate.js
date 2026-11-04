@@ -241,13 +241,7 @@ export function useClaudeGenerate(projectId) {
         if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
         return edge.sourceHandle === 'video' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
       }
-      if (src.type === 'scriptImport') {
-        const thisNode = currentNodes.find(n => n.id === nodeId)
-        const isVideoPrompt = thisNode?.data?.promptType === 'claudeVideo' || thisNode?.data?.promptType === 'claudeSeedance'
-        if (isVideoPrompt) return src.data.imageAnchor || src.data.videoAnchor || ''
-        return edge.sourceHandle === 'videoAnchor' ? (src.data.videoAnchor || '') : (src.data.imageAnchor || '')
-      }
-      if (src.type === 'textInput' || src.type === 'videoDirectionInput') return src.data.value || ''
+if (src.type === 'textInput' || src.type === 'videoDirectionInput') return src.data.value || ''
       if (src.type === 'reviewGate') return src.data.prompt || ''
       return ''
     }

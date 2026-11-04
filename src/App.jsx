@@ -28,7 +28,6 @@ import VideoDirectionNode from './nodes/VideoDirectionNode'
 import ClaudeNode from './nodes/ClaudeNode'
 import HiggsfieldNode from './nodes/HiggsfieldNode'
 import SectionBackgroundNode from './nodes/SectionBackgroundNode'
-import ScriptImportNode from './nodes/ScriptImportNode'
 import ReferenceImageNode from './nodes/ReferenceImageNode'
 import ContextMenu from './components/ContextMenu'
 import SceneNavBar from './components/SceneNavBar'
@@ -75,7 +74,7 @@ const nodeTypes = {
   claudeNode: ClaudeNode,
   higgsfieldNode: HiggsfieldNode,
   sectionBackground: SectionBackgroundNode,
-  scriptImport: ScriptImportNode,
+
   referenceImage: ReferenceImageNode,
 }
 

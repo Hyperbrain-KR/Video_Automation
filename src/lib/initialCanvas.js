@@ -25,8 +25,7 @@ export const dataEdge = {
 
 // ── Node templates for context menu ───────────────────────────────
 export const nodeTemplates = {
-  scriptImport: { type: 'scriptImport', data: {} },
-  textInput: { type: 'textInput', data: { label: '텍스트 입력', placeholder: '내용을 입력하세요...' } },
+textInput: { type: 'textInput', data: { label: '텍스트 입력', placeholder: '내용을 입력하세요...' } },
   claudeNode: { type: 'claudeNode', data: { label: 'Claude', description: '입력 → 프롬프트 생성' } },
   higgsfieldImage: { type: 'higgsfieldNode', data: { label: '이미지 생성', type: 'image' } },
   higgsfieldVideo: { type: 'higgsfieldNode', data: { label: '비디오 생성', type: 'video' } },
@@ -56,8 +55,7 @@ export const nodes0 = [
       bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
-  { id: 'scriptImport', type: 'scriptImport', position: { x: -320, y: 200 }, data: {} },
-  { id: 'styleAnchor', type: 'styleAnchorInput', position: { x: 40, y: -80 }, data: {} },
+{ id: 'styleAnchor', type: 'styleAnchorInput', position: { x: 40, y: -80 }, data: {} },
 
   // ── Section 1: 캐릭터 생성 ──────────────────────────────
   {
