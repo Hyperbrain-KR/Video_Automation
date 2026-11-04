@@ -58,7 +58,9 @@ export default function ClaudeNode({ id, data, selected }) {
   const isVideoNode = VIDEO_PROMPT_TYPES.includes(data.promptType)
   const isKling = data.promptType !== 'claudeSeedance'
 
-  const selectedGlow = selected ? {
+  const isLoading = status === 'loading'
+
+  const selectedGlow = selected && !isLoading ? {
     borderColor: '#29D9D9',
     boxShadow: [
       'inset 0 1px 0 rgba(255,255,255,0.16)',
@@ -67,9 +69,14 @@ export default function ClaudeNode({ id, data, selected }) {
       '0 0 40px rgba(41,217,217,0.4)',
       '0 8px 32px rgba(0,0,0,0.55)',
     ].join(', '),
+  } : isLoading ? {
+    borderColor: 'rgba(255,144,64,0.7)',
+    boxShadow: [
+      '0 0 0 1px rgba(255,144,64,0.25)',
+      '0 0 20px rgba(255,144,64,0.15)',
+      '0 8px 32px rgba(0,0,0,0.45)',
+    ].join(', '),
   } : {}
-
-  const isLoading = status === 'loading'
   const isDone = status === 'done'
 
   const btnStyle = {
