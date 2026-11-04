@@ -102,7 +102,8 @@ export default function ClaudeNode({ id, data, selected }) {
   }
 
   return (
-    <div style={{ ...nodeBase, ...selectedGlow }}>
+    <div className={isLoading ? 'claude-node-loading' : ''} style={{ ...nodeBase, ...selectedGlow }}>
+      {isLoading && <div className="claude-node-loading-blob" />}
 
       {/* 타겟 핸들: 앵커(상단), 명령(하단) */}
       <Handle
@@ -117,6 +118,9 @@ export default function ClaudeNode({ id, data, selected }) {
         position={Position.Left}
         style={{ top: '68%', background: 'rgba(212,98,42,0.5)', border: '1.5px solid #D4622A' }}
       />
+
+      {/* 콘텐츠 래퍼 — blob 위에 올라오도록 */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
@@ -280,6 +284,8 @@ export default function ClaudeNode({ id, data, selected }) {
           50% { opacity: 0.3; }
         }
       `}</style>
+
+      </div>{/* 콘텐츠 래퍼 끝 */}
     </div>
   )
 }
