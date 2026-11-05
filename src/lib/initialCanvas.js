@@ -43,29 +43,29 @@ const S2_Y = 710   // Step02 노드 y
 const S3_Y = 1420  // Step03 노드 y
 
 // 가로 x 오프셋 (섹션 기준)
-const X_DIR   = 20   // 연출 입력
+const X_DIR    = 20   // 연출 입력
 const X_CLAUDE = 310  // Claude 노드
 const X_REVIEW = 630  // 리뷰 게이트
-const X_HF     = 960  // Higgsfield 노드 (가로 끝)
+const X_HF     = 1100 // Higgsfield 노드 (가로 끝)
 
 // ── 초기 노드 ─────────────────────────────────────────────────────
 export const nodes0 = [
   // ── 섹션 배경 패널 ───────────────────────────────────────
   {
     id: 'bg-s1', type: 'sectionBackground', position: { x: 350, y: -30 },
-    data: { width: 1280, height: 680, step: 'Step 01', label: '캐릭터 생성',
+    data: { width: 1420, height: 680, step: 'Step 01', label: '캐릭터 생성',
       bg: 'rgba(31,65,176,0.09)', border: 'rgba(31,65,176,0.42)', accent: 'rgba(100,140,255,0.9)', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
   {
     id: 'bg-s2', type: 'sectionBackground', position: { x: 350, y: 680 },
-    data: { width: 1280, height: 680, step: 'Step 02 · 씬 1', label: '이미지 생성',
+    data: { width: 1420, height: 680, step: 'Step 02 · 씬 1', label: '이미지 생성',
       bg: 'rgba(41,217,217,0.05)', border: 'rgba(41,217,217,0.32)', accent: '#29D9D9', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
   {
     id: 'bg-s3', type: 'sectionBackground', position: { x: 350, y: 1390 },
-    data: { width: 1280, height: 700, step: 'Step 03 · 씬 1', label: '비디오 생성',
+    data: { width: 1420, height: 700, step: 'Step 03 · 씬 1', label: '비디오 생성',
       bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
@@ -148,7 +148,7 @@ export const edges0 = [
 ]
 
 // ── 캐릭터 섹션 복제 팩토리 ──────────────────────────────────────
-export const CHAR_X_STEP = 1350
+export const CHAR_X_STEP = 1500
 
 export function buildCharSection(charIdx) {
   const uid = `ch${Date.now()}`
@@ -157,7 +157,7 @@ export function buildCharSection(charIdx) {
 
   const nodes = [
     { id: `bg-s1-${u}`, type: 'sectionBackground', position: { x, y: -30 },
-      data: { width: 1280, height: 680, step: `Step 01 · 캐릭터 ${charIdx}`, label: '캐릭터 생성',
+      data: { width: 1420, height: 680, step: `Step 01 · 캐릭터 ${charIdx}`, label: '캐릭터 생성',
         bg: 'rgba(31,65,176,0.09)', border: 'rgba(31,65,176,0.42)', accent: 'rgba(100,140,255,0.9)', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
     { id: `charDirection-${u}`, type: 'textInput', position: { x: x + X_DIR, y: S1_Y },
@@ -182,7 +182,7 @@ export function buildCharSection(charIdx) {
 }
 
 // ── 씬 복제 팩토리 ────────────────────────────────────────────────
-export const SCENE_X_STEP = 1350
+export const SCENE_X_STEP = 1500
 
 export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
   const uid = `sc${Date.now()}`
@@ -191,11 +191,11 @@ export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
 
   const nodes = [
     { id: `bg-s2-${u}`, type: 'sectionBackground', position: { x, y: 680 },
-      data: { width: 1280, height: 680, step: `Step 02 · 씬 ${sceneIdx}`, label: '이미지 생성',
+      data: { width: 1420, height: 680, step: `Step 02 · 씬 ${sceneIdx}`, label: '이미지 생성',
         bg: 'rgba(41,217,217,0.05)', border: 'rgba(41,217,217,0.32)', accent: '#29D9D9', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
     { id: `bg-s3-${u}`, type: 'sectionBackground', position: { x, y: 1390 },
-      data: { width: 1280, height: 700, step: `Step 03 · 씬 ${sceneIdx}`, label: '비디오 생성',
+      data: { width: 1420, height: 700, step: `Step 03 · 씬 ${sceneIdx}`, label: '비디오 생성',
         bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
     { id: `imageDirection-${u}`, type: 'textInput', position: { x: x + X_DIR, y: S2_Y },
