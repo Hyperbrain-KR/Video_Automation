@@ -218,6 +218,12 @@ function FlowCanvas() {
           return { ...n, type: 'videoDirectionInput' }
         if (approvedMap[n.id])
           return { ...n, data: { ...n.data, approved: true } }
+        // higgsfieldChar → higgsfieldImage ref 전파 버그로 오염된 resultUrl 제거
+        // generatedAt 없이 resultUrl만 있으면 캐릭터 전파에 의한 오염
+        if ((n.id === 'higgsfieldImage' || n.id.startsWith('higgsfieldImage-')) &&
+            n.data?.resultUrl && !n.data?.generatedAt) {
+          return { ...n, data: { ...n.data, resultUrl: null, jobId: null } }
+        }
         return n
       })
   }, [normalizeSectionNodes])
@@ -237,6 +243,13 @@ function FlowCanvas() {
       const exists = filtered.some(e => e.id === edgeId || (e.source === n.id && e.target === targetId && e.targetHandle === 'image'))
       if (!exists) toAdd.push({ id: edgeId, source: n.id, target: targetId, targetHandle: 'image', label: '첫 프레임', ...dataEdge })
     })
+    // 구 캔버스에 e-hc-hi 없으면 추가 (higgsfieldChar → higgsfieldImage 참조 엣지)
+    const hcHiExists = filtered.some(e => e.id === 'e-hc-hi' || (e.source === 'higgsfieldChar' && e.target === 'higgsfieldImage' && e.targetHandle === 'ref'))
+    const hasChar = normalizedNodes.some(n => n.id === 'higgsfieldChar')
+    const hasImg  = normalizedNodes.some(n => n.id === 'higgsfieldImage')
+    if (!hcHiExists && hasChar && hasImg) {
+      toAdd.push({ id: 'e-hc-hi', source: 'higgsfieldChar', target: 'higgsfieldImage', targetHandle: 'ref', label: '캐릭터 참조', ...dataEdge })
+    }
     return [...filtered, ...toAdd]
   }, [])
 

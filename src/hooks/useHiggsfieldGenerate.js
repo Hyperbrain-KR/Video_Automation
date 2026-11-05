@@ -314,7 +314,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: newHistory, resultIndex: newHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
 
-      getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId && e.targetHandle !== 'ref')
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
 
     } catch (err) {
@@ -360,7 +360,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const resumeNewHistory = [...resumePrevHistory, resultUrl].slice(-5)
       updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: resumeNewHistory, resultIndex: resumeNewHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
       window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
-      getEdges().filter(e => e.source === nodeId && e.target !== nodeId)
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId && e.targetHandle !== 'ref')
         .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
     } catch (err) {
       console.error(`[재개 폴링 실패]`, err.message)

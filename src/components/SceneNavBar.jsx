@@ -1076,6 +1076,7 @@ export default function SceneNavBar({
           index: i + 1,
           uid,
           bgX: bg.position.x,
+          bgY: bg.position.y,
           imgStatus:    imgNode?.data?.status    ?? 'idle',
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
@@ -1136,7 +1137,7 @@ export default function SceneNavBar({
       )
     } else {
       fitBounds(
-        { x: scene.bgX, y: 680, width: 1420, height: 1500 },
+        { x: scene.bgX, y: scene.bgY ?? 680, width: 1420, height: 1500 },
         { duration: 420, padding: 0.05 },
       )
     }
