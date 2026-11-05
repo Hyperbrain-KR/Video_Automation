@@ -1137,7 +1137,7 @@ export default function SceneNavBar({
       )
     } else {
       fitBounds(
-        { x: scene.bgX, y: scene.bgY ?? 680, width: 1600, height: 1500 },
+        { x: scene.bgX, y: scene.bgY ?? -30, width: 3120, height: 800 },
         { duration: 420, padding: 0.05 },
       )
     }

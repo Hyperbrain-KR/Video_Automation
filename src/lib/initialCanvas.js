@@ -37,91 +37,96 @@ export const nodeTemplates = {
 // ── 레이아웃 상수 ─────────────────────────────────────────────────
 // 각 단계(Step)는 가로로 한 줄 배치:
 //   [연출입력] → [Claude] → [리뷰] → [Higgsfield]
-// 섹션 간격: Step01 y=-30~650, Step02 y=680~1360, Step03 y=1390~2090
-const S1_Y = 20    // Step01 노드 y
-const S2_Y = 710   // Step02 노드 y
-const S3_Y = 1420  // Step03 노드 y
+// 열 x 시작 좌표 (Step별 고정 열)
+const S01_X = 350   // Step01 · 캐릭터 열
+const S02_X = 2050  // Step02 · 이미지 열
+const S03_X = 3750  // Step03 · 비디오 열
 
-// 가로 x 오프셋 (섹션 기준)
+// 모든 단계 노드 y는 동일 (씬1에서 세 열이 한 줄로 보임)
+const NODE_Y = 20
+export const BG_Y  = -30  // 섹션 배경 y
+
+// 열 내 가로 x 오프셋
 const X_DIR    = 20   // 연출 입력
 const X_CLAUDE = 310  // Claude 노드
 const X_REVIEW = 630  // 리뷰 게이트
-const X_HF     = 1100 // Higgsfield 노드 (가로 끝)
+const X_HF     = 1100 // Higgsfield 노드
 
 // ── 초기 노드 ─────────────────────────────────────────────────────
 export const nodes0 = [
   // ── 섹션 배경 패널 ───────────────────────────────────────
+  // bg-s1 (캐릭터 열) · bg-s2 (이미지 열) · bg-s3 (비디오 열) 모두 같은 y → 씬1 한 줄 배치
   {
-    id: 'bg-s1', type: 'sectionBackground', position: { x: 350, y: -30 },
-    data: { width: 1420, height: 680, step: 'Step 01', label: '캐릭터 생성',
+    id: 'bg-s1', type: 'sectionBackground', position: { x: S01_X, y: BG_Y },
+    data: { width: 1420, height: 700, step: 'Step 01', label: '캐릭터 생성',
       bg: 'rgba(31,65,176,0.09)', border: 'rgba(31,65,176,0.42)', accent: 'rgba(100,140,255,0.9)', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
   {
-    id: 'bg-s2', type: 'sectionBackground', position: { x: 350, y: 680 },
-    data: { width: 1420, height: 680, step: 'Step 02 · 씬 1', label: '이미지 생성',
+    id: 'bg-s2', type: 'sectionBackground', position: { x: S02_X, y: BG_Y },
+    data: { width: 1420, height: 700, step: 'Step 02 · 씬 1', label: '이미지 생성',
       bg: 'rgba(41,217,217,0.05)', border: 'rgba(41,217,217,0.32)', accent: '#29D9D9', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
   {
-    id: 'bg-s3', type: 'sectionBackground', position: { x: 350, y: 1390 },
+    id: 'bg-s3', type: 'sectionBackground', position: { x: S03_X, y: BG_Y },
     data: { width: 1420, height: 700, step: 'Step 03 · 씬 1', label: '비디오 생성',
       bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)', headerIncluded: true },
     selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0,
   },
   { id: 'styleAnchor', type: 'styleAnchorInput', position: { x: 40, y: -80 }, data: {} },
 
-  // ── Step 01: 캐릭터 생성 (가로 한 줄) ────────────────────
+  // ── Step 01: 캐릭터 생성 (S01_X 열, 가로 한 줄) ────────────────────
   {
-    id: 'charDirection', type: 'textInput', position: { x: 350 + X_DIR, y: S1_Y },
+    id: 'charDirection', type: 'textInput', position: { x: S01_X + X_DIR, y: NODE_Y },
     data: { label: '캐릭터 연출 입력', placeholder: '원하는 캐릭터를 설명해주세요.\n예) 20대 여성, 짧은 검은 머리...' },
   },
   {
-    id: 'claudeChar', type: 'claudeNode', position: { x: 350 + X_CLAUDE, y: S1_Y },
+    id: 'claudeChar', type: 'claudeNode', position: { x: S01_X + X_CLAUDE, y: NODE_Y },
     data: { label: '캐릭터 프롬프트 생성', description: '이미지 앵커 + 캐릭터 연출 → 캐릭터 생성 프롬프트', promptType: 'claudeChar' },
   },
   {
-    id: 'reviewCharPrompt', type: 'reviewGate', position: { x: 350 + X_REVIEW, y: S1_Y },
+    id: 'reviewCharPrompt', type: 'reviewGate', position: { x: S01_X + X_REVIEW, y: NODE_Y },
     data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' },
   },
   {
-    id: 'higgsfieldChar', type: 'higgsfieldNode', position: { x: 350 + X_HF, y: S1_Y },
+    id: 'higgsfieldChar', type: 'higgsfieldNode', position: { x: S01_X + X_HF, y: NODE_Y },
     data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' },
   },
 
-  // ── Step 02: 이미지 생성 (가로 한 줄) ────────────────────
+  // ── Step 02: 이미지 생성 (S02_X 열, 가로 한 줄) ────────────────────
   {
-    id: 'imageDirection', type: 'textInput', position: { x: 350 + X_DIR, y: S2_Y },
+    id: 'imageDirection', type: 'textInput', position: { x: S02_X + X_DIR, y: NODE_Y },
     data: { label: '이미지 연출 입력', placeholder: '원하는 장면을 설명해주세요.\n예) 캐릭터가 카페 창가에 앉아 커피를 마시는 장면...' },
   },
   {
-    id: 'claudeImage', type: 'claudeNode', position: { x: 350 + X_CLAUDE, y: S2_Y },
+    id: 'claudeImage', type: 'claudeNode', position: { x: S02_X + X_CLAUDE, y: NODE_Y },
     data: { label: '이미지 프롬프트 생성', description: '캐릭터 참조 + 이미지 연출 → 첫 프레임 이미지 프롬프트', promptType: 'claudeImage' },
   },
   {
-    id: 'reviewImagePrompt', type: 'reviewGate', position: { x: 350 + X_REVIEW, y: S2_Y },
+    id: 'reviewImagePrompt', type: 'reviewGate', position: { x: S02_X + X_REVIEW, y: NODE_Y },
     data: { label: '이미지 프롬프트 리뷰', prompt: '(Claude가 생성한 이미지 프롬프트)' },
   },
   {
-    id: 'higgsfieldImage', type: 'higgsfieldNode', position: { x: 350 + X_HF, y: S2_Y },
+    id: 'higgsfieldImage', type: 'higgsfieldNode', position: { x: S02_X + X_HF, y: NODE_Y },
     data: { label: '이미지 생성', type: 'image', hasRef: true, model: 'nano_banana_pro' },
   },
 
-  // ── Step 03: 비디오 생성 (가로 한 줄) ────────────────────
+  // ── Step 03: 비디오 생성 (S03_X 열, 가로 한 줄) ────────────────────
   {
-    id: 'vidDirection', type: 'videoDirectionInput', position: { x: 350 + X_DIR, y: S3_Y },
+    id: 'vidDirection', type: 'videoDirectionInput', position: { x: S03_X + X_DIR, y: NODE_Y },
     data: { label: '비디오 연출 입력', placeholder: '원하는 영상 연출을 설명해주세요.\n예) 카메라가 천천히 줌인하며...' },
   },
   {
-    id: 'claudeVideo', type: 'claudeNode', position: { x: 350 + X_CLAUDE, y: S3_Y },
+    id: 'claudeVideo', type: 'claudeNode', position: { x: S03_X + X_CLAUDE, y: NODE_Y },
     data: { label: '비디오 프롬프트 생성', description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트', promptType: 'claudeVideo' },
   },
   {
-    id: 'reviewVideoPrompt', type: 'reviewGate', position: { x: 350 + X_REVIEW, y: S3_Y },
+    id: 'reviewVideoPrompt', type: 'reviewGate', position: { x: S03_X + X_REVIEW, y: NODE_Y },
     data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 },
   },
   {
-    id: 'higgsfieldVideo', type: 'higgsfieldNode', position: { x: 350 + X_HF, y: S3_Y },
+    id: 'higgsfieldVideo', type: 'higgsfieldNode', position: { x: S03_X + X_HF, y: NODE_Y },
     data: { label: '비디오 생성', type: 'video' },
   },
 ]
@@ -147,26 +152,26 @@ export const edges0 = [
   { id: 'e-rvp-cv', source: 'reviewVideoPrompt', target: 'claudeVideo', label: '재생성', style: { stroke: '#E34054', strokeWidth: 1.5 }, animated: true, ...rejectLabel },
 ]
 
-// ── 캐릭터 섹션 복제 팩토리 ──────────────────────────────────────
-export const CHAR_X_STEP = 1500
+// ── 캐릭터 섹션 복제 팩토리 (캐릭터는 아래로 쌓임) ──────────────────
+export const CHAR_Y_STEP = 1500
 
 export function buildCharSection(charIdx) {
   const uid = `ch${Date.now()}`
-  const x = 350 + (charIdx - 1) * CHAR_X_STEP
+  const y_off = (charIdx - 1) * CHAR_Y_STEP  // 캐릭터 추가 시 아래로 이동
   const u = uid
 
   const nodes = [
-    { id: `bg-s1-${u}`, type: 'sectionBackground', position: { x, y: -30 },
-      data: { width: 1420, height: 680, step: `Step 01 · 캐릭터 ${charIdx}`, label: '캐릭터 생성',
+    { id: `bg-s1-${u}`, type: 'sectionBackground', position: { x: S01_X, y: BG_Y + y_off },
+      data: { width: 1420, height: 700, step: `Step 01 · 캐릭터 ${charIdx}`, label: '캐릭터 생성',
         bg: 'rgba(31,65,176,0.09)', border: 'rgba(31,65,176,0.42)', accent: 'rgba(100,140,255,0.9)', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
-    { id: `charDirection-${u}`, type: 'textInput', position: { x: x + X_DIR, y: S1_Y },
+    { id: `charDirection-${u}`, type: 'textInput', position: { x: S01_X + X_DIR, y: NODE_Y + y_off },
       data: { label: `캐릭터 연출 · ${charIdx}`, placeholder: '원하는 캐릭터를 설명해주세요.\n예) 20대 여성, 짧은 검은 머리...' } },
-    { id: `claudeChar-${u}`, type: 'claudeNode', position: { x: x + X_CLAUDE, y: S1_Y },
+    { id: `claudeChar-${u}`, type: 'claudeNode', position: { x: S01_X + X_CLAUDE, y: NODE_Y + y_off },
       data: { label: '캐릭터 프롬프트 생성', description: '이미지 앵커 + 캐릭터 연출 → 캐릭터 생성 프롬프트', promptType: 'claudeChar' } },
-    { id: `reviewCharPrompt-${u}`, type: 'reviewGate', position: { x: x + X_REVIEW, y: S1_Y },
+    { id: `reviewCharPrompt-${u}`, type: 'reviewGate', position: { x: S01_X + X_REVIEW, y: NODE_Y + y_off },
       data: { label: '캐릭터 프롬프트 리뷰', prompt: '(Claude가 생성한 캐릭터 프롬프트)' } },
-    { id: `higgsfieldChar-${u}`, type: 'higgsfieldNode', position: { x: x + X_HF, y: S1_Y },
+    { id: `higgsfieldChar-${u}`, type: 'higgsfieldNode', position: { x: S01_X + X_HF, y: NODE_Y + y_off },
       data: { label: '캐릭터 생성', type: 'image', model: 'gpt_image_2', quality: 'high', aspectRatio: '9:16' } },
   ]
 
@@ -187,38 +192,38 @@ export const SCENE_Y_STEP = 1500   // 씬은 아래로 쌓임
 export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
   const uid = `sc${Date.now()}`
   const y_off = (sceneIdx - 1) * SCENE_Y_STEP  // 씬 번호에 따라 아래로 이동
-  const x = 350                                  // 모든 씬 동일한 x
   const u = uid
 
   const nodes = [
-    { id: `bg-s2-${u}`, type: 'sectionBackground', position: { x, y: 680 + y_off },
-      data: { width: 1420, height: 680, step: `Step 02 · 씬 ${sceneIdx}`, label: '이미지 생성',
+    // 이미지 열(S02_X), 비디오 열(S03_X) — 같은 y에 나란히
+    { id: `bg-s2-${u}`, type: 'sectionBackground', position: { x: S02_X, y: BG_Y + y_off },
+      data: { width: 1420, height: 700, step: `Step 02 · 씬 ${sceneIdx}`, label: '이미지 생성',
         bg: 'rgba(41,217,217,0.05)', border: 'rgba(41,217,217,0.32)', accent: '#29D9D9', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
-    { id: `bg-s3-${u}`, type: 'sectionBackground', position: { x, y: 1390 + y_off },
+    { id: `bg-s3-${u}`, type: 'sectionBackground', position: { x: S03_X, y: BG_Y + y_off },
       data: { width: 1420, height: 700, step: `Step 03 · 씬 ${sceneIdx}`, label: '비디오 생성',
         bg: 'rgba(100,40,200,0.08)', border: 'rgba(130,60,230,0.38)', accent: 'rgba(170,110,255,1)', headerIncluded: true },
       selectable: false, draggable: true, dragHandle: '.section-drag-handle', focusable: false, zIndex: 0 },
-    { id: `imageDirection-${u}`, type: 'textInput', position: { x: x + X_DIR, y: S2_Y + y_off },
+    { id: `imageDirection-${u}`, type: 'textInput', position: { x: S02_X + X_DIR, y: NODE_Y + y_off },
       data: { label: `이미지 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 장면을 설명해주세요...' } },
-    { id: `claudeImage-${u}`, type: 'claudeNode', position: { x: x + X_CLAUDE, y: S2_Y + y_off },
+    { id: `claudeImage-${u}`, type: 'claudeNode', position: { x: S02_X + X_CLAUDE, y: NODE_Y + y_off },
       data: { label: '이미지 프롬프트 생성', description: '캐릭터 참조 + 이미지 연출 → 첫 프레임 이미지 프롬프트', promptType: 'claudeImage' } },
-    { id: `reviewImagePrompt-${u}`, type: 'reviewGate', position: { x: x + X_REVIEW, y: S2_Y + y_off },
+    { id: `reviewImagePrompt-${u}`, type: 'reviewGate', position: { x: S02_X + X_REVIEW, y: NODE_Y + y_off },
       data: { label: '이미지 프롬프트 리뷰', prompt: '(Claude가 생성한 이미지 프롬프트)' } },
-    { id: `higgsfieldImage-${u}`, type: 'higgsfieldNode', position: { x: x + X_HF, y: S2_Y + y_off },
+    { id: `higgsfieldImage-${u}`, type: 'higgsfieldNode', position: { x: S02_X + X_HF, y: NODE_Y + y_off },
       data: { label: '이미지 생성', type: 'image', hasRef: true,
         model: imgDef.model ?? 'nano_banana_pro',
         quality: imgDef.quality ?? '1k',
         aspectRatio: imgDef.aspectRatio ?? 'auto',
       } },
-    { id: `vidDirection-${u}`, type: 'videoDirectionInput', position: { x: x + X_DIR, y: S3_Y + y_off },
+    { id: `vidDirection-${u}`, type: 'videoDirectionInput', position: { x: S03_X + X_DIR, y: NODE_Y + y_off },
       data: { label: `비디오 연출 · 씬 ${sceneIdx}`, placeholder: '원하는 영상 연출을 설명해주세요...' } },
-    { id: `claudeVideo-${u}`, type: 'claudeNode', position: { x: x + X_CLAUDE, y: S3_Y + y_off },
+    { id: `claudeVideo-${u}`, type: 'claudeNode', position: { x: S03_X + X_CLAUDE, y: NODE_Y + y_off },
       data: { label: '비디오 프롬프트 생성', description: '비디오 앵커 + 연출 입력 → 비디오 생성 프롬프트',
         promptType: vidDef.videoModel === 'seedance_2_0' ? 'claudeSeedance' : 'claudeVideo' } },
-    { id: `reviewVideoPrompt-${u}`, type: 'reviewGate', position: { x: x + X_REVIEW, y: S3_Y + y_off },
+    { id: `reviewVideoPrompt-${u}`, type: 'reviewGate', position: { x: S03_X + X_REVIEW, y: NODE_Y + y_off },
       data: { label: '비디오 프롬프트 리뷰', prompt: '(Claude가 생성한 비디오 프롬프트)', charLimit: 2500 } },
-    { id: `higgsfieldVideo-${u}`, type: 'higgsfieldNode', position: { x: x + X_HF, y: S3_Y + y_off },
+    { id: `higgsfieldVideo-${u}`, type: 'higgsfieldNode', position: { x: S03_X + X_HF, y: NODE_Y + y_off },
       data: { label: '비디오 생성', type: 'video',
         videoModel: vidDef.videoModel ?? 'kling3_0',
         videoMode: vidDef.videoMode ?? 'pro',
