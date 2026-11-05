@@ -13,7 +13,7 @@ import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from './lib/imageDB'
 import { useProjects } from './hooks/useProjects'
 import { useAssets } from './hooks/useAssets'
-import { nodes0, edges0, buildScene, buildCharSection, nodeTemplates, resetInProgressNodes, dataEdge } from './lib/initialCanvas'
+import { nodes0, edges0, buildScene, buildCharSection, nodeTemplates, resetInProgressNodes, dataEdge, SCENE_Y_STEP } from './lib/initialCanvas'
 import { addCharSectionRef, deleteCharSectionRef } from './lib/charSectionHandlerRef'
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
@@ -510,8 +510,11 @@ function FlowCanvas() {
 
   // ── 씬 추가 ──────────────────────────────────────────────────
   const addScene = useCallback(() => {
-    const sceneIdx = getNodes().filter(n => n.data?.step?.includes('Step 02')).length + 1
-    const { nodes: newNodes, edges: newEdges } = buildScene(sceneIdx, projectDefaults.image, projectDefaults.video)
+    const bg2Nodes = getNodes().filter(n => n.id === 'bg-s2' || n.id.startsWith('bg-s2-'))
+    const maxBgY = bg2Nodes.length ? Math.max(...bg2Nodes.map(n => n.position.y)) : 680 - SCENE_Y_STEP
+    // 삭제로 생긴 갭을 건너뛰기 위해 max y 기준으로 다음 위치 계산
+    const nextSceneIdx = Math.ceil((maxBgY - 680) / SCENE_Y_STEP) + 2
+    const { nodes: newNodes, edges: newEdges } = buildScene(nextSceneIdx, projectDefaults.image, projectDefaults.video)
     setNodes(nds => [...nds, ...newNodes])
     setEdges(eds => [...eds, ...newEdges])
   }, [getNodes, setNodes, setEdges, projectDefaults])

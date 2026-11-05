@@ -1067,7 +1067,7 @@ export default function SceneNavBar({
   const scenes = useMemo(() => {
     return nodes
       .filter(n => n.id === 'bg-s2' || n.id.startsWith('bg-s2-'))
-      .sort((a, b) => a.position.x - b.position.x)
+      .sort((a, b) => a.position.y - b.position.y)
       .map((bg, i) => {
         const uid         = bg.id === 'bg-s2' ? null : bg.id.replace('bg-s2-', '')
         const imgNode     = nodes.find(n => n.id === (uid ? `higgsfieldImage-${uid}` : 'higgsfieldImage'))
@@ -1137,7 +1137,7 @@ export default function SceneNavBar({
       )
     } else {
       fitBounds(
-        { x: scene.bgX, y: scene.bgY ?? 680, width: 1420, height: 1500 },
+        { x: scene.bgX, y: scene.bgY ?? 680, width: 1600, height: 1500 },
         { duration: 420, padding: 0.05 },
       )
     }

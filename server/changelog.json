@@ -2,6 +2,8 @@
   {
     "date": "2026-11-05",
     "items": [
+      "[NEW][UPD] 씬 추가 방향 변경 — 씬이 오른쪽으로 늘어나는 대신 아래로 쌓임(SCENE_Y_STEP=1500), SceneNavBar 씬 정렬도 y 좌표 기준으로 변경",
+      "[FIX] 씬 삭제 후 재추가 시 위치 충돌 방지 — 기존 max y 기준으로 다음 씬 위치 계산, 중간 씬 삭제 후 갭 발생 시에도 겹치지 않음",
       "[FIX] 씬 썸네일에 캐릭터 이미지가 표시되던 버그 수정 — higgsfieldChar 생성 완료 시 ref 엣지를 통해 higgsfieldImage.resultUrl이 덮어씌워지던 전파 버그 수정",
       "[FIX] 씬 이동 단축키 구 캔버스 호환 — 폴백 뷰포트의 y 좌표가 680 고정이어서 구 캔버스(bg-s2 y=528)에서 노드가 뷰포트 위로 잘리던 문제 수정, 이제 bg-s2 실제 y 좌표 사용",
       "[FIX] 저장된 캔버스 로드 시 오염된 higgsfieldImage.resultUrl 자동 정리 — generatedAt 없이 resultUrl만 있는 경우 캐릭터 전파에 의한 오염으로 판단하고 제거",
