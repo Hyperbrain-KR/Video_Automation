@@ -153,7 +153,7 @@ export const edges0 = [
 ]
 
 // ── 캐릭터 섹션 복제 팩토리 (캐릭터는 아래로 쌓임) ──────────────────
-export const CHAR_Y_STEP = 500
+export const CHAR_Y_STEP = 1000
 
 export function buildCharSection(charIdx) {
   const uid = `ch${Date.now()}`
@@ -187,7 +187,7 @@ export function buildCharSection(charIdx) {
 }
 
 // ── 씬 복제 팩토리 ────────────────────────────────────────────────
-export const SCENE_Y_STEP = 500    // 씬은 아래로 쌓임
+export const SCENE_Y_STEP = 1000   // 씬은 아래로 쌓임
 
 export function buildScene(sceneIdx, imgDef = {}, vidDef = {}) {
   const uid = `sc${Date.now()}`
