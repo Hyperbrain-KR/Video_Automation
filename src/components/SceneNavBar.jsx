@@ -68,7 +68,7 @@ function loadCreditsByProject() {
 }
 
 function saveCreditsByProject(map) {
-  try { localStorage.setItem(CREDITS_KEY, JSON.stringify(map)) } catch {}
+  try { localStorage.setItem(CREDITS_KEY, JSON.stringify(map)) } catch { /* noop */ }
 }
 
 function loadFolderData() {
@@ -79,7 +79,7 @@ function loadFolderData() {
 }
 
 function saveFolderData(data) {
-  try { localStorage.setItem(FOLDER_KEY, JSON.stringify(data)) } catch {}
+  try { localStorage.setItem(FOLDER_KEY, JSON.stringify(data)) } catch { /* noop */ }
 }
 
 function groupByDate(projects) {
@@ -903,6 +903,7 @@ function SceneCard({ scene, onClick, onDelete }) {
   const thumbAttempted = React.useRef(false)
   React.useEffect(() => {
     if (!vidResultUrl || imgResultUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVidThumb(null)
       thumbAttempted.current = false
       return
@@ -1057,6 +1058,7 @@ export default function SceneNavBar({
   // 현재 프로젝트 크레딧이 바뀔 때마다 localStorage에 저장
   useEffect(() => {
     if (!activeProject?.id) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCreditsByProject(prev => {
       const updated = { ...prev, [activeProject.id]: totalCredits }
       saveCreditsByProject(updated)
