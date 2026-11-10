@@ -23,7 +23,7 @@ export function useVersionCheck() {
           setChangelog(data.changelog ?? [])
           setHasUpdate(true)
         }
-      } catch {}
+      } catch { /* noop */ }
     }
 
     check()

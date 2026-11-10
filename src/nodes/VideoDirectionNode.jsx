@@ -285,7 +285,12 @@ export default function VideoDirectionNode({ id, data, selected }) {
   }, [value])
 
   useEffect(() => {
-    if (!data.hasDirectionImage) { setDirImgSrc(null); setDirImgMeta(null); return }
+    if (!data.hasDirectionImage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDirImgSrc(null)
+      setDirImgMeta(null)
+      return
+    }
     loadImage(`direction-${projectId}-${id}`).then(url => {
       if (!url) return
       setDirImgSrc(url)

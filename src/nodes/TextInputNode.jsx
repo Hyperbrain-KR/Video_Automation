@@ -256,6 +256,7 @@ export default function TextInputNode({ id, data, selected }) {
   // 연출 노드: 저장된 레퍼런스 이미지 로드
   useEffect(() => {
     if (!isDirectionNode || !data.hasDirectionImage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDirImgSrc(null)
       setDirImgMeta(null)
       return
@@ -267,7 +268,7 @@ export default function TextInputNode({ id, data, selected }) {
       const base64 = url.split(',')[1]
       setDirImgMeta({ data: base64, mediaType })
     })
-  }, [id, isDirectionNode, data.hasDirectionImage])
+  }, [id, projectId, isDirectionNode, data.hasDirectionImage])
 
   const handleDirectionImageFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return

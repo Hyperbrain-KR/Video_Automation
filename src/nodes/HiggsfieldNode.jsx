@@ -298,6 +298,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
   // 피커 열릴 때 Higgsfield에서 Elements 가져오기
   useEffect(() => {
     if (!elemPickerOpen) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHfElemLoading(true)
     apiFetch('/api/higgsfield/elements')
       .then(r => r.json())

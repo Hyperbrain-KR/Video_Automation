@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from '../lib/imageDB'
+import { saveImage as saveImageDB, deleteImage as deleteImageDB } from '../lib/imageDB'
 
 const lsKey = (uid) => `canvas-global-assets-${uid}`
 

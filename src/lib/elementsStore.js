@@ -18,7 +18,7 @@ export function loadElements() {
 }
 
 export function saveElements(elements) {
-  try { localStorage.setItem(KEY, JSON.stringify(elements)) } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(elements)) } catch { /* noop */ }
 }
 
 export function addElement(name, category = 'Character') {
