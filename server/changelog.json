@@ -2,6 +2,7 @@
   {
     "date": "2026-11-10",
     "items": [
+      "[NEW][FIX] Element 등록 모달 이미지 선택 표시 안 되던 버그 수정 — IIFE 렌더로 매번 새 객체가 생성되어 참조 비교(===)가 항상 false였던 문제를, url/dbKey 값 비교로 교체",
       "[NEW][FIX] 비디오 연출 노드 @멘션 Seedance 캐릭터 썸네일 표시 — resultUrl 폴백 누락으로 🎞 이모지만 보이던 문제 수정, Higgsfield CDN URL 캐릭터 이미지 바로 표시",
       "[NEW][FIX] Seedance 레퍼런스 이미지 순서 버그 수정 — 클릭 순서가 아닌 캐릭터 패널 배열 순서(characters 배열)로 @image2/@image3 순서가 고정됨. 이전에는 클릭 순서에 따라 @image2/@image3이 뒤바뀌던 문제 수정",
       "[NEW][ADD] 비디오 연출 노드 @멘션에 프레임 참조 추가 — @ 입력 시 연결된 모델(Kling/Seedance)에 따라 '@start_frame' 또는 '@image1~N' 항목이 Elements 위에 표시됨. 클링: @start_frame(시작 프레임), 시댄스: @image1(자동 시작), @image2~N(참조 이미지 패널 순서대로)",

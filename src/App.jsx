@@ -1749,7 +1749,7 @@ function FlowCanvas() {
                       ? <div style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--drop-fg3)' }}>씬 생성 결과 또는 캐릭터 이미지가 없습니다</div>
                       : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                           {projectImgs.map((item, i) => (
-                            <ElemImgCell key={i} item={item} selected={elemRegSelectedImg === item} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
+                            <ElemImgCell key={i} item={item} selected={elemRegSelectedImg != null && (elemRegSelectedImg.url ?? elemRegSelectedImg.dbKey) === (item.url ?? item.dbKey)} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
                           ))}
                         </div>
                   })()
