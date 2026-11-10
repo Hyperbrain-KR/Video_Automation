@@ -414,10 +414,11 @@ export default function VideoDirectionNode({ id, data, selected }) {
             <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: '#C8F135', fontWeight: 700, letterSpacing: '0.03em' }}>
               @ {dropQuery || 'Elements'}
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }} onWheel={e => e.stopPropagation()}>
               {dropItems.map((el, i) => (
                 <div
                   key={el.id}
+                  ref={i === dropFocused ? (n => n?.scrollIntoView({ block: 'nearest' })) : null}
                   onMouseDown={e => { e.preventDefault(); selectItem(i) }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
