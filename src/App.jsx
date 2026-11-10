@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from './lib/AuthContext'
 import LoginPage from './components/LoginPage'
 import {
@@ -11,6 +12,7 @@ import { CharactersContext } from './lib/CharactersContext'
 import { AssetsContext } from './lib/AssetsContext'
 import { ProjectContext } from './lib/ProjectContext'
 import { deleteProjectImages, saveImage as saveImageDB, deleteImage as deleteImageDB, loadImage as loadImageDB } from './lib/imageDB'
+import { invalidateElementsCache } from './hooks/useMentionEditor'
 import { useProjects, getActiveProjectId } from './hooks/useProjects'
 import { useAssets } from './hooks/useAssets'
 import { nodes0, edges0, buildScene, buildCharSection, nodeTemplates, resetInProgressNodes, dataEdge, SCENE_Y_STEP, CHAR_Y_STEP, BG_Y } from './lib/initialCanvas'
@@ -114,6 +116,47 @@ function AssetPanelThumb({ asset, onDelete }) {
   )
 }
 
+function ElemImgCell({ item, selected, onSelect }) {
+  const [src, setSrc] = useState(item.url ?? null)
+  useEffect(() => {
+    if (!item.dbKey) return
+    loadImageDB(item.dbKey).then(url => setSrc(url ?? null)).catch(() => {})
+  }, [item.dbKey])
+  return (
+    <div
+      onClick={() => onSelect(item)}
+      title={item.label}
+      style={{
+        position: 'relative', borderRadius: 8, overflow: 'hidden',
+        aspectRatio: '1', cursor: 'pointer',
+        border: selected ? '2px solid var(--drop-accent)' : '2px solid transparent',
+        background: 'rgba(255,255,255,0.04)',
+        transition: 'border-color 0.15s',
+      }}
+    >
+      {src
+        ? <img src={src} alt={item.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🖼</div>
+      }
+      <div style={{
+        position: 'absolute', top: 4, left: 4,
+        fontSize: 8, fontWeight: 800, letterSpacing: '0.04em',
+        padding: '2px 6px', borderRadius: 10,
+        background: item.tag === '캐릭터' ? 'rgba(200,241,53,0.85)' : 'rgba(100,160,255,0.85)',
+        color: '#000',
+      }}>{item.tag}</div>
+      {selected && (
+        <div style={{
+          position: 'absolute', bottom: 4, right: 4,
+          width: 18, height: 18, borderRadius: '50%',
+          background: 'var(--drop-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, color: '#000', fontWeight: 900,
+        }}>✓</div>
+      )}
+    </div>
+  )
+}
+
 function FlowCanvas() {
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const { user } = useAuth()
@@ -133,6 +176,19 @@ function FlowCanvas() {
   const [projectDefaults, setProjectDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
   const [showDefaultsModal, setShowDefaultsModal] = useState(false)
   const [showAssetsPanel, setShowAssetsPanel] = useState(false)
+
+  // ── Element 등록 모달 ───────────────────────────────────────────────────
+  const [showElemRegModal, setShowElemRegModal] = useState(false)
+  const [elemRegActiveTab, setElemRegActiveTab] = useState('file')
+  const [elemRegFile, setElemRegFile] = useState(null)
+  const [elemRegPreview, setElemRegPreview] = useState(null)
+  const [elemRegName, setElemRegName] = useState('')
+  const [elemRegCategory, setElemRegCategory] = useState('auto')
+  const [elemRegSelectedImg, setElemRegSelectedImg] = useState(null)
+  const [elemRegLoading, setElemRegLoading] = useState(false)
+  const [elemRegSuccess, setElemRegSuccess] = useState(null)
+  const [elemRegSuccessName, setElemRegSuccessName] = useState('')
+  const elemRegFileInputRef = useRef(null)
   const [showEdges, setShowEdges] = useState(true)
   const [draftDefaults, setDraftDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
 
@@ -151,6 +207,54 @@ function FlowCanvas() {
   const historyRef = useRef([])
   const historyIdxRef = useRef(-1)
   const isUndoRedoRef = useRef(false)
+
+  // ── Element 등록 핸들러 ─────────────────────────────────────────────────
+  function openElemRegModal() {
+    setElemRegActiveTab('file')
+    setElemRegFile(null); setElemRegPreview(null)
+    setElemRegName(''); setElemRegCategory('auto')
+    setElemRegSelectedImg(null)
+    setElemRegLoading(false); setElemRegSuccess(null); setElemRegSuccessName('')
+    setShowElemRegModal(true)
+  }
+
+  function handleElemRegFileChange(file) {
+    if (!file) return
+    setElemRegFile(file)
+    setElemRegSelectedImg(null)
+    const reader = new FileReader()
+    reader.onload = e => setElemRegPreview(e.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleElemRegister() {
+    if (!elemRegFile && !elemRegSelectedImg) return
+    setElemRegLoading(true)
+    try {
+      let body
+      if (elemRegFile) {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader()
+          r.onload = e => res(e.target.result.split(',')[1])
+          r.onerror = rej
+          r.readAsDataURL(elemRegFile)
+        })
+        body = { fileBase64: b64, filename: elemRegFile.name, contentType: elemRegFile.type || 'image/jpeg', name: elemRegName || undefined, category: elemRegCategory }
+      } else {
+        body = { imageUrl: elemRegSelectedImg.url, name: elemRegName || elemRegSelectedImg.label || undefined, category: elemRegCategory }
+      }
+      const res = await apiFetch('/api/elements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const resData = await res.json()
+      if (!res.ok) throw new Error(resData?.error || 'Error')
+      invalidateElementsCache()
+      setElemRegSuccessName(resData.name || elemRegName || '(이름 없음)')
+      setElemRegSuccess('done')
+    } catch (err) {
+      alert('등록 실패: ' + err.message)
+    } finally {
+      setElemRegLoading(false)
+    }
+  }
   const pushHistory = useCallback(() => {
     historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1)
     historyRef.current.push({ nodes, edges })
@@ -899,6 +1003,21 @@ function FlowCanvas() {
           }}
         >⚙ 생성 기본값</button>
 
+        {/* Element 등록 버튼 */}
+        <button
+          onClick={openElemRegModal}
+          title="Element 등록"
+          style={{
+            height: 32, paddingInline: 10, borderRadius: 7,
+            border: '1px solid var(--controls-border)',
+            background: 'var(--controls-bg)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 11, fontWeight: 700, color: 'var(--drop-accent)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          }}
+        >✦ Element 등록</button>
+
       {/* 기본값 설정 모달 */}
       {showDefaultsModal && (
         <div
@@ -1520,6 +1639,174 @@ function FlowCanvas() {
     </div>
     </ProjectContext.Provider>
     </CharactersContext.Provider>
+    {/* Element 등록 모달 (포털) */}
+    {showElemRegModal && createPortal(
+      <div
+        onClick={() => !elemRegLoading && setShowElemRegModal(false)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9000,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <style>{`
+          @keyframes elem-shimmer {
+            from { background-position: -400px 0; }
+            to   { background-position:  400px 0; }
+          }
+        `}</style>
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: 480, maxHeight: '90vh', borderRadius: 16, overflow: 'hidden',
+            background: 'var(--drop-bg)', border: '1px solid var(--drop-border)',
+            boxShadow: 'var(--drop-shadow)',
+            display: 'flex', flexDirection: 'column',
+          }}
+        >
+          {elemRegSuccess === 'done' ? (
+            /* ── 성공 뷰 ── */
+            <div style={{ padding: '36px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 40 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--drop-accent)' }}>{elemRegSuccessName}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Element 등록 완료</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button
+                  onClick={() => setShowElemRegModal(false)}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >닫기</button>
+                <button
+                  onClick={() => { setElemRegFile(null); setElemRegPreview(null); setElemRegName(''); setElemRegCategory('auto'); setElemRegSelectedImg(null); setElemRegSuccess(null); setElemRegSuccessName('') }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'var(--drop-accent)', color: '#000', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                >하나 더 추가</button>
+              </div>
+            </div>
+          ) : (
+            /* ── 등록 폼 뷰 ── */
+            <>
+              {/* 헤더 */}
+              <div style={{ padding: '20px 24px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--t1)' }}>✦ Element 등록</span>
+                <button onClick={() => setShowElemRegModal(false)} style={{ background: 'none', border: 'none', color: 'var(--t4)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+              </div>
+
+              {/* 소스 탭 */}
+              <div style={{ padding: '12px 24px 0', display: 'flex', gap: 4 }}>
+                {[['file','📁 파일 업로드'],['project','🖼 프로젝트 이미지']].map(([k, l]) => (
+                  <button key={k} onClick={() => setElemRegActiveTab(k)} style={{
+                    padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: elemRegActiveTab === k ? 700 : 500,
+                    background: elemRegActiveTab === k ? 'var(--drop-accent)' : 'rgba(255,255,255,0.07)',
+                    color: elemRegActiveTab === k ? '#000' : 'var(--t3)',
+                    transition: 'all 0.15s',
+                  }}>{l}</button>
+                ))}
+              </div>
+
+              {/* 소스 패널 */}
+              <div style={{ padding: '16px 24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {elemRegActiveTab === 'file' ? (
+                  <div
+                    onClick={() => elemRegFileInputRef.current?.click()}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleElemRegFileChange(f) }}
+                    style={{
+                      border: `2px dashed ${elemRegPreview ? 'var(--drop-accent)' : 'rgba(255,255,255,0.15)'}`,
+                      borderRadius: 12, padding: '32px 16px',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                      cursor: 'pointer', transition: 'border-color 0.2s',
+                      background: elemRegPreview ? 'rgba(200,241,53,0.04)' : 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    <input ref={elemRegFileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleElemRegFileChange(e.target.files[0])} />
+                    {elemRegPreview
+                      ? <img src={elemRegPreview} alt="" style={{ maxHeight: 140, maxWidth: '100%', borderRadius: 8, objectFit: 'contain' }} />
+                      : <><div style={{ fontSize: 36 }}>📁</div><div style={{ fontSize: 12, color: 'var(--t4)' }}>클릭하거나 드래그하여 이미지 업로드</div></>
+                    }
+                    {elemRegFile && <div style={{ fontSize: 10, color: 'var(--drop-accent)', fontWeight: 600 }}>{elemRegFile.name}</div>}
+                  </div>
+                ) : (
+                  (() => {
+                    const sceneImgs = nodes
+                      .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl)
+                      .map(n => ({ url: n.data.resultUrl, label: n.data.label || '씬', tag: '씬' }))
+                    const charImgs = characters
+                      .filter(c => c.resultUrl || c.hasLocalImage)
+                      .map(c => ({ url: c.resultUrl || null, dbKey: c.hasLocalImage ? `char-${c.id}` : null, label: c.name || '캐릭터', tag: '캐릭터' }))
+                    const projectImgs = [...charImgs, ...sceneImgs]
+                    return projectImgs.length === 0
+                      ? <div style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--t4)' }}>씬 생성 결과 또는 캐릭터 이미지가 없습니다</div>
+                      : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                          {projectImgs.map((item, i) => (
+                            <ElemImgCell key={i} item={item} selected={elemRegSelectedImg === item} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
+                          ))}
+                        </div>
+                  })()
+                )}
+
+                {/* 선택된 이미지 미리보기 (프로젝트 탭) */}
+                {elemRegActiveTab === 'project' && elemRegSelectedImg && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ fontSize: 12 }}>{elemRegSelectedImg.tag === '캐릭터' ? '🧑 캐릭터 레퍼런스' : '🎬 씬 생성 이미지'}</span>
+                    <span style={{ fontSize: 11, color: 'var(--drop-accent)', fontWeight: 600 }}>{elemRegSelectedImg.label}</span>
+                  </div>
+                )}
+
+                {/* 이름 입력 */}
+                <input
+                  value={elemRegName}
+                  onChange={e => setElemRegName(e.target.value)}
+                  placeholder="Element 이름 (선택)"
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 9,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+
+                {/* 카테고리 */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>카테고리</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {[['auto','✨ Auto'], ['character','🧑 Character'], ['environment','🌍 Environment'], ['prop','📦 Prop']].map(([v, l]) => (
+                      <button key={v} onClick={() => setElemRegCategory(v)} style={{
+                        padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: elemRegCategory === v ? 600 : 500,
+                        border: elemRegCategory === v ? '1px solid rgba(200,241,53,0.55)' : '1px solid rgba(255,255,255,0.08)',
+                        background: elemRegCategory === v ? 'rgba(200,241,53,0.1)' : 'rgba(255,255,255,0.03)',
+                        color: elemRegCategory === v ? 'var(--drop-accent)' : 'rgba(255,255,255,0.4)',
+                      }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 푸터 */}
+              <div style={{ padding: '0 24px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {elemRegLoading && (
+                  <div style={{ height: 3, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.08)' }}>
+                    <div style={{ height: '100%', backgroundImage: 'linear-gradient(90deg,transparent 0%,var(--drop-accent) 50%,transparent 100%)', backgroundSize: '400px 100%', animation: 'elem-shimmer 1.2s infinite linear' }} />
+                  </div>
+                )}
+                <button
+                  onClick={handleElemRegister}
+                  disabled={(!elemRegFile && !elemRegSelectedImg) || elemRegLoading}
+                  style={{
+                    width: '100%', padding: '12px 0', borderRadius: 10, border: 'none',
+                    background: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'rgba(255,255,255,0.08)' : 'var(--drop-accent)',
+                    color: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'rgba(255,255,255,0.3)' : '#000',
+                    fontSize: 14, fontWeight: 800, cursor: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'default' : 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >{elemRegLoading ? '등록 중...' : '✦ Element 등록'}</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>,
+      document.body
+    )}
     </AssetsContext.Provider>
   )
 }

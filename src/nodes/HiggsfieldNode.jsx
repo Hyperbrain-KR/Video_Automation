@@ -1497,7 +1497,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>카테고리</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {[['auto','✨ Auto'], ['Character','🧑 Character'], ['Location','🌍 Location'], ['Prop','📦 Prop']].map(([v, l]) => (
+                    {[['auto','✨ Auto'], ['character','🧑 Character'], ['environment','🌍 Environment'], ['prop','📦 Prop']].map(([v, l]) => (
                       <div key={v} onClick={() => setRegCategory(v)} style={{
                         padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: regCategory === v ? 600 : 500,
                         border: regCategory === v ? '1px solid rgba(200,241,53,0.55)' : '1px solid rgba(255,255,255,0.08)',

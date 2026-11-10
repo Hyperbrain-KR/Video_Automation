@@ -2,6 +2,8 @@
   {
     "date": "2026-11-10",
     "items": [
+      "[NEW][ADD] Element 등록 버튼 왼쪽 사이드바 추가 — 노드 없이도 사이드바 '✦ Element 등록' 버튼으로 파일 업로드·프로젝트 이미지 2탭 모달에서 Higgsfield Element 직접 등록 가능",
+      "[NEW][FIX] Element 등록 카테고리 값 오류 수정 — 서버가 character/environment/prop 소문자 형식 기대, Character/Location/Prop 대문자 전달하던 버그 수정",
       "[NEW][UPD] Element 등록 UI 개선 — 풀 모달로 교체, 파일 업로드·프로젝트 이미지(씬 결과+캐릭터) 2탭 구성, 성공 시 등록된 이름 확인 화면 표시",
       "[NEW][FIX] @멘션 드롭다운 배경 불투명 처리 + 라이트/다크 테마 색상 대응 — 뒤 캔버스가 비치던 문제 수정",
       "[NEW][ADD] 앱 내 Higgsfield Element 직접 등록 — 비디오 생성 노드의 Elements 피커에서 이미지를 선택해 이름·카테고리를 지정하면 Higgsfield 계정에 바로 Element가 등록되며 목록이 즉시 갱신됨",
