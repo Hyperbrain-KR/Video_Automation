@@ -422,7 +422,10 @@ export default function TextInputNode({ id, data, selected }) {
                     background: i === dropFocused ? 'rgba(255,255,255,0.06)' : 'transparent',
                   }}
                 >
-                  <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
+                  {el.thumbUrl
+                    ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--sep2)' }} />
+                    : <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
+                  }
                   <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#C8F135', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {el.name}
                   </span>
