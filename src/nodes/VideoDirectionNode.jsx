@@ -266,6 +266,26 @@ export default function VideoDirectionNode({ id, data, selected }) {
     updateNodeData(id, { value: text })
   }, [id, updateNodeData])
 
+  // 캐릭터 썸네일 비동기 로드 (IndexedDB)
+  const [charThumbs, setCharThumbs] = useState({})
+  useEffect(() => {
+    if (!characters?.length) return
+    let cancelled = false
+    Promise.all(
+      characters.map(c =>
+        loadImage(`char-${c.id}`)
+          .then(url => ({ id: c.id, url: url ?? null }))
+          .catch(() => ({ id: c.id, url: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = {}
+      results.forEach(r => { if (r.url) map[r.id] = r.url })
+      setCharThumbs(map)
+    })
+    return () => { cancelled = true }
+  }, [characters])
+
   // 대응하는 HiggsfieldVideo 노드 데이터 감지 (ID 패턴 기반: vidDirection[-x] → higgsfieldVideo[-x])
   const hvStr = useStore(s => {
     const suffix = id.replace(/^vidDirection/, '')
@@ -293,7 +313,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
       let idx = 2
       for (const char of characters) {
         if (!seedanceMediaRoles[char.id]) continue
-        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: null })
+        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: charThumbs[char.id] ?? null })
         idx++
       }
       return items
@@ -301,7 +321,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
       if (!step02Url) return []
       return [{ name: '@start_frame', label: '시작 프레임', thumbUrl: step02Url }]
     }
-  }, [hvStr, characters])
+  }, [hvStr, characters, charThumbs])
 
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
