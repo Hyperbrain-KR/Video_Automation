@@ -266,11 +266,11 @@ export default function VideoDirectionNode({ id, data, selected }) {
     updateNodeData(id, { value: text })
   }, [id, updateNodeData])
 
-  // 연결된 HiggsfieldVideo 노드 데이터 감지 (frameItems 계산용)
+  // 대응하는 HiggsfieldVideo 노드 데이터 감지 (ID 패턴 기반: vidDirection[-x] → higgsfieldVideo[-x])
   const hvStr = useStore(s => {
-    const outEdge = s.edges.find(e => e.source === id)
-    if (!outEdge) return ''
-    const hv = s.nodes.find(n => n.id === outEdge.target)
+    const suffix = id.replace(/^vidDirection/, '')
+    const hvId = `higgsfieldVideo${suffix}`
+    const hv = s.nodes.find(n => n.id === hvId)
     if (!hv || hv.type !== 'higgsfieldNode' || hv.data?.type !== 'video') return ''
     const imgEdge = s.edges.find(e => e.target === hv.id && e.targetHandle === 'image')
     const s02 = imgEdge ? s.nodes.find(n => n.id === imgEdge.source) : null
