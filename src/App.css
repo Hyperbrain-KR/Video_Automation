@@ -16,7 +16,7 @@ html.theme-transitioning *::after {
 /* ── Theme variables ─────────────────────────────────────── */
 :root {
   /* Canvas chrome */
-  --bg-canvas: #0A0A0F;
+  --bg-canvas: #14111C;
   --controls-bg: rgba(15,18,30,0.85);
   --controls-border: rgba(41,217,217,0.15);
   --controls-fill: rgba(244,244,244,0.7);

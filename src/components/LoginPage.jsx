@@ -16,7 +16,7 @@ export default function LoginPage() {
       width: '100vw', height: '100vh',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: '#0A0A0F', gap: 32,
+      background: '#14111C', gap: 32,
     }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         <img src="/[HB]심볼_color.png" alt="logo" style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: 16 }} />
