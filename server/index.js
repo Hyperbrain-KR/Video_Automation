@@ -847,6 +847,115 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
   }
 })
 
+// ── Higgsfield: Element 등록 (업로드 → manage_reference_elements create) ──
+app.post('/api/higgsfield/register-element', async (req, res) => {
+  const { fileBase64, filename, contentType, imageUrl, name, category = 'auto' } = req.body
+  if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
+  if (!imageUrl && !fileBase64) return res.status(400).json({ error: 'imageUrl 또는 fileBase64 필요' })
+
+  const t0 = Date.now()
+  const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
+
+  try {
+    let mediaId, mediaUrl
+
+    if (imageUrl) {
+      console.log(`[register-elem] ① media_import_url 호출... (${imageUrl.slice(0, 60)})`)
+      const importResult = await callHiggsfieldMCP('media_import_url', { url: imageUrl, type: 'image' })
+      const importText = importResult.content?.[0]?.text ?? ''
+      const importLower = importText.toLowerCase()
+      const importOk = !importResult.isError && !importLower.includes('something went wrong') && !importLower.includes('violates')
+      if (importOk) {
+        mediaId = extractMediaId(importResult)
+        mediaUrl = imageUrl
+        console.log(`[register-elem] ② mediaId 획득: ${mediaId} (${ts()})`)
+      } else {
+        console.warn(`[register-elem] URL import 실패, 직접 다운로드 fallback... (${ts()})`)
+        const imgRes = await fetch(imageUrl)
+        if (!imgRes.ok) throw new Error(`이미지 다운로드 실패: ${imgRes.status}`)
+        const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+        const rawType = imgRes.headers.get('content-type') || 'image/jpeg'
+        const imgContentType = rawType.split(';')[0].trim()
+        const uploadResult = await callHiggsfieldMCP('media_upload', { filename: 'reference.jpg', content_type: imgContentType })
+        if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
+        const { presignedUrl, id } = extractPresigned(uploadResult)
+        if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+        const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
+        const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
+        const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: imgBuf })
+        if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+        mediaId = id
+        mediaUrl = imageUrl
+        await new Promise(r => setTimeout(r, 1500))
+        console.log(`[register-elem] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
+      }
+    } else {
+      console.log(`[register-elem] ① media_upload presigned 요청... (${filename})`)
+      const uploadResult = await callHiggsfieldMCP('media_upload', {
+        filename: filename || 'reference.jpg',
+        content_type: contentType || 'image/jpeg',
+      })
+      if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
+      const { presignedUrl, id } = extractPresigned(uploadResult)
+      if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+      const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
+      const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': contentType || 'image/jpeg' } : {}
+      const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: buffer })
+      if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
+      mediaId = id
+      console.log(`[register-elem] ② 업로드 완료, mediaId: ${mediaId} (${ts()})`)
+    }
+
+    if (!mediaId) throw new Error('mediaId 획득 실패')
+
+    console.log(`[register-elem] ③ media_confirm... (${mediaId})`)
+    let confirmResult
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      confirmResult = await callHiggsfieldMCP('media_confirm', { type: 'image', media_id: mediaId })
+      const confirmText = confirmResult.content?.[0]?.text ?? ''
+      console.log(`[register-elem] confirm 시도 ${attempt} (${ts()}):`, confirmText.slice(0, 100))
+      if (!confirmResult.isError && !confirmText.toLowerCase().includes('something went wrong')) break
+      if (attempt < 4) await new Promise(r => setTimeout(r, attempt * 2000))
+    }
+    const confirmText = confirmResult.content?.[0]?.text ?? ''
+    if (confirmResult.isError || confirmText.toLowerCase().includes('something went wrong')) {
+      throw new Error(`media_confirm 실패: ${confirmText}`)
+    }
+
+    console.log(`[register-elem] ④ manage_reference_elements create... (${ts()})`)
+    const medias = [{ id: mediaId, type: 'media_input', ...(mediaUrl ? { url: mediaUrl } : {}) }]
+    const createArgs = { action: 'create', medias, category }
+    if (name) createArgs.name = name.startsWith('@') ? name.slice(1) : name
+
+    const createResult = await callHiggsfieldMCP('manage_reference_elements', createArgs)
+    const createText = createResult.content?.map(c => c.text).join('') ?? ''
+    console.log(`[register-elem] 결과 (${ts()}):`, createText.slice(0, 300))
+
+    if (createResult.isError || createText.toLowerCase().includes('something went wrong')) {
+      throw new Error(createText || 'element 생성 실패')
+    }
+
+    const nameM = createText.match(/name:\s*(\S+)/)
+    const catM  = createText.match(/category:\s*(\S+)/)
+    const idM   = createText.match(/id:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i)
+    const createdName = nameM ? nameM[1].replace(/^@/, '') : (name || 'element')
+    const createdCat  = catM  ? catM[1] : category
+    const elementId   = idM   ? idM[1] : extractMediaId(createResult)
+
+    console.log(`[register-elem] 완료 → @${createdName} (${ts()})`)
+    res.json({
+      elementId,
+      name: `@${createdName}`,
+      category: createdCat.charAt(0).toUpperCase() + createdCat.slice(1),
+    })
+  } catch (err) {
+    console.error(`[register-elem] 실패 (${ts()}):`, err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 function extractMediaId(result) {
   for (const c of (result.content ?? [])) {
     if (c.type !== 'text') continue

@@ -285,6 +285,15 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const [hfElements, setHfElements] = useState([])
   const [hfElemLoading, setHfElemLoading] = useState(false)
   const elemPickerRef = useRef()
+  // Element 등록 폼 상태
+  const [regOpen, setRegOpen] = useState(false)
+  const [regFile, setRegFile] = useState(null)
+  const [regPreview, setRegPreview] = useState(null)
+  const [regName, setRegName] = useState('')
+  const [regCategory, setRegCategory] = useState('auto')
+  const [regLoading, setRegLoading] = useState(false)
+  const [regError, setRegError] = useState('')
+  const [regSuccess, setRegSuccess] = useState('')
 
   useEffect(() => {
     if (!elemPickerOpen) return
@@ -321,6 +330,66 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
   const removeElement = (name) => {
     handleVideoElements(selectedElemNames.filter(n => n !== name).join(' '))
+  }
+
+  const handleRegFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setRegFile(file)
+    setRegError('')
+    setRegSuccess('')
+    const reader = new FileReader()
+    reader.onload = ev => setRegPreview(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  const handleRegister = async () => {
+    if (!regFile || regLoading) return
+    setRegLoading(true)
+    setRegError('')
+    setRegSuccess('')
+    try {
+      const reader = new FileReader()
+      const fileBase64 = await new Promise((resolve, reject) => {
+        reader.onload = ev => resolve(ev.target.result)
+        reader.onerror = reject
+        reader.readAsDataURL(regFile)
+      })
+      const r = await apiFetch('/api/higgsfield/register-element', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileBase64,
+          filename: regFile.name,
+          contentType: regFile.type || 'image/jpeg',
+          name: regName || undefined,
+          category: regCategory,
+        }),
+      })
+      const resData = await r.json()
+      if (!r.ok) throw new Error(resData.error || '등록 실패')
+      setRegSuccess(`✓ ${resData.name} 등록 완료!`)
+      // 목록 새로고침
+      setHfElements([])
+      setHfElemLoading(true)
+      apiFetch('/api/higgsfield/elements')
+        .then(r2 => r2.json())
+        .then(d => { if (d.elements?.length > 0) setHfElements(d.elements) })
+        .catch(() => {})
+        .finally(() => setHfElemLoading(false))
+      setTimeout(() => {
+        setRegOpen(false)
+        setRegFile(null)
+        setRegPreview(null)
+        setRegName('')
+        setRegCategory('auto')
+        setRegSuccess('')
+      }, 2000)
+    } catch (err) {
+      setRegError(err.message)
+    } finally {
+      setRegLoading(false)
+    }
   }
 
   const btnStyle = {
@@ -799,8 +868,82 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 )}
 
                 {!hfElemLoading && hfElements.length === 0 && (
-                  <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t5)' }}>
-                    Element 없음 — Higgsfield에서 등록하세요
+                  <div style={{ padding: '8px 14px 4px', fontSize: 11, color: 'var(--t5)' }}>
+                    등록된 Element가 없습니다
+                  </div>
+                )}
+
+                {/* 새 Element 등록 버튼 */}
+                <div style={{ padding: '4px 8px 6px' }}>
+                  <button className="nopan nodrag" onClick={() => { setRegOpen(o => !o); setRegError(''); setRegSuccess('') }}
+                    style={{
+                      width: '100%', background: regOpen ? 'rgba(200,241,53,0.08)' : 'transparent',
+                      border: `1px ${regOpen ? 'solid rgba(200,241,53,0.4)' : 'dashed rgba(200,241,53,0.25)'}`,
+                      borderRadius: 6, padding: '5px', fontSize: 10, color: regOpen ? '#C8F135' : 'var(--t4)',
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                    }}>
+                    {regOpen ? '✕ 취소' : '+ 새 Element 등록'}
+                  </button>
+                </div>
+
+                {/* 등록 폼 */}
+                {regOpen && (
+                  <div className="nopan nodrag" style={{
+                    padding: '8px 10px 10px', borderTop: '1px solid var(--sep2)',
+                  }}>
+                    {/* 이미지 업로드 */}
+                    <label style={{ display: 'block', cursor: 'pointer' }}>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRegFileChange} />
+                      <div style={{
+                        width: '100%', height: 72, borderRadius: 6, overflow: 'hidden',
+                        border: '1px dashed rgba(200,241,53,0.3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: regPreview ? 'transparent' : 'rgba(200,241,53,0.04)',
+                        fontSize: 10, color: 'var(--t5)', userSelect: 'none',
+                      }}>
+                        {regPreview
+                          ? <img src={regPreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : '이미지 클릭하여 선택 ↑'}
+                      </div>
+                    </label>
+                    <input
+                      value={regName}
+                      onChange={e => setRegName(e.target.value)}
+                      placeholder="이름 (선택사항, 자동 생성)"
+                      style={{
+                        width: '100%', marginTop: 6, padding: '4px 8px',
+                        background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                        borderRadius: 5, color: 'var(--t1)', fontSize: 10, fontFamily: 'inherit',
+                        boxSizing: 'border-box', outline: 'none',
+                      }}
+                    />
+                    <select value={regCategory} onChange={e => setRegCategory(e.target.value)} style={{
+                      width: '100%', marginTop: 5, padding: '4px 8px',
+                      background: 'var(--node-input)', border: '1px solid var(--sep2)',
+                      borderRadius: 5, color: 'var(--t1)', fontSize: 10, fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                    }}>
+                      <option value="auto">Auto (자동 분류)</option>
+                      <option value="Character">Character</option>
+                      <option value="Location">Location</option>
+                      <option value="Prop">Prop</option>
+                    </select>
+                    {regError && <div style={{ marginTop: 5, fontSize: 10, color: '#ff7070' }}>{regError}</div>}
+                    {regSuccess && <div style={{ marginTop: 5, fontSize: 10, color: '#C8F135', fontWeight: 700 }}>{regSuccess}</div>}
+                    <button className="nopan nodrag" onClick={handleRegister}
+                      disabled={!regFile || regLoading}
+                      style={{
+                        width: '100%', marginTop: 7, padding: '6px',
+                        background: !regFile || regLoading ? 'rgba(200,241,53,0.06)' : 'rgba(200,241,53,0.18)',
+                        border: '1px solid rgba(200,241,53,0.3)',
+                        borderRadius: 5,
+                        color: !regFile || regLoading ? 'var(--t5)' : '#C8F135',
+                        fontSize: 10, fontWeight: 700,
+                        cursor: !regFile || regLoading ? 'not-allowed' : 'pointer',
+                        fontFamily: 'inherit',
+                      }}>
+                      {regLoading ? '등록 중…' : 'Higgsfield에 등록'}
+                    </button>
                   </div>
                 )}
               </div>
