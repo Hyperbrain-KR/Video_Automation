@@ -402,13 +402,15 @@ export default function TextInputNode({ id, data, selected }) {
           <div className="nopan nodrag" onMouseDown={handleDropMouseDown} style={{
             position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
             zIndex: 1000,
-            background: 'var(--node-bg)',
-            border: '1px solid rgba(200,241,53,0.3)',
+            background: 'var(--drop-bg)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--drop-border)',
             borderRadius: 10,
-            boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+            boxShadow: 'var(--drop-shadow)',
             overflow: 'hidden',
           }}>
-            <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: '#C8F135', fontWeight: 700, letterSpacing: '0.03em' }}>
+            <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: 'var(--drop-accent)', fontWeight: 700, letterSpacing: '0.03em' }}>
               @ {dropQuery || 'Elements'}
             </div>
             <div style={{ maxHeight: 200, overflowY: 'auto' }} onWheel={e => e.stopPropagation()}>
@@ -420,15 +422,15 @@ export default function TextInputNode({ id, data, selected }) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '6px 10px', cursor: 'pointer',
-                    background: i === dropFocused ? 'rgba(200,241,53,0.12)' : 'transparent',
-                    boxShadow: i === dropFocused ? 'inset 3px 0 0 #C8F135' : 'none',
+                    background: i === dropFocused ? 'var(--drop-accent-focused)' : 'transparent',
+                    boxShadow: i === dropFocused ? 'inset 3px 0 0 var(--drop-accent)' : 'none',
                   }}
                 >
                   {el.thumbUrl
                     ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--sep2)' }} />
                     : <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
                   }
-                  <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#C8F135', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: 'var(--drop-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {el.name}
                   </span>
                   <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
