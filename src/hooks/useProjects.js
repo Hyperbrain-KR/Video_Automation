@@ -79,8 +79,9 @@ export function useProjects(user) {
   }, [user])
 
   const switchProject = useCallback(async (id) => {
-    _setActive(id)
-    return loadProject(id)
+    const data = await loadProject(id)
+    if (data) _setActive(id)
+    return data
   }, [loadProject])
 
   const deleteProject = useCallback(async (id) => {

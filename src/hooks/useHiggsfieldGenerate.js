@@ -283,6 +283,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       let pollCount = 0
       let warnedSlow = false
       while (true) {
+        if ((epochRef?.current ?? 0) !== epoch) return
         pollCount++
         const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
@@ -296,6 +297,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
         if (!warnedSlow && Date.now() > warnAfterMs) {
+          if ((epochRef?.current ?? 0) !== epoch) return
           warnedSlow = true
           updateNodeData(nodeId, { status: 'slow', jobId })
         }
@@ -326,6 +328,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     const epoch = epochRef?.current ?? 0
     console.log(`[폴링 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
+    if ((epochRef?.current ?? 0) !== epoch) return
     updateNodeData(nodeId, { status: 'generating', jobId })
     try {
       const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
@@ -333,6 +336,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       let pollCount = 0
       let warnedSlow = false
       while (true) {
+        if ((epochRef?.current ?? 0) !== epoch) return
         pollCount++
         const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
@@ -346,6 +350,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
         if (!warnedSlow && Date.now() > warnAfterMs) {
+          if ((epochRef?.current ?? 0) !== epoch) return
           warnedSlow = true
           updateNodeData(nodeId, { status: 'slow', jobId })
         }

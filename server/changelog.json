@@ -2,6 +2,7 @@
   {
     "date": "2026-11-10",
     "items": [
+      "[FIX] 프로젝트 전환 시 A 데이터가 B에 덮어쓰이던 버그 근본 수정 (5-layer fix): ① epoch 체크 조기화(폴링 루프 상단 + slow 업데이트 직전), ② switchProject load-then-set 순서 변경으로 중간 상태 제거, ③ isSwitchingRef 동시 실행 가드(handleSwitchProject/Create/Delete + doLoad), ④ doLoad capturedId abort 체크, ⑤ auto-save clearTimeout skip 체크 이전으로 이동; 전환 중 프로젝트 버튼 비활성·전환 UI 표시",
       "[NEW][FIX] Cmd+X 단축키 차단 — ReactFlow 내장 컷으로 노드가 전부 삭제되고 auto-save가 빈 캔버스를 덮어써 아웃풋·크레딧이 사라지던 버그 수정"
     ]
   },

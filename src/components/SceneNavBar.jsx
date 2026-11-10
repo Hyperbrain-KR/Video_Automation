@@ -114,6 +114,10 @@ function groupByDate(projects) {
 }
 
 const STYLES = `
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
   @keyframes sceneDotPulse {
     0%, 100% { opacity: 1;    transform: scale(1);    }
     50%       { opacity: 0.35; transform: scale(0.65); }
@@ -435,7 +439,7 @@ const STYLES = `
 `
 
 // ── ProjectSelector ────────────────────────────────────────────────────────
-function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCredits, creditsByProject, onSwitch, onCreate, onDelete, onRename }) {
+function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCredits, creditsByProject, onSwitch, onCreate, onDelete, onRename, isSwitching, pendingProjectId }) {
   const [open, setOpen]             = useState(false)
   const [creating, setCreating]     = useState(false)
   const [newName, setNewName]       = useState('')
@@ -579,14 +583,15 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
         </div>
       </div>
     )
-    const isActive = p.id === activeProject?.id
+    const effectiveActiveId = (isSwitching && pendingProjectId) ? pendingProjectId : activeProject?.id
+    const isActive = p.id === effectiveActiveId
     const isMoving = movingId === p.id
-    const projCredits = isActive ? totalCredits : (creditsByProject[p.id] ?? 0)
+    const projCredits = p.id === activeProject?.id ? totalCredits : (creditsByProject[p.id] ?? 0)
     return (
       <div key={p.id}>
         <div className="proj-row-wrap">
           <button className={`proj-item${isActive ? ' active' : ''}`} style={{ flex: 1 }}
-            onClick={() => { if (!isActive) onSwitch(p.id); setOpen(false) }}>
+            onClick={() => { if (!isActive && !isSwitching) onSwitch(p.id); setOpen(false) }}>
             <span style={{ width: 12, fontSize: 9, color: '#29D9D9', flexShrink: 0 }}>{isActive ? '✓' : ''}</span>
             <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: 'var(--t1)', flex: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
@@ -787,23 +792,29 @@ function ProjectSelector({ projects, activeProject, saveState, savedAt, totalCre
           </div>
         ) : (
           <button className="proj-trigger"
-            onClick={() => { setOpen(o => !o); setCreating(false); setRenamingId(null) }}>
+            onClick={() => { if (!isSwitching) { setOpen(o => !o); setCreating(false); setRenamingId(null) } }}>
             <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)',
               maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               flex: 1, textAlign: 'left' }}
-              onDoubleClick={startTriggerEdit} title="더블클릭으로 이름 변경">
-              {activeProject?.name ?? '새 프로젝트'}
+              onDoubleClick={isSwitching ? undefined : startTriggerEdit} title="더블클릭으로 이름 변경">
+              {isSwitching
+                ? (projects.find(p => p.id === pendingProjectId)?.name ?? activeProject?.name ?? '전환 중...')
+                : (activeProject?.name ?? '새 프로젝트')}
             </span>
-            <span style={{ fontSize: 8, color: 'var(--t4)', flexShrink: 0 }}>▾</span>
+            {isSwitching
+              ? <span style={{ fontSize: 9, color: '#29D9D9', flexShrink: 0, animation: 'spin 1s linear infinite' }}>⟳</span>
+              : <span style={{ fontSize: 8, color: 'var(--t4)', flexShrink: 0 }}>▾</span>
+            }
           </button>
         )}
 
         {/* 저장 상태 + 크레딧 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 7, marginTop: 1 }}>
-          <span style={{ fontSize: 9, color: 'var(--t5)' }}>
-            {saveState === 'pending' && '저장 중…'}
-            {saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
+          <span style={{ fontSize: 9, color: isSwitching ? '#29D9D9' : 'var(--t5)' }}>
+            {isSwitching && '전환 중...'}
+            {!isSwitching && saveState === 'pending' && '저장 중…'}
+            {!isSwitching && saveState === 'saved' && savedAt && `저장됨 ${fmtTime(savedAt)}`}
           </span>
           {totalCredits > 0 && (
             <span style={{ fontSize: 9, color: 'var(--t2)', fontWeight: 700 }}>💎 {totalCredits}cr</span>
@@ -1029,6 +1040,7 @@ function SceneCard({ scene, onClick, onDelete }) {
 export default function SceneNavBar({
   nodes, onAddScene, onDeleteScene,
   projects, activeProject, saveState, savedAt,
+  isSwitching, pendingProjectId,
   onSwitchProject, onCreateProject, onDeleteProject, onRenameProject, onResetProject,
 }) {
   const { fitBounds, getNodes, setNodes } = useReactFlow()
@@ -1180,6 +1192,8 @@ export default function SceneNavBar({
           savedAt={savedAt}
           totalCredits={totalCredits}
           creditsByProject={creditsByProject}
+          isSwitching={isSwitching}
+          pendingProjectId={pendingProjectId}
           onSwitch={onSwitchProject}
           onCreate={onCreateProject}
           onDelete={onDeleteProject}
