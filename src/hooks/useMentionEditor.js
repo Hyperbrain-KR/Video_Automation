@@ -28,6 +28,18 @@ function ensureStyles() {
       line-height: inherit;
       font-size: inherit;
     }
+    :root[data-theme="light"] .rf-mention {
+      color: #4e7a00;
+      background: rgba(78,122,0,0.12);
+      border: 1px solid rgba(78,122,0,0.28);
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) .rf-mention {
+        color: #4e7a00;
+        background: rgba(78,122,0,0.12);
+        border: 1px solid rgba(78,122,0,0.28);
+      }
+    }
   `
   document.head.appendChild(s)
 }
@@ -64,6 +76,21 @@ export function useMentionEditor({ value, onChange, frameItems = [] }) {
   const [dropQuery, setDropQuery]     = useState('')
 
   useEffect(() => { ensureStyles() }, [])
+
+  // frameItems 변경(썸네일 로드, 모드 전환) 시 열린 드롭다운 자동 갱신
+  useEffect(() => {
+    if (!dropOpen) return
+    const q = dropQuery.toLowerCase()
+    const filteredFrames = frameItems.filter(fi =>
+      fi.name.slice(1).toLowerCase().includes(q)
+    ).map(fi => ({ ...fi, isFrame: true }))
+    const filteredElems = (_hfElems ?? []).filter(e =>
+      e.name.slice(1).toLowerCase().includes(q)
+    )
+    const combined = [...filteredFrames, ...filteredElems]
+    setDropItems(combined)
+    setDropFocused(prev => Math.min(prev, combined.length - 1))
+  }, [frameItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 외부 value 변경 → DOM 동기화 (프로젝트 전환, 연출 제안 적용 등)
   useEffect(() => {
