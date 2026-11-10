@@ -313,7 +313,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
       let idx = 2
       for (const char of characters) {
         if (!seedanceMediaRoles[char.id]) continue
-        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: charThumbs[char.id] ?? null })
+        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: charThumbs[char.id] ?? char.resultUrl ?? null })
         idx++
       }
       return items
