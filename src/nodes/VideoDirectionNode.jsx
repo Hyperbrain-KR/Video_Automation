@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useContext, useCallback } from 'react'
+import { useState, useRef, useEffect, useContext, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
+import { CharactersContext } from '../lib/CharactersContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
@@ -245,6 +246,7 @@ function DialogueInput({ label, value, onChange, placeholder }) {
 export default function VideoDirectionNode({ id, data, selected }) {
   const { updateNodeData, getNodes, getEdges } = useReactFlow()
   const projectId = useContext(ProjectContext)
+  const { characters } = useContext(CharactersContext)
 
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
@@ -264,9 +266,46 @@ export default function VideoDirectionNode({ id, data, selected }) {
     updateNodeData(id, { value: text })
   }, [id, updateNodeData])
 
+  // 연결된 HiggsfieldVideo 노드 데이터 감지 (frameItems 계산용)
+  const hvStr = useStore(s => {
+    const outEdge = s.edges.find(e => e.source === id)
+    if (!outEdge) return ''
+    const hv = s.nodes.find(n => n.id === outEdge.target)
+    if (!hv || hv.type !== 'higgsfieldNode' || hv.data?.type !== 'video') return ''
+    const imgEdge = s.edges.find(e => e.target === hv.id && e.targetHandle === 'image')
+    const s02 = imgEdge ? s.nodes.find(n => n.id === imgEdge.source) : null
+    const step02Url = (s02?.type === 'higgsfieldNode' && s02?.data?.type === 'image')
+      ? (s02.data.resultUrl ?? '') : ''
+    return JSON.stringify({
+      m: hv.data?.videoModel ?? 'kling3_0',
+      r: hv.data?.seedanceMediaRoles ?? {},
+      u: step02Url,
+    })
+  })
+
+  const frameItems = useMemo(() => {
+    if (!hvStr) return []
+    const { m: videoModel, r: seedanceMediaRoles, u: step02Url } = JSON.parse(hvStr)
+    if (videoModel === 'seedance_2_0') {
+      const items = [
+        { name: '@image1', label: '시작 프레임 (자동)', thumbUrl: step02Url || null },
+      ]
+      let idx = 2
+      for (const char of characters) {
+        if (!seedanceMediaRoles[char.id]) continue
+        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: null })
+        idx++
+      }
+      return items
+    } else {
+      if (!step02Url) return []
+      return [{ name: '@start_frame', label: '시작 프레임', thumbUrl: step02Url }]
+    }
+  }, [hvStr, characters])
+
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
-  } = useMentionEditor({ value, onChange: handleChange })
+  } = useMentionEditor({ value, onChange: handleChange, frameItems })
 
   const styleAnchor = (() => {
     const anchorNode = getNodes().find(n => n.id === 'styleAnchor')
@@ -417,28 +456,38 @@ export default function VideoDirectionNode({ id, data, selected }) {
               @ {dropQuery || 'Elements'}
             </div>
             <div style={{ maxHeight: 200, overflowY: 'auto' }} onWheel={e => e.stopPropagation()}>
-              {dropItems.map((el, i) => (
-                <div
-                  key={el.id}
-                  ref={i === dropFocused ? (n => n?.scrollIntoView({ block: 'nearest' })) : null}
-                  onMouseDown={e => { e.preventDefault(); selectItem(i) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '6px 10px', cursor: 'pointer',
-                    background: i === dropFocused ? 'var(--drop-accent-focused)' : 'transparent',
-                    boxShadow: i === dropFocused ? 'inset 3px 0 0 var(--drop-accent)' : 'none',
-                  }}
-                >
-                  {el.thumbUrl
-                    ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--sep2)' }} />
-                    : <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
-                  }
-                  <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: 'var(--drop-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {el.name}
-                  </span>
-                  <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
-                </div>
-              ))}
+              {dropItems.map((el, i) => {
+                const isFirstElem = !el.isFrame && (i === 0 || dropItems[i - 1]?.isFrame)
+                const showSep = isFirstElem && dropItems.some(x => x.isFrame)
+                return (
+                  <div key={el.name ?? el.id}>
+                    {showSep && (
+                      <div style={{ height: 1, background: 'var(--sep)', margin: '3px 10px' }} />
+                    )}
+                    <div
+                      ref={i === dropFocused ? (n => n?.scrollIntoView({ block: 'nearest' })) : null}
+                      onMouseDown={e => { e.preventDefault(); selectItem(i) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '6px 10px', cursor: 'pointer',
+                        background: i === dropFocused ? 'var(--drop-accent-focused)' : 'transparent',
+                        boxShadow: i === dropFocused ? 'inset 3px 0 0 var(--drop-accent)' : 'none',
+                      }}
+                    >
+                      {el.thumbUrl
+                        ? <img src={el.thumbUrl} alt={el.name} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--sep2)' }} />
+                        : <span style={{ fontSize: 13 }}>{el.isFrame ? '🎞' : (CATEGORY_ICON[el.category] ?? '📌')}</span>
+                      }
+                      <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: 'var(--drop-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {el.name}
+                      </span>
+                      <span style={{ fontSize: 9, color: 'var(--t5)' }}>
+                        {el.isFrame ? el.label : el.category}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

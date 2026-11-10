@@ -668,7 +668,18 @@ export default function HiggsfieldNode({ id, data, selected }) {
             {videoModel === 'seedance_2_0' ? '레퍼런스 이미지' : '프레임 캐릭터'}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {characters.map(c => {
+            {(() => {
+              // Seedance @imageN 인덱스 사전 계산 (characters 배열 순서 기준)
+              const charImageIdx = {}
+              if (videoModel === 'seedance_2_0') {
+                let idx = 2 // @image1 = step02 자동, @image2부터 시작
+                for (const ch of characters) {
+                  if ((data.seedanceMediaRoles ?? {})[ch.id]) {
+                    charImageIdx[ch.id] = idx++
+                  }
+                }
+              }
+              return characters.map(c => {
               const isConfirming = confirmDeleteId === c.id
 
               if (isConfirming) return (
@@ -749,6 +760,12 @@ export default function HiggsfieldNode({ id, data, selected }) {
                         )
                       })}
                     </div>
+                    {curRole && charImageIdx[c.id] && (
+                      <span style={{ fontSize: 8, color: 'var(--t4)', fontWeight: 600,
+                        letterSpacing: '0.02em', flexShrink: 0 }}>
+                        @image{charImageIdx[c.id]}
+                      </span>
+                    )}
                     {hoveredCharId === c.id && !curRole && (
                       <button className="nopan nodrag"
                         onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
@@ -813,7 +830,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
                   )}
                 </label>
               )
-            })}
+            })
+          })()}
           </div>
         </div>
       )}

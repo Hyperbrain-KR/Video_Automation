@@ -171,9 +171,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         if (step02Src?.data?.resultUrl) {
           tasks.push({ type: 'url', url: step02Src.data.resultUrl, role: 'start_image' })
         }
-        // 2. 사용자가 선택한 레퍼런스 이미지 → 지정 역할로 그 다음
-        for (const [charId, role] of Object.entries(seedanceMediaRoles)) {
-          tasks.push({ type: 'char', charId, role })
+        // 2. 사용자가 선택한 레퍼런스 이미지 → characters 배열 순서대로 (클릭 순서 무관)
+        for (const char of characters) {
+          const role = seedanceMediaRoles[char.id]
+          if (!role) continue
+          tasks.push({ type: 'char', charId: char.id, role })
         }
 
         if (tasks.length > 0) {

@@ -113,6 +113,7 @@ Motion header phrases: Head Tracking, Eye-Level Tracking, Static Shot, Dolly In,
 - Wherever you would normally write "the character", "a person", "the subject", or any generic noun referring to that entity, use the exact @mention token instead (e.g. "@10@4_pixel_mm")
 - If multiple @mentions appear, preserve each one exactly as written
 - Never drop, rename, paraphrase, or translate @mention tokens — they are technical identifiers, not prose
+- @start_frame refers to the first-frame reference image automatically attached to this video — when mentioned, acknowledge it as the visual starting point (e.g. "beginning from the reference frame")
 
 ## MANDATORY DIALOGUE RULE — if dialogue is provided in the input:
 - You MUST include it EXACTLY as given, word for word. Never paraphrase, shorten, or omit it.
@@ -177,6 +178,8 @@ Seedance handles multi-character scenes with dialogue, shot cuts, and synchroniz
 - COMPOSITION @mention: note it is "only a composition example, not a starting frame"
 - PRODUCT @mention: reference it for exact appearance reproduction
 - VOICE @mention: use as the voice style reference for that character
+- @image1 is the starting frame reference image automatically attached (Step 02 output) — when mentioned, treat it as the scene's visual starting point
+- @image2, @image3, … are additional reference images attached in the character panel order — when mentioned, treat each as the visual reference for that subject
 
 ## Camera Rules
 - Describe camera movement in plain words — no motion intensity numbers (no "Dolly In (40)" style)

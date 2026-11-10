@@ -54,7 +54,7 @@ function extractText(el) {
 }
 
 // ── 훅 ────────────────────────────────────────────────────────────────────
-export function useMentionEditor({ value, onChange }) {
+export function useMentionEditor({ value, onChange, frameItems = [] }) {
   const editorRef = useRef(null)
   const _dropActive = useRef(false)  // 드롭다운 내부 클릭(스크롤 포함) 감지용
 
@@ -111,11 +111,15 @@ export function useMentionEditor({ value, onChange }) {
 
     const q = info.query.toLowerCase()
     const applyFilter = (elems) => {
-      const filtered = (elems ?? []).filter(e =>
+      const filteredFrames = frameItems.filter(fi =>
+        fi.name.slice(1).toLowerCase().includes(q)
+      ).map(fi => ({ ...fi, isFrame: true }))
+      const filteredElems = (elems ?? []).filter(e =>
         e.name.slice(1).toLowerCase().includes(q)
       )
-      setDropItems(filtered)
-      setDropFocused(filtered.length > 0 ? 0 : -1)
+      const combined = [...filteredFrames, ...filteredElems]
+      setDropItems(combined)
+      setDropFocused(combined.length > 0 ? 0 : -1)
       setDropQuery(info.query)
       setDropOpen(true)
     }
