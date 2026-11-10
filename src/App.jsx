@@ -1738,8 +1738,9 @@ function FlowCanvas() {
                   </div>
                 ) : (
                   (() => {
+                    const charUrls = new Set(characters.filter(c => c.resultUrl).map(c => c.resultUrl))
                     const sceneImgs = nodes
-                      .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl && n.data?.type !== 'video')
+                      .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl && n.data?.type !== 'video' && !charUrls.has(n.data.resultUrl))
                       .map(n => ({ url: n.data.resultUrl, label: n.data.label || '씬', tag: '씬', _key: `scene:${n.id}` }))
                     const charImgs = characters
                       .filter(c => c.resultUrl || c.hasLocalImage)
