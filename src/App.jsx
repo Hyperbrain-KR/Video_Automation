@@ -129,15 +129,24 @@ function ElemImgCell({ item, selected, onSelect }) {
       style={{
         position: 'relative', borderRadius: 8, overflow: 'hidden',
         aspectRatio: '1', cursor: 'pointer',
-        border: selected ? '2px solid var(--drop-accent)' : '2px solid transparent',
+        border: selected ? '2.5px solid var(--drop-accent)' : '2px solid transparent',
         background: 'rgba(255,255,255,0.04)',
         transition: 'border-color 0.15s',
+        boxShadow: selected ? '0 0 0 1px var(--drop-accent)' : 'none',
       }}
     >
       {src
         ? <img src={src} alt={item.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🖼</div>
       }
+      {/* 선택 시 반투명 오버레이 */}
+      {selected && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'var(--drop-selected-overlay)',
+          pointerEvents: 'none',
+        }} />
+      )}
       <div style={{
         position: 'absolute', top: 4, left: 4,
         fontSize: 8, fontWeight: 800, letterSpacing: '0.04em',
@@ -147,10 +156,12 @@ function ElemImgCell({ item, selected, onSelect }) {
       }}>{item.tag}</div>
       {selected && (
         <div style={{
-          position: 'absolute', bottom: 4, right: 4,
-          width: 18, height: 18, borderRadius: '50%',
-          background: 'var(--drop-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, color: '#000', fontWeight: 900,
+          position: 'absolute', bottom: 5, right: 5,
+          width: 22, height: 22, borderRadius: '50%',
+          background: 'var(--drop-accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, color: '#000', fontWeight: 900,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
         }}>✓</div>
       )}
     </div>
