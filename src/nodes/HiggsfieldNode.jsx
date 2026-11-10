@@ -1370,48 +1370,48 @@ export default function HiggsfieldNode({ id, data, selected }) {
         onMouseDown={e => { if (e.target === e.currentTarget) setRegOpen(false) }}
       >
         <div style={{
-          background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.14)',
+          background: 'var(--drop-bg)', border: '1px solid var(--drop-border)',
           borderRadius: 16, width: '100%', maxWidth: 440,
-          boxShadow: '0 32px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(200,241,53,0.05)',
+          boxShadow: 'var(--drop-shadow)',
           overflow: 'hidden', fontFamily: 'inherit',
         }}>
           {regSuccess === 'done' ? (
             /* ── 성공 뷰 ── */
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px', gap: 12 }}>
-              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(200,241,53,0.1)', border: '2px solid rgba(200,241,53,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✦</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#C8F135' }}>{regSuccessName}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--drop-accent-focused)', border: '2px solid var(--drop-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✦</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--drop-accent)' }}>{regSuccessName}</div>
+              <div style={{ fontSize: 11, color: 'var(--drop-fg3)', textAlign: 'center', lineHeight: 1.6 }}>
                 Higgsfield 계정에 등록됐어요.<br/>이제 @멘션으로 프롬프트에 넣을 수 있어요.
               </div>
               <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 4 }}>
-                <button onClick={() => setRegOpen(false)} style={{ flex: 1, padding: 9, borderRadius: 8, background: '#222', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>닫기</button>
-                <button onClick={openRegModal} style={{ flex: 1, padding: 9, borderRadius: 8, background: '#C8F135', border: 'none', color: '#1a1a00', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>+ 하나 더 추가</button>
+                <button onClick={() => setRegOpen(false)} style={{ flex: 1, padding: 9, borderRadius: 8, background: 'var(--drop-btn-bg)', border: '1px solid var(--drop-sep)', color: 'var(--drop-fg3)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>닫기</button>
+                <button onClick={openRegModal} style={{ flex: 1, padding: 9, borderRadius: 8, background: 'var(--drop-accent)', border: 'none', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>+ 하나 더 추가</button>
               </div>
             </div>
           ) : (
             /* ── 폼 뷰 ── */
             <>
               {/* 헤더 */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#f0f0f0' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(200,241,53,0.1)', border: '1px solid rgba(200,241,53,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✦</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid var(--drop-sep)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--drop-fg)' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--drop-accent-focused)', border: '1px solid var(--drop-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✦</div>
                   새 Element 등록
                 </div>
-                <button onClick={() => setRegOpen(false)} style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                <button onClick={() => setRegOpen(false)} style={{ width: 28, height: 28, borderRadius: 7, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--drop-fg4)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
               </div>
 
               {/* 바디 */}
               <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {/* 소스 탭 */}
-                <div style={{ display: 'flex', gap: 2, background: '#222', borderRadius: 8, padding: 3 }}>
+                <div style={{ display: 'flex', gap: 2, background: 'var(--drop-zone-bg)', borderRadius: 8, padding: 3 }}>
                   {[['file', '📁 파일 업로드'], ['project', '🖼 프로젝트 이미지']].map(([key, label]) => (
                     <button key={key} onClick={() => setRegActiveTab(key)} style={{
                       flex: 1, padding: '5px 4px', borderRadius: 6, border: 'none',
-                      background: regActiveTab === key ? '#1a1a1a' : 'transparent',
-                      color: regActiveTab === key ? '#f0f0f0' : 'rgba(255,255,255,0.3)',
+                      background: regActiveTab === key ? 'var(--drop-bg)' : 'transparent',
+                      color: regActiveTab === key ? 'var(--drop-fg)' : 'var(--drop-fg4)',
                       fontSize: 11, fontWeight: regActiveTab === key ? 600 : 500,
                       cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-                      boxShadow: regActiveTab === key ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
+                      boxShadow: regActiveTab === key ? '0 1px 4px rgba(0,0,0,0.25)' : 'none',
                       transition: 'all .15s',
                     }}>{label}</button>
                   ))}
@@ -1437,9 +1437,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       ) : (
                         <>
                           <span style={{ fontSize: 28, opacity: .5 }}>🖼</span>
-                          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>이미지를 드래그하거나 클릭하여 선택</span>
-                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>JPG · PNG · WEBP · 최대 10MB</span>
-                          <span style={{ position: 'absolute', bottom: 10, fontSize: 10, color: 'rgba(200,241,53,0.5)' }}>⌘V 붙여넣기 가능</span>
+                          <span style={{ fontSize: 12, color: 'var(--drop-fg3)', fontWeight: 500 }}>이미지를 드래그하거나 클릭하여 선택</span>
+                          <span style={{ fontSize: 10, color: 'var(--drop-fg4)' }}>JPG · PNG · WEBP · 최대 10MB</span>
+                          <span style={{ position: 'absolute', bottom: 10, fontSize: 10, color: 'var(--drop-accent)', opacity: 0.6 }}>⌘V 붙여넣기 가능</span>
                         </>
                       )}
                     </div>
@@ -1450,7 +1450,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 {regActiveTab === 'project' && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5, maxHeight: 190, overflowY: 'auto' }}>
                     {projectImgs.length === 0 ? (
-                      <div style={{ gridColumn: '1/-1', padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                      <div style={{ gridColumn: '1/-1', padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--drop-fg4)' }}>
                         생성된 이미지가 없습니다
                       </div>
                     ) : projectImgs.map((img, i) => (
@@ -1464,7 +1464,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
                 {/* 선택된 이미지 미리보기 */}
                 {(regFile || regSelectedProjectImg) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#222', border: '1px solid rgba(200,241,53,0.3)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--drop-btn-bg)', border: '1px solid var(--drop-border)', borderRadius: 8 }}>
                     <img
                       src={regPreview || regSelectedProjectImg?.url}
                       alt="선택됨"
@@ -1474,35 +1474,35 @@ export default function HiggsfieldNode({ id, data, selected }) {
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#C8F135', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {regFile ? regFile.name : regSelectedProjectImg?.label}
                       </div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>
+                      <div style={{ fontSize: 10, color: 'var(--drop-fg4)', marginTop: 1 }}>
                         {regFile ? '📁 로컬 파일' : (regSelectedProjectImg?.tag === '캐릭터' ? '🧑 캐릭터 레퍼런스' : '🎬 씬 생성 이미지')}
                       </div>
                     </div>
                     <button onClick={() => { setRegFile(null); setRegPreview(null); setRegSelectedProjectImg(null) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: 16, padding: '2px 4px' }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--drop-fg4)', fontSize: 16, padding: '2px 4px' }}>✕</button>
                   </div>
                 )}
 
                 {/* 이름 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                    이름 <span style={{ color: 'rgba(255,255,255,0.2)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— 선택사항</span>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--drop-fg4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    이름 <span style={{ color: 'var(--drop-fg4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, opacity: 0.6 }}>— 선택사항</span>
                   </div>
                   <input value={regName} onChange={e => setRegName(e.target.value)}
                     placeholder="비워두면 Higgsfield가 자동 생성"
-                    style={{ background: '#222', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px', fontSize: 12, fontFamily: 'inherit', color: '#f0f0f0', outline: 'none', width: '100%' }} />
+                    style={{ background: 'var(--drop-input-bg)', border: '1px solid var(--drop-sep)', borderRadius: 8, padding: '9px 12px', fontSize: 12, fontFamily: 'inherit', color: 'var(--drop-fg)', outline: 'none', width: '100%' }} />
                 </div>
 
                 {/* 카테고리 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>카테고리</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--drop-fg4)', textTransform: 'uppercase', letterSpacing: '.06em' }}>카테고리</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {[['auto','✨ Auto'], ['character','🧑 Character'], ['environment','🌍 Environment'], ['prop','📦 Prop']].map(([v, l]) => (
                       <div key={v} onClick={() => setRegCategory(v)} style={{
-                        padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: regCategory === v ? 600 : 500,
-                        border: regCategory === v ? '1px solid rgba(200,241,53,0.55)' : '1px solid rgba(255,255,255,0.08)',
-                        background: regCategory === v ? 'rgba(200,241,53,0.1)' : '#222',
-                        color: regCategory === v ? '#C8F135' : 'rgba(255,255,255,0.4)',
+                        padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: regCategory === v ? 700 : 500,
+                        border: regCategory === v ? '1px solid var(--drop-border)' : '1px solid var(--drop-sep)',
+                        background: regCategory === v ? 'var(--drop-accent-focused)' : 'var(--drop-btn-bg)',
+                        color: regCategory === v ? 'var(--drop-accent)' : 'var(--drop-fg3)',
                         transition: 'all .15s',
                       }}>{l}</div>
                     ))}
@@ -1515,16 +1515,16 @@ export default function HiggsfieldNode({ id, data, selected }) {
               {/* 푸터 */}
               <div style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {regLoading && (
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 100, height: 3, overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--drop-sep)', borderRadius: 100, height: 3, overflow: 'hidden' }}>
                     <div style={{ height: '100%', background: '#C8F135', borderRadius: 100, animation: 'reg-shimmer 2s ease-in-out infinite' }} />
                   </div>
                 )}
                 <button disabled={!regHasSource || regLoading} onClick={handleRegister} style={{
                   width: '100%', padding: 11,
-                  background: !regHasSource || regLoading ? '#222' : '#C8F135',
-                  border: !regHasSource || regLoading ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                  background: !regHasSource || regLoading ? 'var(--drop-sep)' : 'var(--drop-accent)',
+                  border: !regHasSource || regLoading ? '1px solid var(--drop-sep)' : 'none',
                   borderRadius: 9, fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-                  color: !regHasSource || regLoading ? 'rgba(255,255,255,0.3)' : '#1a1a00',
+                  color: !regHasSource || regLoading ? 'var(--drop-fg4)' : '#000',
                   cursor: !regHasSource || regLoading ? 'not-allowed' : 'pointer', transition: 'all .15s',
                 }}>
                   {regLoading ? '등록 중…' : !regHasSource ? '이미지를 먼저 선택하세요' : (regName ? `"${regName}" 등록하기` : 'Higgsfield에 등록')}

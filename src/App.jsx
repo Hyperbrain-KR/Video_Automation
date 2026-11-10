@@ -243,7 +243,7 @@ function FlowCanvas() {
       } else {
         body = { imageUrl: elemRegSelectedImg.url, name: elemRegName || elemRegSelectedImg.label || undefined, category: elemRegCategory }
       }
-      const res = await apiFetch('/api/elements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res = await apiFetch('/api/higgsfield/register-element', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const resData = await res.json()
       if (!res.ok) throw new Error(resData?.error || 'Error')
       invalidateElementsCache()
@@ -1669,11 +1669,11 @@ function FlowCanvas() {
             <div style={{ padding: '36px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
               <div style={{ fontSize: 40 }}>✅</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--drop-accent)' }}>{elemRegSuccessName}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Element 등록 완료</div>
+              <div style={{ fontSize: 12, color: 'var(--drop-fg3)' }}>Element 등록 완료</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button
                   onClick={() => setShowElemRegModal(false)}
-                  style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid var(--drop-sep)', background: 'var(--drop-btn-bg)', color: 'var(--drop-fg2)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                 >닫기</button>
                 <button
                   onClick={() => { setElemRegFile(null); setElemRegPreview(null); setElemRegName(''); setElemRegCategory('auto'); setElemRegSelectedImg(null); setElemRegSuccess(null); setElemRegSuccessName('') }}
@@ -1696,8 +1696,8 @@ function FlowCanvas() {
                   <button key={k} onClick={() => setElemRegActiveTab(k)} style={{
                     padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
                     fontSize: 11, fontWeight: elemRegActiveTab === k ? 700 : 500,
-                    background: elemRegActiveTab === k ? 'var(--drop-accent)' : 'rgba(255,255,255,0.07)',
-                    color: elemRegActiveTab === k ? '#000' : 'var(--t3)',
+                    background: elemRegActiveTab === k ? 'var(--drop-accent)' : 'var(--drop-btn-bg)',
+                    color: elemRegActiveTab === k ? '#000' : 'var(--drop-fg3)',
                     transition: 'all 0.15s',
                   }}>{l}</button>
                 ))}
@@ -1711,31 +1711,31 @@ function FlowCanvas() {
                     onDragOver={e => e.preventDefault()}
                     onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleElemRegFileChange(f) }}
                     style={{
-                      border: `2px dashed ${elemRegPreview ? 'var(--drop-accent)' : 'rgba(255,255,255,0.15)'}`,
+                      border: `2px dashed ${elemRegPreview ? 'var(--drop-accent)' : 'var(--drop-dashed)'}`,
                       borderRadius: 12, padding: '32px 16px',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
                       cursor: 'pointer', transition: 'border-color 0.2s',
-                      background: elemRegPreview ? 'rgba(200,241,53,0.04)' : 'rgba(255,255,255,0.02)',
+                      background: elemRegPreview ? 'var(--drop-accent-focused)' : 'var(--drop-zone-bg)',
                     }}
                   >
                     <input ref={elemRegFileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleElemRegFileChange(e.target.files[0])} />
                     {elemRegPreview
                       ? <img src={elemRegPreview} alt="" style={{ maxHeight: 140, maxWidth: '100%', borderRadius: 8, objectFit: 'contain' }} />
-                      : <><div style={{ fontSize: 36 }}>📁</div><div style={{ fontSize: 12, color: 'var(--t4)' }}>클릭하거나 드래그하여 이미지 업로드</div></>
+                      : <><div style={{ fontSize: 36 }}>📁</div><div style={{ fontSize: 12, color: 'var(--drop-fg3)' }}>클릭하거나 드래그하여 이미지 업로드</div></>
                     }
                     {elemRegFile && <div style={{ fontSize: 10, color: 'var(--drop-accent)', fontWeight: 600 }}>{elemRegFile.name}</div>}
                   </div>
                 ) : (
                   (() => {
                     const sceneImgs = nodes
-                      .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl)
+                      .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl && n.data?.type !== 'video')
                       .map(n => ({ url: n.data.resultUrl, label: n.data.label || '씬', tag: '씬' }))
                     const charImgs = characters
                       .filter(c => c.resultUrl || c.hasLocalImage)
                       .map(c => ({ url: c.resultUrl || null, dbKey: c.hasLocalImage ? `char-${c.id}` : null, label: c.name || '캐릭터', tag: '캐릭터' }))
                     const projectImgs = [...charImgs, ...sceneImgs]
                     return projectImgs.length === 0
-                      ? <div style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--t4)' }}>씬 생성 결과 또는 캐릭터 이미지가 없습니다</div>
+                      ? <div style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--drop-fg3)' }}>씬 생성 결과 또는 캐릭터 이미지가 없습니다</div>
                       : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                           {projectImgs.map((item, i) => (
                             <ElemImgCell key={i} item={item} selected={elemRegSelectedImg === item} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
@@ -1746,9 +1746,9 @@ function FlowCanvas() {
 
                 {/* 선택된 이미지 미리보기 (프로젝트 탭) */}
                 {elemRegActiveTab === 'project' && elemRegSelectedImg && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span style={{ fontSize: 12 }}>{elemRegSelectedImg.tag === '캐릭터' ? '🧑 캐릭터 레퍼런스' : '🎬 씬 생성 이미지'}</span>
-                    <span style={{ fontSize: 11, color: 'var(--drop-accent)', fontWeight: 600 }}>{elemRegSelectedImg.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'var(--drop-btn-bg)', border: '1px solid var(--drop-sep)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--drop-fg2)' }}>{elemRegSelectedImg.tag === '캐릭터' ? '🧑 캐릭터 레퍼런스' : '🎬 씬 생성 이미지'}</span>
+                    <span style={{ fontSize: 11, color: 'var(--drop-accent)', fontWeight: 700 }}>{elemRegSelectedImg.label}</span>
                   </div>
                 )}
 
@@ -1759,23 +1759,23 @@ function FlowCanvas() {
                   placeholder="Element 이름 (선택)"
                   style={{
                     width: '100%', padding: '10px 12px', borderRadius: 9,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box',
+                    border: '1px solid var(--drop-sep)',
+                    background: 'var(--drop-input-bg)',
+                    color: 'var(--drop-fg)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box',
                     outline: 'none',
                   }}
                 />
 
                 {/* 카테고리 */}
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>카테고리</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--drop-fg4)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>카테고리</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {[['auto','✨ Auto'], ['character','🧑 Character'], ['environment','🌍 Environment'], ['prop','📦 Prop']].map(([v, l]) => (
                       <button key={v} onClick={() => setElemRegCategory(v)} style={{
-                        padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: elemRegCategory === v ? 600 : 500,
-                        border: elemRegCategory === v ? '1px solid rgba(200,241,53,0.55)' : '1px solid rgba(255,255,255,0.08)',
-                        background: elemRegCategory === v ? 'rgba(200,241,53,0.1)' : 'rgba(255,255,255,0.03)',
-                        color: elemRegCategory === v ? 'var(--drop-accent)' : 'rgba(255,255,255,0.4)',
+                        padding: '5px 11px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: elemRegCategory === v ? 700 : 500,
+                        border: elemRegCategory === v ? '1px solid var(--drop-border)' : '1px solid var(--drop-sep)',
+                        background: elemRegCategory === v ? 'var(--drop-accent-focused)' : 'var(--drop-btn-bg)',
+                        color: elemRegCategory === v ? 'var(--drop-accent)' : 'var(--drop-fg3)',
                       }}>{l}</button>
                     ))}
                   </div>
@@ -1785,7 +1785,7 @@ function FlowCanvas() {
               {/* 푸터 */}
               <div style={{ padding: '0 24px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {elemRegLoading && (
-                  <div style={{ height: 3, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.08)' }}>
+                  <div style={{ height: 3, borderRadius: 3, overflow: 'hidden', background: 'var(--drop-sep)' }}>
                     <div style={{ height: '100%', backgroundImage: 'linear-gradient(90deg,transparent 0%,var(--drop-accent) 50%,transparent 100%)', backgroundSize: '400px 100%', animation: 'elem-shimmer 1.2s infinite linear' }} />
                   </div>
                 )}
@@ -1794,8 +1794,8 @@ function FlowCanvas() {
                   disabled={(!elemRegFile && !elemRegSelectedImg) || elemRegLoading}
                   style={{
                     width: '100%', padding: '12px 0', borderRadius: 10, border: 'none',
-                    background: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'rgba(255,255,255,0.08)' : 'var(--drop-accent)',
-                    color: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'rgba(255,255,255,0.3)' : '#000',
+                    background: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'var(--drop-sep)' : 'var(--drop-accent)',
+                    color: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'var(--drop-fg4)' : '#000',
                     fontSize: 14, fontWeight: 800, cursor: (!elemRegFile && !elemRegSelectedImg) || elemRegLoading ? 'default' : 'pointer',
                     transition: 'all 0.2s',
                   }}

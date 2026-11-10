@@ -40,12 +40,21 @@ html.theme-transitioning *::after {
   --node-section: rgba(255,255,255,0.05);
   --sep: rgba(255,255,255,0.06);
   --sep2: rgba(255,255,255,0.08);
-  /* @멘션 드롭다운 */
+  /* @멘션 드롭다운 / Element 모달 */
   --drop-bg: rgba(16,16,26,0.96);
   --drop-border: rgba(200,241,53,0.3);
   --drop-accent: #C8F135;
   --drop-accent-focused: rgba(200,241,53,0.12);
   --drop-shadow: 0 16px 40px rgba(0,0,0,0.65);
+  --drop-fg: #F4F4F4;
+  --drop-fg2: rgba(244,244,244,0.65);
+  --drop-fg3: rgba(244,244,244,0.42);
+  --drop-fg4: rgba(244,244,244,0.28);
+  --drop-sep: rgba(255,255,255,0.09);
+  --drop-input-bg: rgba(255,255,255,0.06);
+  --drop-dashed: rgba(255,255,255,0.18);
+  --drop-btn-bg: rgba(255,255,255,0.05);
+  --drop-zone-bg: rgba(255,255,255,0.03);
 }
 
 :root[data-theme="light"] {
@@ -75,12 +84,21 @@ html.theme-transitioning *::after {
   --node-section: rgba(255,255,255,0.65);
   --sep: rgba(30,36,86,0.10);
   --sep2: rgba(30,36,86,0.16);
-  /* @멘션 드롭다운 */
+  /* @멘션 드롭다운 / Element 모달 */
   --drop-bg: rgba(252,253,255,0.97);
   --drop-border: rgba(78,122,0,0.28);
   --drop-accent: #4e7a00;
   --drop-accent-focused: rgba(78,122,0,0.09);
   --drop-shadow: 0 10px 32px rgba(0,0,0,0.14);
+  --drop-fg: #1E2456;
+  --drop-fg2: rgba(30,36,86,0.78);
+  --drop-fg3: rgba(30,36,86,0.55);
+  --drop-fg4: rgba(30,36,86,0.42);
+  --drop-sep: rgba(30,36,86,0.12);
+  --drop-input-bg: rgba(30,36,86,0.06);
+  --drop-dashed: rgba(30,36,86,0.22);
+  --drop-btn-bg: rgba(30,36,86,0.05);
+  --drop-zone-bg: rgba(30,36,86,0.03);
 }
 
 .react-flow {
