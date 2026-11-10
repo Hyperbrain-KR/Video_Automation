@@ -6,6 +6,7 @@ import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
 import { CANVAS_API } from '../lib/config'
 import { CATEGORY_ICON } from '../lib/elementsStore'
+import { invalidateElementsCache } from '../hooks/useMentionEditor'
 import { apiFetch } from '../lib/config'
 
 function CharacterThumb({ char }) {
@@ -369,7 +370,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
       const resData = await r.json()
       if (!r.ok) throw new Error(resData.error || '등록 실패')
       setRegSuccess(`✓ ${resData.name} 등록 완료!`)
-      // 목록 새로고침
+      // @멘션 드롭다운 캐시 무효화 + 목록 새로고침
+      invalidateElementsCache()
       setHfElements([])
       setHfElemLoading(true)
       apiFetch('/api/higgsfield/elements')

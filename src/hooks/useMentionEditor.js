@@ -1,5 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { loadElements } from '../lib/elementsStore'
+import { apiFetch } from '../lib/config'
+
+// ── Higgsfield Elements 모듈 레벨 캐시 ──────────────────────────────────────
+let _hfElems = null  // null = 아직 미조회
+
+export function invalidateElementsCache() {
+  _hfElems = null
+}
 
 // ── @mention 스팬 CSS 한 번만 주입 ─────────────────────────────────────────
 let _stylesInjected = false
@@ -99,18 +106,33 @@ export function useMentionEditor({ value, onChange }) {
     onChange(text)
 
     const info = getCaretInfo()
-    if (info) {
-      const elems = loadElements()
-      const q = info.query.toLowerCase()
-      const filtered = elems.filter(e =>
+    if (!info) { setDropOpen(false); return }
+
+    const q = info.query.toLowerCase()
+    const applyFilter = (elems) => {
+      const filtered = (elems ?? []).filter(e =>
         e.name.slice(1).toLowerCase().includes(q)
       )
       setDropItems(filtered)
       setDropFocused(filtered.length > 0 ? 0 : -1)
       setDropQuery(info.query)
       setDropOpen(true)
+    }
+
+    if (_hfElems !== null) {
+      // 캐시 있음 → 즉시 필터
+      applyFilter(_hfElems)
     } else {
-      setDropOpen(false)
+      // 첫 @: 빈 목록으로 드롭다운 열어두고, fetch 완료 후 채움
+      _hfElems = []
+      applyFilter([])
+      apiFetch('/api/higgsfield/elements')
+        .then(r => r.json())
+        .then(d => {
+          _hfElems = d.elements ?? []
+          applyFilter(_hfElems)
+        })
+        .catch(() => { _hfElems = [] })
     }
   }, [onChange])
 
