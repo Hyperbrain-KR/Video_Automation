@@ -139,7 +139,7 @@ export function useMentionEditor({ value, onChange, frameItems = [] }) {
         })
         .catch(() => { _hfElems = [] })
     }
-  }, [onChange])
+  }, [onChange, frameItems])
 
   // 드롭다운에서 element 선택: @query → <span.rf-mention>@name</span> 교체
   const selectItem = useCallback((idx) => {
