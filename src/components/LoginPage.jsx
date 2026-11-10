@@ -19,6 +19,7 @@ export default function LoginPage() {
       background: '#0A0A0F', gap: 32,
     }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <img src="/[HB]심볼_color.png" alt="logo" style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: 16 }} />
         <div style={{ fontSize: 28, fontWeight: 800, color: '#F4F4F4', letterSpacing: '-0.02em' }}>
           Canvas
         </div>
