@@ -265,7 +265,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
   }, [id, updateNodeData])
 
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
-    dropOpen, dropItems, dropFocused, dropQuery, selectItem,
+    dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
   } = useMentionEditor({ value, onChange: handleChange })
 
   const styleAnchor = (() => {
@@ -402,7 +402,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
           </div>
         )}
         {dropOpen && dropItems.length > 0 && (
-          <div className="nopan nodrag" style={{
+          <div className="nopan nodrag" onMouseDown={handleDropMouseDown} style={{
             position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
             zIndex: 1000,
             background: 'var(--node-bg)',
@@ -423,7 +423,8 @@ export default function VideoDirectionNode({ id, data, selected }) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '6px 10px', cursor: 'pointer',
-                    background: i === dropFocused ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    background: i === dropFocused ? 'rgba(200,241,53,0.12)' : 'transparent',
+                    boxShadow: i === dropFocused ? 'inset 3px 0 0 #C8F135' : 'none',
                   }}
                 >
                   {el.thumbUrl

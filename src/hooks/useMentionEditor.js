@@ -56,6 +56,7 @@ function extractText(el) {
 // ── 훅 ────────────────────────────────────────────────────────────────────
 export function useMentionEditor({ value, onChange }) {
   const editorRef = useRef(null)
+  const _dropActive = useRef(false)  // 드롭다운 내부 클릭(스크롤 포함) 감지용
 
   const [dropOpen, setDropOpen]       = useState(false)
   const [dropItems, setDropItems]     = useState([])
@@ -201,14 +202,27 @@ export function useMentionEditor({ value, onChange }) {
     return false
   }, [dropOpen, dropFocused, dropItems.length, selectItem])
 
+  // 드롭다운 컨테이너 mousedown → blur 무시 처리
+  const handleDropMouseDown = useCallback(() => {
+    _dropActive.current = true
+  }, [])
+
   const handleBlur = useCallback(() => {
-    setTimeout(() => setDropOpen(false), 160)
+    setTimeout(() => {
+      if (_dropActive.current) {
+        _dropActive.current = false
+        editorRef.current?.focus()
+        return
+      }
+      setDropOpen(false)
+    }, 160)
   }, [])
 
   return {
     editorRef,
     handleInput,
     handleMentionKeyDown,
+    handleDropMouseDown,
     handleBlur,
     dropOpen,
     dropItems,
