@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect, useContext } from 'react'
+import { useState, useRef, useEffect, useContext, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
+import { useMentionEditor } from '../hooks/useMentionEditor'
+import { CATEGORY_ICON } from '../lib/elementsStore'
 
 const C = {
   cyan: '#29D9D9',
@@ -256,7 +258,15 @@ export default function VideoDirectionNode({ id, data, selected }) {
   const [dirImgMeta, setDirImgMeta] = useState(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
-  const textareaRef = useRef(null)
+
+  const handleChange = useCallback((text) => {
+    setValue(text)
+    updateNodeData(id, { value: text })
+  }, [id, updateNodeData])
+
+  const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
+    dropOpen, dropItems, dropFocused, dropQuery, selectItem,
+  } = useMentionEditor({ value, onChange: handleChange })
 
   const styleAnchor = (() => {
     const anchorNode = getNodes().find(n => n.id === 'styleAnchor')
@@ -276,13 +286,6 @@ export default function VideoDirectionNode({ id, data, selected }) {
     setSyncedEnglish(data.englishDialogue)
     setEnglishDialogue(data.englishDialogue ?? '')
   }
-
-  useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + 'px'
-  }, [value])
 
   useEffect(() => {
     if (!data.hasDirectionImage) {
@@ -366,24 +369,73 @@ export default function VideoDirectionNode({ id, data, selected }) {
         </button>
       </div>
 
-      {/* 연출 내용 */}
-      <textarea
-        ref={textareaRef}
-        className="nopan nodrag"
-        style={{
-          width: '100%', minHeight: 80, maxHeight: MAX_HEIGHT,
-          background: 'var(--node-input)',
-          border: '1px solid var(--sep)',
-          borderRadius: 7, padding: '8px 10px',
-          fontSize: 12, fontFamily: 'inherit', resize: 'none',
-          outline: 'none', color: 'var(--t2)', lineHeight: 1.6,
-          boxSizing: 'border-box', overflowY: 'auto',
-        }}
-        placeholder={data.placeholder ?? '원하는 영상 연출을 설명해주세요.\n예) 카메라가 천천히 줌인하며...'}
-        value={value}
-        onChange={e => { setValue(e.target.value); updateNodeData(id, { value: e.target.value }) }}
-        onKeyDown={handleKeyDown}
-      />
+      {/* 연출 내용 (contenteditable — @멘션 색상 지원) */}
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={editorRef}
+          className="nopan nodrag"
+          contentEditable
+          suppressContentEditableWarning
+          style={{
+            width: '100%',
+            minHeight: 80,
+            maxHeight: MAX_HEIGHT,
+            background: 'var(--node-input)',
+            border: '1px solid var(--sep)',
+            borderRadius: 7, padding: '8px 10px',
+            fontSize: 12, fontFamily: 'inherit',
+            outline: 'none', color: 'var(--t2)', lineHeight: 1.6,
+            boxSizing: 'border-box', overflowY: 'auto',
+            whiteSpace: 'pre-wrap', wordWrap: 'break-word', cursor: 'text',
+          }}
+          onInput={handleInput}
+          onKeyDown={e => { if (!handleMentionKeyDown(e)) handleKeyDown(e) }}
+          onBlur={handleBlur}
+        />
+        {!value && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, pointerEvents: 'none',
+            padding: '8px 10px', fontSize: 12, lineHeight: 1.6,
+            color: 'var(--t5)', userSelect: 'none',
+          }}>
+            {data.placeholder ?? '원하는 영상 연출을 설명해주세요.\n예) 카메라가 천천히 줌인하며...'}
+          </div>
+        )}
+        {dropOpen && dropItems.length > 0 && (
+          <div className="nopan nodrag" style={{
+            position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
+            zIndex: 1000,
+            background: 'var(--node-bg)',
+            border: '1px solid rgba(200,241,53,0.3)',
+            borderRadius: 10,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: '#C8F135', fontWeight: 700, letterSpacing: '0.03em' }}>
+              @ {dropQuery || 'Elements'}
+            </div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {dropItems.map((el, i) => (
+                <div
+                  key={el.id}
+                  onMouseDown={e => { e.preventDefault(); selectItem(i) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '6px 10px', cursor: 'pointer',
+                    background: i === dropFocused ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#C8F135', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {el.name}
+                  </span>
+                  <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 구분선 + 대사 섹션 */}
       <div style={{ margin: '10px 0 6px', borderTop: '1px solid var(--sep)', paddingTop: 8 }}>

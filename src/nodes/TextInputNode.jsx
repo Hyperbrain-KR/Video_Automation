@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect, useContext } from 'react'
+import { useState, useRef, useEffect, useContext, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
+import { useMentionEditor } from '../hooks/useMentionEditor'
+import { CATEGORY_ICON } from '../lib/elementsStore'
 
 const C = {
   cyan: '#29D9D9',
@@ -230,7 +232,15 @@ export default function TextInputNode({ id, data, selected }) {
   const [dirImgMeta, setDirImgMeta] = useState(null) // { data, mediaType }
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
-  const textareaRef = useRef(null)
+
+  const handleChange = useCallback((text) => {
+    setValue(text)
+    updateNodeData(id, { value: text })
+  }, [id, updateNodeData])
+
+  const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
+    dropOpen, dropItems, dropFocused, dropQuery, selectItem,
+  } = useMentionEditor({ value, onChange: handleChange })
 
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
@@ -245,13 +255,6 @@ export default function TextInputNode({ id, data, selected }) {
     setSyncedDataValue(data.value)
     setValue(data.value ?? data.defaultValue ?? '')
   }
-
-  useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, MAX_HEIGHT) + 'px'
-  }, [value])
 
   // 연출 노드: 저장된 레퍼런스 이미지 로드
   useEffect(() => {
@@ -303,10 +306,7 @@ export default function TextInputNode({ id, data, selected }) {
     ].join(', '),
   } : {}
 
-  const handleApply = (text) => {
-    setValue(text)
-    updateNodeData(id, { value: text })
-  }
+  const handleApply = (text) => { handleChange(text) }
 
   const handleKeyDown = (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return
@@ -359,31 +359,80 @@ export default function TextInputNode({ id, data, selected }) {
         )}
       </div>
 
-      <textarea
-        ref={textareaRef}
-        className="nopan nodrag"
-        style={{
-          width: '100%',
-          minHeight: 80,
-          maxHeight: MAX_HEIGHT,
-          background: 'var(--node-input)',
-          border: '1px solid var(--sep)',
-          borderRadius: 7,
-          padding: '8px 10px',
-          fontSize: 12,
-          fontFamily: 'inherit',
-          resize: 'none',
-          outline: 'none',
-          color: 'var(--t2)',
-          lineHeight: 1.6,
-          boxSizing: 'border-box',
-          overflowY: 'auto',
-        }}
-        placeholder={data.placeholder ?? '내용을 입력하세요...'}
-        value={value}
-        onChange={e => { setValue(e.target.value); updateNodeData(id, { value: e.target.value }) }}
-        onKeyDown={handleKeyDown}
-      />
+      {/* 프롬프트 입력 (contenteditable — @멘션 색상 지원) */}
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={editorRef}
+          className="nopan nodrag"
+          contentEditable
+          suppressContentEditableWarning
+          style={{
+            width: '100%',
+            minHeight: 80,
+            maxHeight: MAX_HEIGHT,
+            background: 'var(--node-input)',
+            border: '1px solid var(--sep)',
+            borderRadius: 7,
+            padding: '8px 10px',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            outline: 'none',
+            color: 'var(--t2)',
+            lineHeight: 1.6,
+            boxSizing: 'border-box',
+            overflowY: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            cursor: 'text',
+          }}
+          onInput={handleInput}
+          onKeyDown={e => { if (!handleMentionKeyDown(e)) handleKeyDown(e) }}
+          onBlur={handleBlur}
+        />
+        {!value && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, pointerEvents: 'none',
+            padding: '8px 10px', fontSize: 12, lineHeight: 1.6,
+            color: 'var(--t5)', userSelect: 'none',
+          }}>
+            {data.placeholder ?? '내용을 입력하세요...'}
+          </div>
+        )}
+        {dropOpen && dropItems.length > 0 && (
+          <div className="nopan nodrag" style={{
+            position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
+            zIndex: 1000,
+            background: 'var(--node-bg)',
+            border: '1px solid rgba(200,241,53,0.3)',
+            borderRadius: 10,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: '#C8F135', fontWeight: 700, letterSpacing: '0.03em' }}>
+              @ {dropQuery || 'Elements'}
+            </div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {dropItems.map((el, i) => (
+                <div
+                  key={el.id}
+                  onMouseDown={e => { e.preventDefault(); selectItem(i) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '6px 10px', cursor: 'pointer',
+                    background: i === dropFocused ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>{CATEGORY_ICON[el.category] ?? '📌'}</span>
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#C8F135', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {el.name}
+                  </span>
+                  <span style={{ fontSize: 9, color: 'var(--t5)' }}>{el.category}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 연출 노드 전용: 레퍼런스 이미지 첨부 */}
       {isDirectionNode && (
