@@ -709,6 +709,19 @@ function FlowCanvas() {
   }, [contextMenu, pushHistory, setEdges])
 
   useEffect(() => {
+    const blockCut = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') {
+        const el = document.activeElement
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('keydown', blockCut, true)
+    return () => window.removeEventListener('keydown', blockCut, true)
+  }, [])
+
+  useEffect(() => {
     const handleUndoRedo = (e) => {
       if (!(e.metaKey || e.ctrlKey) || e.key !== 'z') return
       const el = document.activeElement
