@@ -88,7 +88,7 @@ export function useMentionEditor({ value, onChange, frameItems = [] }) {
       e.name.slice(1).toLowerCase().includes(q)
     )
     const combined = [...filteredFrames, ...filteredElems]
-    setDropItems(combined)
+    setDropItems(combined) // eslint-disable-line react-hooks/set-state-in-effect
     setDropFocused(prev => Math.min(prev, combined.length - 1))
   }, [frameItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
