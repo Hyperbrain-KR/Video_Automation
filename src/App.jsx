@@ -1740,16 +1740,16 @@ function FlowCanvas() {
                   (() => {
                     const sceneImgs = nodes
                       .filter(n => n.type === 'higgsfieldNode' && n.data?.resultUrl && n.data?.type !== 'video')
-                      .map(n => ({ url: n.data.resultUrl, label: n.data.label || '씬', tag: '씬' }))
+                      .map(n => ({ url: n.data.resultUrl, label: n.data.label || '씬', tag: '씬', _key: `scene:${n.id}` }))
                     const charImgs = characters
                       .filter(c => c.resultUrl || c.hasLocalImage)
-                      .map(c => ({ url: c.resultUrl || null, dbKey: c.hasLocalImage ? `char-${c.id}` : null, label: c.name || '캐릭터', tag: '캐릭터' }))
+                      .map(c => ({ url: c.resultUrl || null, dbKey: c.hasLocalImage ? `char-${c.id}` : null, label: c.name || '캐릭터', tag: '캐릭터', _key: `char:${c.id}` }))
                     const projectImgs = [...charImgs, ...sceneImgs]
                     return projectImgs.length === 0
                       ? <div style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--drop-fg3)' }}>씬 생성 결과 또는 캐릭터 이미지가 없습니다</div>
                       : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                           {projectImgs.map((item, i) => (
-                            <ElemImgCell key={i} item={item} selected={elemRegSelectedImg != null && (elemRegSelectedImg.url ?? elemRegSelectedImg.dbKey) === (item.url ?? item.dbKey)} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
+                            <ElemImgCell key={i} item={item} selected={elemRegSelectedImg?._key === item._key} onSelect={img => { setElemRegSelectedImg(img); setElemRegFile(null); setElemRegPreview(null) }} />
                           ))}
                         </div>
                   })()
