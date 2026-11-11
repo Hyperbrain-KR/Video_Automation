@@ -247,7 +247,28 @@ export default function HiggsfieldNode({ id, data, selected }) {
     }, 900)
   }
   const isVideo = data.type === 'video'
+  const isChar = id.startsWith('higgsfieldChar')
   const hasRef = data.hasRef ?? false
+
+  // bg 섹션 Y 정렬 기반으로 다운로드 파일명용 번호 계산
+  const downloadIndex = useStore(s => {
+    const bgPrefix = isChar ? 'bg-s1' : 'bg-s2'
+    const bgNodes = s.nodes
+      .filter(n => n.id === bgPrefix || n.id.startsWith(`${bgPrefix}-`))
+      .sort((a, b) => a.position.y - b.position.y)
+    const nodePrefix = isChar ? 'higgsfieldChar' : isVideo ? 'higgsfieldVideo' : 'higgsfieldImage'
+    const thisSuffix = id === nodePrefix ? null : id.replace(`${nodePrefix}-`, '')
+    const idx = bgNodes.findIndex(n => {
+      const bgSuffix = n.id === bgPrefix ? null : n.id.replace(`${bgPrefix}-`, '')
+      return bgSuffix === thisSuffix
+    })
+    return idx >= 0 ? idx + 1 : 1
+  })
+  const downloadFilename = isVideo
+    ? `scene${String(downloadIndex).padStart(2, '0')}.mp4`
+    : isChar
+      ? `character${String(downloadIndex).padStart(2, '0')}.jpg`
+      : `scene${String(downloadIndex).padStart(2, '0')}.jpg`
   const hasMultiInput = isVideo || hasRef
   const promptTop = hasMultiInput ? '25%' : '50%'
 
@@ -1222,8 +1243,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
           )}
           {!thumbCollapsed && <>
             <a
-              href={`${CANVAS_API}/api/download?url=${encodeURIComponent(data.resultUrl)}`}
-              download
+              href={`${CANVAS_API}/api/download?url=${encodeURIComponent(data.resultUrl)}&filename=${encodeURIComponent(downloadFilename)}`}
+              download={downloadFilename}
               style={{ display: 'block', textDecoration: 'none', marginTop: 6 }}
             >
               <div style={{

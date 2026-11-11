@@ -996,12 +996,12 @@ function extractPresigned(result) {
 
 // ── 다운로드 프록시 ───────────────────────────────────────
 app.get('/api/download', async (req, res) => {
-  const { url } = req.query
+  const { url, filename: reqFilename } = req.query
   if (!url) return res.status(400).json({ error: 'url 필요' })
   try {
     const upstream = await fetch(url)
     const contentType = upstream.headers.get('content-type') || 'application/octet-stream'
-    const filename = url.split('/').pop().split('?')[0] || 'download'
+    const filename = reqFilename || url.split('/').pop().split('?')[0] || 'download'
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
     res.setHeader('Content-Type', contentType)
     const { Readable } = await import('stream')
