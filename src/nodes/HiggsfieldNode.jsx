@@ -265,10 +265,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
     return idx >= 0 ? idx + 1 : 1
   })
   const downloadFilename = isVideo
-    ? `scene${String(downloadIndex).padStart(2, '0')}.mp4`
+    ? `${String(downloadIndex).padStart(2, '0')}.mp4`
     : isChar
       ? `character${String(downloadIndex).padStart(2, '0')}.jpg`
-      : `scene${String(downloadIndex).padStart(2, '0')}.jpg`
+      : `${String(downloadIndex).padStart(2, '0')}.jpg`
   const hasMultiInput = isVideo || hasRef
   const promptTop = hasMultiInput ? '25%' : '50%'
 
