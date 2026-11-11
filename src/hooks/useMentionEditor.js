@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { apiFetch } from '../lib/config'
 
 // ── Higgsfield Elements 모듈 레벨 캐시 ──────────────────────────────────────
@@ -77,8 +77,8 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
 
   useEffect(() => { ensureStyles() }, [])
 
-  // 프로젝트 전환 시 DOM 강제 초기화 (resetKey = projectId)
-  useEffect(() => {
+  // 프로젝트 전환 시 DOM 강제 초기화 — 페인트 전 실행으로 깜빡임 방지 (resetKey = projectId)
+  useLayoutEffect(() => {
     if (resetKey === undefined) return
     if (!editorRef.current) return
     editorRef.current.innerHTML = ''
@@ -99,8 +99,8 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
     setDropFocused(prev => Math.min(prev, combined.length - 1))
   }, [frameItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 외부 value 변경 → DOM 동기화 (프로젝트 전환, 연출 제안 적용 등)
-  useEffect(() => {
+  // 외부 value 변경 → DOM 동기화 (프로젝트 전환, 연출 제안 적용 등) — 페인트 전 실행
+  useLayoutEffect(() => {
     const el = editorRef.current
     if (!el) return
     const current = extractText(el)

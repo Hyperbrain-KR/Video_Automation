@@ -581,7 +581,7 @@ function FlowCanvas() {
       const freshNodes = JSON.parse(JSON.stringify(nodes0))
       const freshEdges = JSON.parse(JSON.stringify(edges0))
       const newId = await createProject(name, freshNodes, freshEdges, [])
-      setActiveProjectId(newId)
+      if (newId) setActiveProjectId(newId)
       setNodes(freshNodes)
       setEdges(freshEdges)
       setCharacters([])
