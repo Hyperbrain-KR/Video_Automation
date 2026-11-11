@@ -69,12 +69,28 @@ Do NOT write:
 - Skin texture, lighting model, or material descriptions
 - Quality filler like "masterpiece", "best quality"
 
+## @Reference Rules — MANDATORY
+- If the direction contains @image references (e.g. @image1, @image2), these are reference images attached to the generation — reproduce them exactly as written, never drop, rename, or paraphrase
+- @image1, @image2, … each refer to a specific attached reference image (character, product, or other visual) — when mentioned, use the token verbatim to refer to that element (e.g. "with @image1 as the character", "featuring the product shown in @image2")
+- Never translate or omit @image tokens — they are technical identifiers the image model uses to match attached references
+
 Do not ask follow-up questions.
 
 Output rules:
 - Output the English prompt only
-- No code blocks, no Korean, no explanations`,
-    user: (anchor, command) => `Image style anchor:\n${anchor || '(none)'}\n\nScene direction:\n${command || '(no input)'}`,
+- No code blocks, no Korean, no explanations
+- @image tokens must appear exactly as written — never drop the @ symbol`,
+    user: (anchor, command) => {
+      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionWarning = mentionMatches?.length
+        ? `⚠️ @REFERENCE IMAGES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
+        : ''
+      return [
+        `Image style anchor:\n${anchor || '(none)'}`,
+        `Scene direction:\n${command || '(no input)'}`,
+        mentionWarning,
+      ].filter(Boolean).join('\n\n')
+    },
   },
   claudeVideo: {
     system: `You are a video prompt generator for Kling 3.0 via higgsfield.ai.
