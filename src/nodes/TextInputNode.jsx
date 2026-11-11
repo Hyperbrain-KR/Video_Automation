@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect, useContext, useCallback } from 'react'
+import { useState, useRef, useEffect, useContext, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { Handle, Position, useReactFlow } from '@xyflow/react'
+import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
+import { CharactersContext } from '../lib/CharactersContext'
+import { AssetsContext } from '../lib/AssetsContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
@@ -225,6 +227,8 @@ Output ONLY the Korean direction — no labels, no explanations.`
 export default function TextInputNode({ id, data, selected }) {
   const { updateNodeData, getNodes, getEdges } = useReactFlow()
   const projectId = useContext(ProjectContext)
+  const { characters } = useContext(CharactersContext)
+  const { assets } = useContext(AssetsContext)
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
   const [syncedProjectId, setSyncedProjectId] = useState(projectId)
@@ -239,9 +243,87 @@ export default function TextInputNode({ id, data, selected }) {
     updateNodeData(id, { value: text })
   }, [id, updateNodeData])
 
+  // imageDirection 노드일 때만 대응하는 higgsfieldImage 노드 감지
+  const isImgDirNode = id.startsWith('imageDirection')
+  const hiStr = useStore(s => {
+    if (!isImgDirNode) return ''
+    const suffix = id.replace(/^imageDirection/, '')
+    const hiId = `higgsfieldImage${suffix}`
+    const hi = s.nodes.find(n => n.id === hiId)
+    if (!hi || hi.type !== 'higgsfieldNode' || hi.data?.type !== 'image') return ''
+    return JSON.stringify({
+      charIds: hi.data?.selectedCharacterIds ?? [],
+      assetIds: hi.data?.selectedAssetIds ?? [],
+      noCharRef: hi.data?.noCharRef ?? false,
+    })
+  })
+
+  // 캐릭터 썸네일 비동기 로드
+  const [charThumbs, setCharThumbs] = useState({})
+  useEffect(() => {
+    if (!isImgDirNode || !characters?.length) return
+    let cancelled = false
+    Promise.all(
+      characters.map(c =>
+        loadImage(`char-${c.id}`)
+          .then(url => ({ id: c.id, url: url ?? null }))
+          .catch(() => ({ id: c.id, url: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = {}
+      results.forEach(r => { if (r.url) map[r.id] = r.url })
+      setCharThumbs(map)
+    })
+    return () => { cancelled = true }
+  }, [isImgDirNode, characters])
+
+  // 제품(에셋) 썸네일 비동기 로드
+  const [assetThumbs, setAssetThumbs] = useState({})
+  useEffect(() => {
+    if (!isImgDirNode || !assets?.length) return
+    let cancelled = false
+    Promise.all(
+      assets.map(a =>
+        loadImage(`asset-${a.id}`)
+          .then(url => ({ id: a.id, url: url ?? null }))
+          .catch(() => ({ id: a.id, url: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = {}
+      results.forEach(r => { if (r.url) map[r.id] = r.url })
+      setAssetThumbs(map)
+    })
+    return () => { cancelled = true }
+  }, [isImgDirNode, assets])
+
+  // 선택된 참조들 → @image1, @image2, ... 순서로 frameItems 생성
+  const frameItems = useMemo(() => {
+    if (!hiStr) return []
+    const { charIds, assetIds, noCharRef } = JSON.parse(hiStr)
+    const items = []
+    let idx = 1
+    if (!noCharRef) {
+      for (const charId of charIds) {
+        const char = characters.find(c => c.id === charId)
+        if (!char) continue
+        items.push({ name: `@image${idx}`, label: char.name, thumbUrl: charThumbs[charId] ?? char.resultUrl ?? null })
+        idx++
+      }
+    }
+    for (const assetId of assetIds) {
+      const asset = assets.find(a => a.id === assetId)
+      if (!asset) continue
+      items.push({ name: `@image${idx}`, label: asset.name, thumbUrl: assetThumbs[assetId] ?? null })
+      idx++
+    }
+    return items
+  }, [hiStr, characters, charThumbs, assets, assetThumbs])
+
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
-  } = useMentionEditor({ value, onChange: handleChange })
+  } = useMentionEditor({ value, onChange: handleChange, frameItems })
 
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
