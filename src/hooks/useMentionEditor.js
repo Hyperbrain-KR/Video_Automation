@@ -77,13 +77,11 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
 
   useEffect(() => { ensureStyles() }, [])
 
-  // 프로젝트 전환 시 DOM을 현재 value로 강제 동기화 — innerText가 비렌더 상태에서 ''를 반환하는 문제 우회
+  // 프로젝트 전환 시 DOM을 현재 value로 강제 동기화
+  // resetKey === undefined 뿐 아니라 null도 허용 (projectId가 null인 초기 상태 대응)
   useLayoutEffect(() => {
-    if (resetKey === undefined) return
     if (!editorRef.current) return
-    console.log('[resetKey effect] resetKey:', resetKey, '| value:', JSON.stringify(value), '| innerHTML before:', editorRef.current.innerHTML)
     editorRef.current.innerHTML = textToHtml(value ?? '')
-    console.log('[resetKey effect] innerHTML after:', editorRef.current.innerHTML)
   }, [resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // frameItems 변경(썸네일 로드, 모드 전환) 시 열린 드롭다운 자동 갱신
@@ -105,10 +103,15 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
   useLayoutEffect(() => {
     const el = editorRef.current
     if (!el) return
+    const target = textToHtml(value ?? '')
+    if (!target) {
+      // value가 빈 문자열 — innerText는 숨겨진 요소에서 ''를 반환하므로 innerHTML로 직접 비교
+      if (el.innerHTML !== '') el.innerHTML = ''
+      return
+    }
     const current = extractText(el)
-    console.log('[value effect] value:', JSON.stringify(value), '| current(innerText):', JSON.stringify(current), '| innerHTML:', el.innerHTML)
-    if (current === (value ?? '')) return
-    el.innerHTML = textToHtml(value ?? '')
+    if (current === value) return
+    el.innerHTML = target
   }, [value])
 
   // 커서 직전의 @query 정보 반환
