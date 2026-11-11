@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-11-11",
+    "items": [
+      "[NEW][FIX] 새 프로젝트에 이전 연출 입력값이 채워지던 버그 수정 — auto-save 타이머가 늦게 발동될 때 이미 생성된 프로젝트를 무시하지 않고 '내 프로젝트'를 별도 생성해 activeId를 덮어쓰던 레이스 컨디션 차단. handleCreateProject에 isMountedRef 가드 추가. TextInputNode·VideoDirectionNode에 projectId 변경 시 value 강제 초기화 추가"
+    ]
+  },
+  {
     "date": "2026-11-10",
     "items": [
       "[NEW][FEAT] 비디오 연출 노드 @멘션 프레임 참조 기능 — @ 입력 시 연결된 비디오 모델에 따라 Kling은 @start_frame(시작 프레임), Seedance는 @image1~N(레퍼런스 순서대로) 항목이 표시됨. 힉스필드 비디오 노드 캐릭터 역할 버튼 옆에 @imageN 번호 배지도 함께 표시",

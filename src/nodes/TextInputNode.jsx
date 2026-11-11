@@ -227,6 +227,7 @@ export default function TextInputNode({ id, data, selected }) {
   const projectId = useContext(ProjectContext)
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
+  const [syncedProjectId, setSyncedProjectId] = useState(projectId)
   const [showModal, setShowModal] = useState(false)
   const [dirImgSrc, setDirImgSrc] = useState(null)
   const [dirImgMeta, setDirImgMeta] = useState(null) // { data, mediaType }
@@ -250,8 +251,9 @@ export default function TextInputNode({ id, data, selected }) {
     return isVideo ? anchorNode?.data?.videoAnchor : anchorNode?.data?.imageAnchor
   })()
 
-  // 프로젝트 전환 시 노드 data가 교체되면 로컬 state도 동기화 (render-phase 조정)
-  if (syncedDataValue !== data.value) {
+  // 프로젝트 전환 시 노드 data가 교체되거나 projectId가 바뀌면 로컬 state 동기화
+  if (syncedProjectId !== projectId || syncedDataValue !== data.value) {
+    setSyncedProjectId(projectId)
     setSyncedDataValue(data.value)
     setValue(data.value ?? data.defaultValue ?? '')
   }

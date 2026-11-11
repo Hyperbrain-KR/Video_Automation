@@ -476,6 +476,9 @@ function FlowCanvas() {
         if (snapActiveId) {
           await saveProject(snapActiveId, snapNodes, snapEdges, snapChars)
         } else {
+          // 타이머 발동 시점에 이미 다른 경로(handleCreateProject 등)에서
+          // 프로젝트가 생성됐을 수 있으므로, localStorage를 직접 확인하여 충돌 방지
+          if (getActiveProjectId()) return
           await createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
         }
         setSaveState('saved')
@@ -581,6 +584,7 @@ function FlowCanvas() {
       setCanvasKey(newId ?? `new-${Date.now()}`)
       setSaveState('idle')
       setSavedAt(null)
+      isMountedRef.current = false  // handleSwitchProject와 동일하게: 첫 렌더에서 auto-save 차단
     } finally {
       isSwitchingRef.current = false
       setIsSwitching(false)

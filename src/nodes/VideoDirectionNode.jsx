@@ -250,6 +250,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
 
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
+  const [syncedProjectId, setSyncedProjectId] = useState(projectId)
   const [koreanDialogue, setKoreanDialogue] = useState(data.koreanDialogue ?? '')
   const [syncedKorean, setSyncedKorean] = useState(data.koreanDialogue)
   const [englishDialogue, setEnglishDialogue] = useState(data.englishDialogue ?? '')
@@ -332,8 +333,9 @@ export default function VideoDirectionNode({ id, data, selected }) {
     return anchorNode?.data?.videoAnchor
   })()
 
-  // 프로젝트 전환 시 node data 교체 → 로컬 state 동기화
-  if (syncedDataValue !== data.value) {
+  // 프로젝트 전환 시 node data 교체 또는 projectId 변경 → 로컬 state 동기화
+  if (syncedProjectId !== projectId || syncedDataValue !== data.value) {
+    setSyncedProjectId(projectId)
     setSyncedDataValue(data.value)
     setValue(data.value ?? data.defaultValue ?? '')
   }
