@@ -66,7 +66,7 @@ function extractText(el) {
 }
 
 // ── 훅 ────────────────────────────────────────────────────────────────────
-export function useMentionEditor({ value, onChange, frameItems = [] }) {
+export function useMentionEditor({ value, onChange, frameItems = [], resetKey }) {
   const editorRef = useRef(null)
   const _dropActive = useRef(false)  // 드롭다운 내부 클릭(스크롤 포함) 감지용
 
@@ -76,6 +76,13 @@ export function useMentionEditor({ value, onChange, frameItems = [] }) {
   const [dropQuery, setDropQuery]     = useState('')
 
   useEffect(() => { ensureStyles() }, [])
+
+  // 프로젝트 전환 시 DOM 강제 초기화 (resetKey = projectId)
+  useEffect(() => {
+    if (resetKey === undefined) return
+    if (!editorRef.current) return
+    editorRef.current.innerHTML = ''
+  }, [resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // frameItems 변경(썸네일 로드, 모드 전환) 시 열린 드롭다운 자동 갱신
   useEffect(() => {

@@ -181,7 +181,7 @@ function FlowCanvas() {
   // ── 프로젝트 관리 ──────────────────────────────────────────────────────
   const {
     projects, activeId, activeProject, loading,
-    loadProject, saveProject, saveProjectDefaults, createProject, switchProject, deleteProject, renameProject,
+    loadProject, saveProject, saveProjectDefaults, createProject, setActiveProjectId, switchProject, deleteProject, renameProject,
   } = useProjects(user)
 
   const [projectDefaults, setProjectDefaults] = useState(DEFAULT_PROJ_DEFAULTS)
@@ -479,7 +479,10 @@ function FlowCanvas() {
           // 타이머 발동 시점에 이미 다른 경로(handleCreateProject 등)에서
           // 프로젝트가 생성됐을 수 있으므로, localStorage를 직접 확인하여 충돌 방지
           if (getActiveProjectId()) return
-          await createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
+          const newTimerId = await createProject('내 프로젝트', snapNodes, snapEdges, snapChars)
+          if (!newTimerId) return
+          // createProject 대기 중 handleCreateProject가 먼저 완료되었을 수 있음 → 재확인
+          if (!getActiveProjectId()) setActiveProjectId(newTimerId)
         }
         setSaveState('saved')
         setSavedAt(new Date())
@@ -578,6 +581,7 @@ function FlowCanvas() {
       const freshNodes = JSON.parse(JSON.stringify(nodes0))
       const freshEdges = JSON.parse(JSON.stringify(edges0))
       const newId = await createProject(name, freshNodes, freshEdges, [])
+      setActiveProjectId(newId)
       setNodes(freshNodes)
       setEdges(freshEdges)
       setCharacters([])
@@ -589,7 +593,7 @@ function FlowCanvas() {
       isSwitchingRef.current = false
       setIsSwitching(false)
     }
-  }, [activeId, characters, getNodes, getEdges, saveProject, createProject, setNodes, setEdges, setCharacters, setCanvasKey])
+  }, [activeId, characters, getNodes, getEdges, saveProject, createProject, setActiveProjectId, setNodes, setEdges, setCharacters, setCanvasKey])
 
   const handleResetProject = useCallback(() => {
     const DROP = ['resultUrl', 'resultHistory', 'resultIndex', 'status', 'jobId', 'creditsUsed', 'approved',

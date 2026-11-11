@@ -74,9 +74,11 @@ export function useProjects(user) {
     })
     if (error) { console.error('[createProject]', error); return null }
     setProjects(prev => [{ id, name, updatedAt: new Date().toISOString() }, ...prev])
-    _setActive(id)
+    // _setActive는 호출자가 직접 처리 (레이스 컨디션 방지)
     return id
   }, [user])
+
+  const setActiveProjectId = useCallback((id) => _setActive(id), [])
 
   const switchProject = useCallback(async (id) => {
     const data = await loadProject(id)
@@ -101,6 +103,6 @@ export function useProjects(user) {
 
   return {
     projects, activeId, activeProject, loading,
-    loadProject, saveProject, saveProjectDefaults, createProject, switchProject, deleteProject, renameProject,
+    loadProject, saveProject, saveProjectDefaults, createProject, setActiveProjectId, switchProject, deleteProject, renameProject,
   }
 }

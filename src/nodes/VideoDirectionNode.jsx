@@ -326,7 +326,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
 
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
-  } = useMentionEditor({ value, onChange: handleChange, frameItems })
+  } = useMentionEditor({ value, onChange: handleChange, frameItems, resetKey: projectId })
 
   const styleAnchor = (() => {
     const anchorNode = getNodes().find(n => n.id === 'styleAnchor')

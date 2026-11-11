@@ -323,7 +323,7 @@ export default function TextInputNode({ id, data, selected }) {
 
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
-  } = useMentionEditor({ value, onChange: handleChange, frameItems })
+  } = useMentionEditor({ value, onChange: handleChange, frameItems, resetKey: projectId })
 
   const isDirectionNode = data.label?.includes('연출')
   const isVideo = data.label?.includes('비디오')
