@@ -81,7 +81,9 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
   useLayoutEffect(() => {
     if (resetKey === undefined) return
     if (!editorRef.current) return
+    console.log('[resetKey effect] resetKey:', resetKey, '| value:', JSON.stringify(value), '| innerHTML before:', editorRef.current.innerHTML)
     editorRef.current.innerHTML = textToHtml(value ?? '')
+    console.log('[resetKey effect] innerHTML after:', editorRef.current.innerHTML)
   }, [resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // frameItems 변경(썸네일 로드, 모드 전환) 시 열린 드롭다운 자동 갱신
@@ -104,6 +106,7 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
     const el = editorRef.current
     if (!el) return
     const current = extractText(el)
+    console.log('[value effect] value:', JSON.stringify(value), '| current(innerText):', JSON.stringify(current), '| innerHTML:', el.innerHTML)
     if (current === (value ?? '')) return
     el.innerHTML = textToHtml(value ?? '')
   }, [value])
