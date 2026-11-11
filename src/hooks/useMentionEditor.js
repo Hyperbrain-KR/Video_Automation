@@ -77,11 +77,11 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
 
   useEffect(() => { ensureStyles() }, [])
 
-  // 프로젝트 전환 시 DOM 강제 초기화 — 페인트 전 실행으로 깜빡임 방지 (resetKey = projectId)
+  // 프로젝트 전환 시 DOM을 현재 value로 강제 동기화 — innerText가 비렌더 상태에서 ''를 반환하는 문제 우회
   useLayoutEffect(() => {
     if (resetKey === undefined) return
     if (!editorRef.current) return
-    editorRef.current.innerHTML = ''
+    editorRef.current.innerHTML = textToHtml(value ?? '')
   }, [resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // frameItems 변경(썸네일 로드, 모드 전환) 시 열린 드롭다운 자동 갱신
