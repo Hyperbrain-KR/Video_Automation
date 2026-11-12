@@ -17,8 +17,6 @@ const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
-const API_SECRET = process.env.API_SECRET
-
 const anthropic = new Anthropic({ apiKey: globalThis.process?.env?.ANTHROPIC_API_KEY })
 const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
 
@@ -28,9 +26,7 @@ const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_
   : null
 
 // ── API 인증 ─────────────────────────────────────────────
-// 로그인 토큰(Supabase JWT)으로 사용자를 확인한다.
-// x-api-secret 은 프런트 번들에 노출되는 값이라 이행 기간에만 허용 — REQUIRE_LOGIN=true 로 끈다.
-const REQUIRE_LOGIN = process.env.REQUIRE_LOGIN === 'true'
+// 로그인 토큰(Supabase JWT)으로 사용자를 확인하고, 허용 이메일 목록도 서버에서 검사한다.
 const _verifiedTokens = new Map() // token -> { email, expires }
 
 async function verifyLoginToken(token) {
@@ -57,11 +53,10 @@ app.use('/api', async (req, res, next) => {
     }
     if (email) {
       console.warn(`[auth] 서버 ALLOWED_EMAILS 에 없는 계정: ${email}`)
-      if (REQUIRE_LOGIN) return res.status(403).json({ error: 'Forbidden' })
+      return res.status(403).json({ error: 'Forbidden' })
     }
   }
 
-  if (!REQUIRE_LOGIN && (!API_SECRET || req.headers['x-api-secret'] === API_SECRET)) return next()
   res.status(401).json({ error: 'Unauthorized' })
 })
 
