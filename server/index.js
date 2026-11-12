@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createClient } from '@supabase/supabase-js'
+import { startOrphanSweep } from './storageCleanup.js'
 const CHANGELOG = JSON.parse(fs.readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'))
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -1019,5 +1020,6 @@ Promise.all([loadTokensFromSupabase(), loadUsageCache()]).finally(() => {
     console.log(`   Claude 모델: ${MODEL}`)
     console.log(`   API 키: ${process.env.ANTHROPIC_API_KEY ? '✓ 설정됨' : '✗ 미설정 (.env 파일 확인 필요)'}`)
     console.log(`   Supabase: ${supabase ? '✓ 연결됨' : '✗ 미설정 (토큰 영속성 없음)'}`)
+    startOrphanSweep(supabase)
   })
 })

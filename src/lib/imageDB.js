@@ -29,11 +29,12 @@ async function blobToDataUrl(blob) {
 export async function saveImage(key, dataUrl) {
   memCache.set(key, dataUrl)
   const userId = await getUserId()
-  if (!userId) return
+  if (!userId) return false
   const blob = dataUrlToBlob(dataUrl)
-  await supabase.storage.from(BUCKET).upload(`${userId}/${key}`, blob, {
+  const { error } = await supabase.storage.from(BUCKET).upload(`${userId}/${key}`, blob, {
     upsert: true, contentType: blob.type,
   })
+  return !error
 }
 
 export async function loadImage(key) {
@@ -69,6 +70,7 @@ export async function deleteProjectImages(nodes, characters, projectId) {
   for (const node of nodes ?? []) {
     if (node.data?.hasDirectionImage) keys.push(`direction-${projectId}-${node.id}`)
     if (node.data?.hasLocalImage) keys.push(node.id)
+    if (node.data?.imageKey) keys.push(node.data.imageKey)
   }
   for (const char of characters ?? []) {
     if (char.hasLocalImage) keys.push(`char-${char.id}`)

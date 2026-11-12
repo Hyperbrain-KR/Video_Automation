@@ -35,12 +35,14 @@ export default function ReferenceImageNode({ id, data, selected }) {
   const [savingName, setSavingName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
   const [localPreview, setLocalPreview] = useState(null)
+  // "캐릭터로 저장" 후에는 캐릭터 파일(char-...)을 공유하고, 그 전에는 노드 id가 곧 Storage 키
+  const imageKey = data.imageKey ?? id
 
   // 마운트 시 IndexedDB에서 이미지 복원
   useEffect(() => {
     if (!data.hasLocalImage) return
-    loadImageByNodeId(id).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
-  }, [id, data.hasLocalImage])
+    loadImageByNodeId(imageKey).then(url => setLocalPreview(url ?? null)).catch(() => setLocalPreview(null))
+  }, [imageKey, data.hasLocalImage])
 
   const preview = (data.hasLocalImage ? localPreview : null) || data.imageUrl || null
 
@@ -64,6 +66,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
       setLocalPreview(dataUrl)
       updateNodeData(id, {
         hasLocalImage: true,
+        imageKey: null,
         filename: file.name,
         contentType: file.type,
         imageUrl: null,
@@ -75,7 +78,17 @@ export default function ReferenceImageNode({ id, data, selected }) {
 
   const handleUrlConfirm = () => {
     if (!urlInput.trim()) return
-    updateNodeData(id, { imageUrl: urlInput.trim(), hasLocalImage: false, imageDataUrl: null, filename: null })
+    updateNodeData(id, { imageUrl: urlInput.trim(), hasLocalImage: false, imageKey: null, imageDataUrl: null, filename: null })
+  }
+
+  const handleSaveCharacter = async () => {
+    const name = savingName.trim()
+    if (!name) return
+    setSavingName(''); setShowSaveInput(false)
+    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImageByNodeId(imageKey) : null)
+    const charKey = await saveCharacter(name, imgSrc)
+    // 사본 업로드가 확인된 뒤에만 캐릭터 파일을 공유 — 노드의 원본 파일은 서버 정리 작업이 나중에 삭제
+    if (charKey && data.hasLocalImage && !data.imageKey) updateNodeData(id, { imageKey: charKey })
   }
 
   const onDrop = (e) => {
@@ -179,9 +192,9 @@ export default function ReferenceImageNode({ id, data, selected }) {
           />
           <button
             onClick={() => {
-              deleteImage(id).catch(() => {})
+              if (!data.imageKey) deleteImage(id).catch(() => {})
               setLocalPreview(null)
-              updateNodeData(id, { imageDataUrl: null, imageUrl: null, hasLocalImage: false, filename: null })
+              updateNodeData(id, { imageDataUrl: null, imageUrl: null, hasLocalImage: false, imageKey: null, filename: null })
             }}
             style={{
               marginTop: 5, width: '100%', padding: '4px 0',
@@ -199,12 +212,8 @@ export default function ReferenceImageNode({ id, data, selected }) {
                 autoFocus
                 value={savingName}
                 onChange={e => setSavingName(e.target.value)}
-                onKeyDown={async e => {
-                  if (e.key === 'Enter' && savingName.trim()) {
-                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImageByNodeId(id) : null)
-                    saveCharacter(savingName.trim(), imgSrc)
-                    setSavingName(''); setShowSaveInput(false)
-                  }
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveCharacter()
                   if (e.key === 'Escape') setShowSaveInput(false)
                 }}
                 placeholder="캐릭터 이름..."
@@ -216,13 +225,7 @@ export default function ReferenceImageNode({ id, data, selected }) {
                 }}
               />
               <button className="nopan nodrag"
-                onClick={async () => {
-                  if (savingName.trim()) {
-                    const imgSrc = data.imageUrl || (data.hasLocalImage ? await loadImageByNodeId(id) : null)
-                    saveCharacter(savingName.trim(), imgSrc)
-                    setSavingName(''); setShowSaveInput(false)
-                  }
-                }}
+                onClick={handleSaveCharacter}
                 style={{ padding: '4px 8px', background: 'rgba(41,217,217,0.1)',
                   border: '1px solid rgba(41,217,217,0.3)', borderRadius: 5,
                   fontSize: 10, color: '#29D9D9', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}

@@ -6,6 +6,7 @@ import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
+import { compressImage } from '../lib/compressImage'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 import { useMentionEditor } from '../hooks/useMentionEditor'
 import { CATEGORY_ICON } from '../lib/elementsStore'
@@ -360,9 +361,9 @@ export default function TextInputNode({ id, data, selected }) {
   const handleDirectionImageFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
-      const url = e.target.result
-      const mediaType = file.type
+    reader.onload = async (e) => {
+      const url = await compressImage(e.target.result)
+      const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? file.type
       const base64 = url.split(',')[1]
       setDirImgSrc(url)
       setDirImgMeta({ data: base64, mediaType })

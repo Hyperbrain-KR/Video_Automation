@@ -608,19 +608,24 @@ function FlowCanvas() {
   }, [setNodes])
 
   // ── 캐릭터 저장소 (프로젝트별 — auto-save와 함께 저장됨) ────────────────
-  const saveCharacter = useCallback((name, resultUrl) => {
+  // 업로드에 성공하면 저장된 Storage 키를 반환 (URL 캐릭터이거나 업로드 실패 시 null)
+  const saveCharacter = useCallback(async (name, resultUrl) => {
     const id = `char-${Date.now()}`
-    if (resultUrl?.startsWith('data:')) {
-      saveImageDB(`char-${id}`, resultUrl).catch(e => console.warn('캐릭터 이미지 저장 실패:', e))
-      setCharacters(prev => [...prev, { id, name, hasLocalImage: true }])
-    } else {
+    if (!resultUrl?.startsWith('data:')) {
       setCharacters(prev => [...prev, { id, name, resultUrl }])
+      return null
     }
+    setCharacters(prev => [...prev, { id, name, hasLocalImage: true }])
+    const ok = await saveImageDB(`char-${id}`, resultUrl).catch(() => false)
+    if (!ok) console.warn('캐릭터 이미지 저장 실패:', id)
+    return ok ? `char-${id}` : null
   }, [])
   const deleteCharacter = useCallback((charId) => {
     setCharacters(prev => prev.filter(c => c.id !== charId))
-    deleteImageDB(`char-${charId}`).catch(() => {})
-  }, [])
+    // 레퍼런스 노드가 이 파일을 공유 중이면 남겨둠 — 참조가 모두 끊기면 서버 정리 작업이 삭제
+    const sharedByNode = getNodes().some(n => n.data?.imageKey === `char-${charId}`)
+    if (!sharedByNode) deleteImageDB(`char-${charId}`).catch(() => {})
+  }, [getNodes])
   const [contextMenu, setContextMenu] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('canvas-theme') ?? 'dark')
   useEffect(() => {

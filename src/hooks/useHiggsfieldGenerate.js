@@ -32,11 +32,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     const prompt = (isVideo && videoElements) ? `${videoElements}\n\n${basePrompt}` : basePrompt
 
     const uploadRefImage = async (srcNode) => {
-      const { imageDataUrl, imageUrl, hasLocalImage, filename, contentType } = srcNode.data ?? {}
+      const { imageDataUrl, imageUrl, hasLocalImage, imageKey, filename, contentType } = srcNode.data ?? {}
       let fileBase64 = imageDataUrl || null
       let url = imageUrl || null
       if (hasLocalImage) {
-        fileBase64 = await loadImageByNodeId(srcNode.id) ?? null
+        fileBase64 = await loadImageByNodeId(imageKey ?? srcNode.id) ?? null
       }
       if (!fileBase64 && !url) return null
       const uploadRes = await apiFetch('/api/higgsfield/upload-reference', {

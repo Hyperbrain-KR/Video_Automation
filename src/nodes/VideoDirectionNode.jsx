@@ -5,6 +5,7 @@ import { ProjectContext } from '../lib/ProjectContext'
 import { CharactersContext } from '../lib/CharactersContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
+import { compressImage } from '../lib/compressImage'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
 import { useMentionEditor } from '../hooks/useMentionEditor'
 import { CATEGORY_ICON } from '../lib/elementsStore'
@@ -366,10 +367,11 @@ export default function VideoDirectionNode({ id, data, selected }) {
   const handleDirectionImageFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
-      const url = e.target.result
+    reader.onload = async (e) => {
+      const url = await compressImage(e.target.result)
+      const mediaType = (url.match(/^data:([^;]+)/) ?? [])[1] ?? file.type
       setDirImgSrc(url)
-      setDirImgMeta({ data: url.split(',')[1], mediaType: file.type })
+      setDirImgMeta({ data: url.split(',')[1], mediaType })
       saveImage(`direction-${projectId}-${id}`, url)
       updateNodeData(id, { hasDirectionImage: true })
     }
