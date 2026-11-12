@@ -18,14 +18,6 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
 const API_SECRET = process.env.API_SECRET
-app.use('/api', (req, res, next) => {
-  if (!API_SECRET) return next()
-  if (req.path === '/version' || req.path === '/download' || req.path === '/auth/check') return next()
-  if (req.headers['x-api-secret'] !== API_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-  next()
-})
 
 const anthropic = new Anthropic({ apiKey: globalThis.process?.env?.ANTHROPIC_API_KEY })
 const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
@@ -34,6 +26,48 @@ const MODEL = globalThis.process?.env?.CLAUDE_MODEL || 'claude-sonnet-4-6'
 const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null
+
+// ── API 인증 ─────────────────────────────────────────────
+// 로그인 토큰(Supabase JWT)으로 사용자를 확인한다.
+// x-api-secret 은 프런트 번들에 노출되는 값이라 이행 기간에만 허용 — REQUIRE_LOGIN=true 로 끈다.
+const REQUIRE_LOGIN = process.env.REQUIRE_LOGIN === 'true'
+const _verifiedTokens = new Map() // token -> { email, expires }
+
+async function verifyLoginToken(token) {
+  const cached = _verifiedTokens.get(token)
+  if (cached && cached.expires > Date.now()) return cached.email
+  const { data, error } = await supabase.auth.getUser(token)
+  const email = error ? null : data?.user?.email?.toLowerCase() ?? null
+  if (!email) return null
+  if (_verifiedTokens.size > 500) _verifiedTokens.clear()
+  _verifiedTokens.set(token, { email, expires: Date.now() + 60 * 1000 })
+  return email
+}
+
+app.use('/api', async (req, res, next) => {
+  if (req.path === '/version' || req.path === '/download' || req.path === '/auth/check') return next()
+
+  const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '')
+  if (token && supabase) {
+    const email = await verifyLoginToken(token).catch(() => null)
+    const allowed = email && (!ALLOWED_EMAILS.length || ALLOWED_EMAILS.includes(email))
+    if (allowed) {
+      req.userEmail = email
+      return next()
+    }
+    if (email) {
+      console.warn(`[auth] 서버 ALLOWED_EMAILS 에 없는 계정: ${email}`)
+      if (REQUIRE_LOGIN) return res.status(403).json({ error: 'Forbidden' })
+    }
+  }
+
+  if (!REQUIRE_LOGIN && (!API_SECRET || req.headers['x-api-secret'] === API_SECRET)) return next()
+  res.status(401).json({ error: 'Unauthorized' })
+})
+
+const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
+  ? process.env.ALLOWED_EMAILS.split(',').map(e => e.trim().toLowerCase())
+  : []
 
 async function dbGetConfig(key) {
   if (!supabase) return null
@@ -134,7 +168,7 @@ app.get('/auth/callback', async (req, res) => {
       // Forward token to production server instead of saving locally
       const relayRes = await fetch(`${relay}/auth/receive-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-relay-secret': process.env.RELAY_SECRET ?? '' },
         body: JSON.stringify({ access_token: t.access_token, refresh_token: t.refresh_token }),
       })
       if (!relayRes.ok) return res.status(500).send(`<pre>Railway 전송 실패: ${await relayRes.text()}</pre>`)
@@ -150,6 +184,10 @@ app.get('/auth/callback', async (req, res) => {
 })
 
 app.post('/auth/receive-token', async (req, res) => {
+  // 로컬 서버 → 배포 서버 전달 전용. 양쪽 서버 환경변수에만 있는 RELAY_SECRET 이 없으면 거부.
+  const relaySecret = process.env.RELAY_SECRET
+  if (!relaySecret) return res.status(503).json({ error: 'RELAY_SECRET 미설정' })
+  if (req.headers['x-relay-secret'] !== relaySecret) return res.status(401).json({ error: 'Unauthorized' })
   const { access_token, refresh_token } = req.body
   if (!access_token) return res.status(400).json({ error: 'access_token 필요' })
   process.env.HIGGSFIELD_API_KEY = access_token
@@ -164,10 +202,6 @@ app.post('/auth/receive-token', async (req, res) => {
 app.get('/health', (_, res) => res.json({ status: 'ok', model: MODEL }))
 
 // ── 이메일 허용 목록 체크 ──────────────────────────────────
-const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
-  ? process.env.ALLOWED_EMAILS.split(',').map(e => e.trim().toLowerCase())
-  : []
-
 app.post('/api/auth/check', (req, res) => {
   if (!ALLOWED_EMAILS.length) return res.json({ allowed: true })
   const email = req.body.email?.toLowerCase()
@@ -996,13 +1030,24 @@ function extractPresigned(result) {
 }
 
 // ── 다운로드 프록시 ───────────────────────────────────────
+// 링크 클릭으로 호출돼 인증 헤더를 붙일 수 없으므로, 받아올 수 있는 주소를 생성 결과 CDN 으로 제한한다.
+const DOWNLOAD_ALLOWED_HOSTS = (process.env.DOWNLOAD_ALLOWED_HOSTS ?? 'd8j0ntlcm91z4.cloudfront.net')
+  .split(',').map(h => h.trim().toLowerCase()).filter(Boolean)
+
 app.get('/api/download', async (req, res) => {
   const { url, filename: reqFilename } = req.query
-  if (!url) return res.status(400).json({ error: 'url 필요' })
+  if (typeof url !== 'string' || !url) return res.status(400).json({ error: 'url 필요' })
+  let target
+  try { target = new URL(url) } catch { return res.status(400).json({ error: '잘못된 url' }) }
+  if (target.protocol !== 'https:' || !DOWNLOAD_ALLOWED_HOSTS.includes(target.hostname.toLowerCase())) {
+    return res.status(403).json({ error: '허용되지 않은 다운로드 주소' })
+  }
   try {
-    const upstream = await fetch(url)
+    const upstream = await fetch(target, { redirect: 'error' })
+    if (!upstream.ok) return res.status(502).json({ error: `원본 응답 오류 (${upstream.status})` })
     const contentType = upstream.headers.get('content-type') || 'application/octet-stream'
-    const filename = reqFilename || url.split('/').pop().split('?')[0] || 'download'
+    const rawName = (typeof reqFilename === 'string' && reqFilename) || target.pathname.split('/').pop() || 'download'
+    const filename = rawName.replace(/["\\\r\n]/g, '')
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
     res.setHeader('Content-Type', contentType)
     const { Readable } = await import('stream')
