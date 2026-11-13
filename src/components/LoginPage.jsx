@@ -19,7 +19,7 @@ export default function LoginPage() {
       background: '#14111C', gap: 32,
     }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <img src="/로고_정사각형.png" alt="logo" style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: 16 }} />
+        <img src="/logo-square.png" alt="logo" style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: 16 }} />
         <div style={{ fontSize: 28, fontWeight: 800, color: '#F4F4F4', letterSpacing: '-0.02em' }}>
           Canvas
         </div>
