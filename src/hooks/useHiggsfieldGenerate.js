@@ -325,7 +325,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.error(`[생성 실패] (${ts()})`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData, characters, assets])
+  }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     const epoch = epochRef?.current ?? 0
@@ -373,7 +373,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.error(`[재개 폴링 실패]`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData])
+  }, [getNodes, getEdges, updateNodeData, epochRef])
 
   const handleSheetGenerate = useCallback(async (nodeId) => {
     const epoch = epochRef?.current ?? 0
@@ -461,7 +461,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.error('[시트 생성 실패]', err.message)
       updateNodeData(nodeId, { sheetGenerating: false, sheetError: friendlyError(err.message) })
     }
-  }, [getNodes, updateNodeData])
+  }, [getNodes, updateNodeData, epochRef])
 
   useEffect(() => {
     higgsfieldHandlerRef.current = handleHiggsfieldGenerate
