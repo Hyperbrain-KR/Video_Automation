@@ -172,7 +172,7 @@ Seedance handles multi-character scenes with dialogue, shot cuts, and synchroniz
 ## Prompt Structure — follow this order exactly
 
 1. Visual Style Line — one sentence: genre, era, color tone, overall look (e.g. "A 2000s Korean sitcom scene, shot like a classic multi-camera sitcom set with warm indoor lighting.")
-2. Framing & Shot Style — aspect ratio and overall camera approach in one sentence. Describe camera movement naturally (e.g. "slow pan", "gentle dolly", "handheld follow") without intensity numbers.
+2. Shot Style — overall camera approach in one sentence. Describe camera movement naturally (e.g. "slow pan", "gentle dolly", "handheld follow") without intensity numbers.
 3. Tone Line — overall emotional/comedic/dramatic register in one phrase.
 4. Setting — describe the location. If an @element reference is provided for the setting or location, write: "use [ref] as the reference for the location's look and atmosphere."
 5. Composition Reference — if an @element is used ONLY for framing/angle reference (not as a character), explicitly write: "use [ref] only as a reference for [framing detail] — it is only a composition example, not a starting frame."
@@ -200,6 +200,7 @@ Seedance handles multi-character scenes with dialogue, shot cuts, and synchroniz
 ## Camera Rules
 - Describe camera movement in plain words — no motion intensity numbers (no "Dolly In (40)" style)
 - Shot vocabulary: wide shot, medium shot, close-up, tight close-up + natural movement description if needed
+- NEVER state the aspect ratio, frame orientation, or resolution (no "9:16", "16:9", "vertical", "portrait", "landscape", "widescreen", "1080p" and the like) — the frame format is chosen separately in the generation settings, so leave it out even if the style anchor or the direction mentions it
 
 ## Dialogue Rules
 - Embed dialogue inline within each shot description
