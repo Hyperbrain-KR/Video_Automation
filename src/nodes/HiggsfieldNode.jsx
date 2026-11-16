@@ -20,6 +20,16 @@ function CharacterThumb({ char }) {
   return <img src={src} alt={char.name} style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
 }
 
+function AssetRowThumb({ asset }) {
+  const [src, setSrc] = useState(() => asset.hasLocalImage ? null : (asset.resultUrl ?? null))
+  useEffect(() => {
+    if (!asset.hasLocalImage) return
+    loadImageDB(`asset-${asset.id}`).then(url => setSrc(url ?? null)).catch(() => setSrc(null))
+  }, [asset.id, asset.hasLocalImage])
+  if (!src) return null
+  return <img src={src} alt={asset.name} style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+}
+
 function ProjectImgCell({ item, selected, onSelect }) {
   const [src, setSrc] = useState(item.url ?? null)
   useEffect(() => {
@@ -681,7 +691,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
       )}
 
       {/* 비디오 프레임 캐릭터 참조 */}
-      {isVideo && characters.length > 0 && (
+      {isVideo && (characters.length > 0 || (videoModel === 'seedance_2_0' && assets.length > 0)) && (
         <div style={{ marginBottom: 10, padding: '7px 9px',
           background: 'var(--node-prompt)', border: '1px solid var(--sep)', borderRadius: 7 }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--t4)',
@@ -699,8 +709,82 @@ export default function HiggsfieldNode({ id, data, selected }) {
                     charImageIdx[ch.id] = idx++
                   }
                 }
+                for (const a of assets) {
+                  if ((data.seedanceMediaRoles ?? {})[`asset-${a.id}`]) {
+                    charImageIdx[`asset-${a.id}`] = idx++
+                  }
+                }
               }
-              return characters.map(c => {
+              const seedanceRow = ({ roleKey, name, thumb, onDelete }) => {
+                const roles = data.seedanceMediaRoles ?? {}
+                const curRole = roles[roleKey] ?? null
+                const ROLE_BTNS = [
+                  { role: 'image',       label: 'Ref',   color: '#29D9D9', bg: 'rgba(41,217,217,0.12)', border: 'rgba(41,217,217,0.35)', locked: false },
+                  { role: 'start_image', label: 'Start', color: '#22c55e', bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.35)',  locked: step02HasResult },
+                  { role: 'end_image',   label: 'End',   color: '#e040a0', bg: 'rgba(224,64,160,0.12)', border: 'rgba(224,64,160,0.35)', locked: false },
+                ]
+                return (
+                  <div key={roleKey} className="nopan nodrag"
+                    onMouseEnter={() => setHoveredCharId(roleKey)}
+                    onMouseLeave={() => setHoveredCharId(null)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '3px 6px', borderRadius: 4,
+                      background: curRole ? 'rgba(255,255,255,0.03)' : 'transparent',
+                      border: `1px solid ${curRole ? 'var(--sep2)' : 'transparent'}`,
+                    }}>
+                    {thumb}
+                    <span style={{ fontSize: 10, flex: 1, color: curRole ? 'var(--t1)' : 'var(--t3)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {name}
+                    </span>
+                    <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                      {ROLE_BTNS.map(({ role, label, color, bg, border, locked }) => {
+                        const active = curRole === role
+                        return (
+                          <button key={role} className="nopan nodrag"
+                            disabled={locked && !active}
+                            title={locked && !active ? 'Step 02 이미지가 Start 프레임으로 자동 설정됩니다' : undefined}
+                            onClick={() => {
+                              if (locked && !active) return
+                              const next = { ...(data.seedanceMediaRoles ?? {}) }
+                              if (active) delete next[roleKey]
+                              else next[roleKey] = role
+                              updateNodeData(id, { seedanceMediaRoles: next })
+                            }}
+                            style={{
+                              padding: '2px 5px', fontSize: 9, fontWeight: 700,
+                              borderRadius: 3, fontFamily: 'inherit',
+                              cursor: locked && !active ? 'not-allowed' : 'pointer',
+                              color: locked && !active ? 'var(--t5)' : active ? color : 'var(--t4)',
+                              background: active ? bg : 'transparent',
+                              border: `1px solid ${locked && !active ? 'var(--sep1)' : active ? border : 'var(--sep2)'}`,
+                              opacity: locked && !active ? 0.4 : 1,
+                              transition: 'all 0.1s',
+                            }}
+                          >{label}</button>
+                        )
+                      })}
+                    </div>
+                    {curRole && charImageIdx[roleKey] && (
+                      <span style={{ fontSize: 8, color: 'var(--t4)', fontWeight: 600,
+                        letterSpacing: '0.02em', flexShrink: 0 }}>
+                        @image{charImageIdx[roleKey]}
+                      </span>
+                    )}
+                    {onDelete && hoveredCharId === roleKey && !curRole && (
+                      <button className="nopan nodrag"
+                        onClick={e => { e.preventDefault(); onDelete() }}
+                        style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
+                          background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
+                          borderRadius: 3, fontSize: 9, color: '#E34054',
+                          cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
+                      >✕</button>
+                    )}
+                  </div>
+                )
+              }
+              const charRows = characters.map(c => {
               const isConfirming = confirmDeleteId === c.id
 
               if (isConfirming) return (
@@ -730,74 +814,10 @@ export default function HiggsfieldNode({ id, data, selected }) {
               )
 
               if (videoModel === 'seedance_2_0') {
-                // Seedance: R/S/E 3버튼 역할 선택
-                const roles = data.seedanceMediaRoles ?? {}
-                const curRole = roles[c.id] ?? null
-                const ROLE_BTNS = [
-                  { role: 'image',       label: 'Ref',   color: '#29D9D9', bg: 'rgba(41,217,217,0.12)', border: 'rgba(41,217,217,0.35)', locked: false },
-                  { role: 'start_image', label: 'Start', color: '#22c55e', bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.35)',  locked: step02HasResult },
-                  { role: 'end_image',   label: 'End',   color: '#e040a0', bg: 'rgba(224,64,160,0.12)', border: 'rgba(224,64,160,0.35)', locked: false },
-                ]
-                return (
-                  <div key={c.id} className="nopan nodrag"
-                    onMouseEnter={() => setHoveredCharId(c.id)}
-                    onMouseLeave={() => setHoveredCharId(null)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '3px 6px', borderRadius: 4,
-                      background: curRole ? 'rgba(255,255,255,0.03)' : 'transparent',
-                      border: `1px solid ${curRole ? 'var(--sep2)' : 'transparent'}`,
-                    }}>
-                    <CharacterThumb char={c} />
-                    <span style={{ fontSize: 10, flex: 1, color: curRole ? 'var(--t1)' : 'var(--t3)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {c.name}
-                    </span>
-                    <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                      {ROLE_BTNS.map(({ role, label, color, bg, border, locked }) => {
-                        const active = curRole === role
-                        return (
-                          <button key={role} className="nopan nodrag"
-                            disabled={locked && !active}
-                            title={locked && !active ? 'Step 02 이미지가 Start 프레임으로 자동 설정됩니다' : undefined}
-                            onClick={() => {
-                              if (locked && !active) return
-                              const next = { ...(data.seedanceMediaRoles ?? {}) }
-                              if (active) delete next[c.id]
-                              else next[c.id] = role
-                              updateNodeData(id, { seedanceMediaRoles: next })
-                            }}
-                            style={{
-                              padding: '2px 5px', fontSize: 9, fontWeight: 700,
-                              borderRadius: 3, fontFamily: 'inherit',
-                              cursor: locked && !active ? 'not-allowed' : 'pointer',
-                              color: locked && !active ? 'var(--t5)' : active ? color : 'var(--t4)',
-                              background: active ? bg : 'transparent',
-                              border: `1px solid ${locked && !active ? 'var(--sep1)' : active ? border : 'var(--sep2)'}`,
-                              opacity: locked && !active ? 0.4 : 1,
-                              transition: 'all 0.1s',
-                            }}
-                          >{label}</button>
-                        )
-                      })}
-                    </div>
-                    {curRole && charImageIdx[c.id] && (
-                      <span style={{ fontSize: 8, color: 'var(--t4)', fontWeight: 600,
-                        letterSpacing: '0.02em', flexShrink: 0 }}>
-                        @image{charImageIdx[c.id]}
-                      </span>
-                    )}
-                    {hoveredCharId === c.id && !curRole && (
-                      <button className="nopan nodrag"
-                        onClick={e => { e.preventDefault(); setConfirmDeleteId(c.id) }}
-                        style={{ flexShrink: 0, width: 16, height: 16, padding: 0,
-                          background: 'rgba(227,64,84,0.1)', border: '1px solid rgba(227,64,84,0.3)',
-                          borderRadius: 3, fontSize: 9, color: '#E34054',
-                          cursor: 'pointer', lineHeight: 1, fontFamily: 'inherit' }}
-                      >✕</button>
-                    )}
-                  </div>
-                )
+                return seedanceRow({
+                  roleKey: c.id, name: c.name, thumb: <CharacterThumb char={c} />,
+                  onDelete: () => setConfirmDeleteId(c.id),
+                })
               }
 
               // Kling: 기존 첫프레임/끝프레임 체크박스
@@ -852,6 +872,13 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 </label>
               )
             })
+            // 제품 이미지는 브라우저별 목록이라 삭제는 제품 패널에서만 한다
+            const assetRows = videoModel === 'seedance_2_0'
+              ? assets.map(a => seedanceRow({
+                  roleKey: `asset-${a.id}`, name: a.name, thumb: <AssetRowThumb asset={a} />,
+                }))
+              : []
+            return [...charRows, ...assetRows]
           })()}
           </div>
         </div>

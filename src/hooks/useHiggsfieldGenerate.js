@@ -153,6 +153,15 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         return importRefUrl(src)
       }
 
+      // 빠진 채로 보내면 @imageN 번호가 밀리므로, 못 읽으면 생성을 중단시킨다
+      const loadAssetFrame = async (asset) => {
+        const src = asset.hasLocalImage
+          ? await loadImageByNodeId(`asset-${asset.id}`)
+          : asset.resultUrl
+        if (!src) throw new Error(`제품 "${asset.name}" 이미지를 불러올 수 없습니다`)
+        return importRefUrl(src)
+      }
+
       const videoModel = node?.data?.videoModel ?? 'kling3_0'
 
       if (videoModel === 'seedance_2_0') {
@@ -177,13 +186,19 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           if (!role) continue
           tasks.push({ type: 'char', charId: char.id, role })
         }
+        // 3. 역할이 지정된 제품 이미지 → assets 배열 순서대로 (@imageN 번호가 화면과 같도록 캐릭터 다음)
+        for (const asset of assets) {
+          const role = seedanceMediaRoles[`asset-${asset.id}`]
+          if (!role) continue
+          tasks.push({ type: 'asset', asset, role })
+        }
 
         if (tasks.length > 0) {
           try {
             const resolved = await Promise.all(
               tasks.map(async (task) => {
-                const mediaId = task.type === 'url'
-                  ? await importRefUrl(task.url)
+                const mediaId = task.type === 'url' ? await importRefUrl(task.url)
+                  : task.type === 'asset' ? await loadAssetFrame(task.asset)
                   : await loadCharFrame(task.charId)
                 return mediaId ? { mediaId, role: task.role } : null
               })

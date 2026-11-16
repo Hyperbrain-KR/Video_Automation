@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { CharactersContext } from '../lib/CharactersContext'
+import { AssetsContext } from '../lib/AssetsContext'
 import { apiFetch } from '../lib/config'
 import { saveImage, loadImage, deleteImage } from '../lib/imageDB'
 import { compressImage } from '../lib/compressImage'
@@ -248,6 +249,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
   const { updateNodeData, getNodes, getEdges } = useReactFlow()
   const projectId = useContext(ProjectContext)
   const { characters } = useContext(CharactersContext)
+  const { assets } = useContext(AssetsContext)
 
   const [value, setValue] = useState(data.value ?? data.defaultValue ?? '')
   const [syncedDataValue, setSyncedDataValue] = useState(data.value)
@@ -288,6 +290,26 @@ export default function VideoDirectionNode({ id, data, selected }) {
     return () => { cancelled = true }
   }, [characters])
 
+  // 제품 썸네일 비동기 로드
+  const [assetThumbs, setAssetThumbs] = useState({})
+  useEffect(() => {
+    if (!assets?.length) return
+    let cancelled = false
+    Promise.all(
+      assets.map(a =>
+        loadImage(`asset-${a.id}`)
+          .then(url => ({ id: a.id, url: url ?? null }))
+          .catch(() => ({ id: a.id, url: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const map = {}
+      results.forEach(r => { if (r.url) map[r.id] = r.url })
+      setAssetThumbs(map)
+    })
+    return () => { cancelled = true }
+  }, [assets])
+
   // 대응하는 HiggsfieldVideo 노드 데이터 감지 (ID 패턴 기반: vidDirection[-x] → higgsfieldVideo[-x])
   const hvStr = useStore(s => {
     const suffix = id.replace(/^vidDirection/, '')
@@ -318,12 +340,17 @@ export default function VideoDirectionNode({ id, data, selected }) {
         items.push({ name: `@image${idx}`, label: char.name, thumbUrl: charThumbs[char.id] ?? char.resultUrl ?? null })
         idx++
       }
+      for (const asset of assets) {
+        if (!seedanceMediaRoles[`asset-${asset.id}`]) continue
+        items.push({ name: `@image${idx}`, label: asset.name, thumbUrl: assetThumbs[asset.id] ?? null })
+        idx++
+      }
       return items
     } else {
       if (!step02Url) return []
       return [{ name: '@start_frame', label: '시작 프레임', thumbUrl: step02Url }]
     }
-  }, [hvStr, characters, charThumbs])
+  }, [hvStr, characters, charThumbs, assets, assetThumbs])
 
   const { editorRef, handleInput, handleMentionKeyDown, handleBlur,
     dropOpen, dropItems, dropFocused, dropQuery, selectItem, handleDropMouseDown,
