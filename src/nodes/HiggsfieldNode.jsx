@@ -307,8 +307,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
     const newUrl = resultHistory[newIndex]
     if (!newUrl) return
     updateNodeData(id, { resultIndex: newIndex, resultUrl: newUrl })
+    // 'ref'(캐릭터 참조) 연결은 결과 전달 대상이 아님 — 생성 완료 시의 전달 규칙과 동일
     getEdges()
-      .filter(e => e.source === id && e.target !== id)
+      .filter(e => e.source === id && e.target !== id && e.targetHandle !== 'ref')
       .forEach(e => updateNodeData(e.target, { resultUrl: newUrl }))
   }
 

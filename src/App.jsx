@@ -326,6 +326,12 @@ function FlowCanvas() {
         }
       }
     })
+    const charResultUrls = new Set(
+      afterSection
+        .filter(n => n.id === 'higgsfieldChar' || n.id.startsWith('higgsfieldChar-'))
+        .flatMap(n => [n.data?.resultUrl, ...(n.data?.resultHistory ?? [])])
+        .filter(Boolean)
+    )
     return afterSection
       .filter(n => n.type !== 'scriptImport' &&
                    n.id !== 'reviewImageResult' && n.id !== 'reviewVideoResult' &&
@@ -336,11 +342,14 @@ function FlowCanvas() {
           return { ...n, type: 'videoDirectionInput' }
         if (approvedMap[n.id])
           return { ...n, data: { ...n.data, approved: true } }
-        // higgsfieldChar → higgsfieldImage ref 전파 버그로 오염된 resultUrl 제거
-        // generatedAt 없이 resultUrl만 있으면 캐릭터 전파에 의한 오염
-        if ((n.id === 'higgsfieldImage' || n.id.startsWith('higgsfieldImage-')) &&
-            n.data?.resultUrl && !n.data?.generatedAt) {
-          return { ...n, data: { ...n.data, resultUrl: null, jobId: null } }
+        // 캐릭터 결과가 '캐릭터 참조' 연결을 타고 씬 이미지 노드의 결과로 덮어써진 경우를 되돌린다.
+        // generatedAt 유무로 판단하면 그 필드가 생기기 전(2026-08-13 이전)의 정상 결과까지 지워지므로,
+        // 결과 주소가 캐릭터 노드의 결과와 같을 때만 오염으로 본다.
+        const isSceneImage = n.id === 'higgsfieldImage' || n.id.startsWith('higgsfieldImage-')
+        if (isSceneImage && charResultUrls.has(n.data?.resultUrl)) {
+          const history = (n.data?.resultHistory ?? []).filter(u => !charResultUrls.has(u))
+          const restored = history[n.data?.resultIndex] ?? history[history.length - 1] ?? null
+          return { ...n, data: { ...n.data, resultUrl: restored, ...(restored ? {} : { jobId: null }) } }
         }
         return n
       })
