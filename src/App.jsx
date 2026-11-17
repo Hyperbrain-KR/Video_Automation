@@ -215,9 +215,10 @@ function FlowCanvas() {
   const [pendingProjectId, setPendingProjectId] = useState(null)
 
   // ── Undo history ─────────────────────────────────────────────────────
-  const historyRef = useRef([])
-  const historyIdxRef = useRef(-1)
-  const isUndoRedoRef = useRef(false)
+  // 되돌리기는 "지운 것을 다시 넣는" 동작만 한다.
+  // 캔버스 전체를 과거 스냅샷으로 교체하면 그 뒤에 만든 결과·입력이 통째로 사라지므로 절대 그렇게 하지 않는다.
+  const undoStackRef = useRef([])  // 삭제 기록: { nodes, edges }
+  const redoStackRef = useRef([])  // 되돌린 삭제: { nodeIds, edgeIds }
 
   // ── Element 등록 핸들러 ─────────────────────────────────────────────────
   function openElemRegModal() {
@@ -266,32 +267,39 @@ function FlowCanvas() {
       setElemRegLoading(false)
     }
   }
-  const pushHistory = useCallback(() => {
-    historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1)
-    historyRef.current.push({ nodes, edges })
-    historyIdxRef.current = historyRef.current.length - 1
-    if (historyRef.current.length > 50) {
-      historyRef.current.shift()
-      historyIdxRef.current--
-    }
-  }, [nodes, edges])
+  // 삭제 직전에 호출 — 지워질 노드·엣지만 현재 데이터 그대로 기록한다
+  const recordRemoval = useCallback((isNodeRemoved, isEdgeRemoved) => {
+    const removedNodes = getNodes().filter(isNodeRemoved)
+    const removedIds = new Set(removedNodes.map(n => n.id))
+    const removedEdges = getEdges().filter(e =>
+      isEdgeRemoved(e) || removedIds.has(e.source) || removedIds.has(e.target))
+    if (removedNodes.length === 0 && removedEdges.length === 0) return
+    undoStackRef.current.push({ nodes: removedNodes, edges: removedEdges })
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift()
+    redoStackRef.current = []
+  }, [getNodes, getEdges])
 
-  const pushHistoryRef = useRef(null)
-  useEffect(() => { pushHistoryRef.current = pushHistory }, [pushHistory])
+  // 다른 프로젝트의 삭제 기록이 현재 프로젝트에 되살아나지 않도록 프로젝트가 바뀌면 비운다
+  useEffect(() => {
+    undoStackRef.current = []
+    redoStackRef.current = []
+  }, [activeId])
 
   // ── 키보드 삭제 확인 ─────────────────────────────────────────────────
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pendingDeleteRef = useRef(null)
 
   const onNodesChangeWithHistory = useCallback((changes) => {
-    if (changes.some(c => c.type === 'remove')) pushHistory()
+    const ids = new Set(changes.filter(c => c.type === 'remove').map(c => c.id))
+    if (ids.size > 0) recordRemoval(n => ids.has(n.id), () => false)
     onNodesChange(changes)
-  }, [onNodesChange, pushHistory])
+  }, [onNodesChange, recordRemoval])
 
   const onEdgesChangeWithHistory = useCallback((changes) => {
-    if (changes.some(c => c.type === 'remove')) pushHistory()
+    const ids = new Set(changes.filter(c => c.type === 'remove').map(c => c.id))
+    if (ids.size > 0) recordRemoval(() => false, e => ids.has(e.id))
     onEdgesChange(changes)
-  }, [onEdgesChange, pushHistory])
+  }, [onEdgesChange, recordRemoval])
 
   const normalizeSectionNodes = useCallback((nds) =>
     nds.map(n => {
@@ -472,7 +480,6 @@ function FlowCanvas() {
   useEffect(() => {
     clearTimeout(saveTimerRef.current)
     if (!isMountedRef.current) { isMountedRef.current = true; return }
-    if (isUndoRedoRef.current) { isUndoRedoRef.current = false; return }
     setSaveState('pending')
     const snapNodes = stripLargeData(nodes)
     const snapEdges = edges
@@ -651,21 +658,20 @@ function FlowCanvas() {
 
   // ── 캐릭터 섹션 추가/삭제 ────────────────────────────────────
   const addCharSection = useCallback(() => {
-    pushHistory()
     const bg1Nodes = getNodes().filter(n => n.id === 'bg-s1' || n.id.startsWith('bg-s1-'))
     const maxBgY = bg1Nodes.length ? Math.max(...bg1Nodes.map(n => n.position.y)) : BG_Y - CHAR_Y_STEP
     const nextCharIdx = Math.ceil((maxBgY - BG_Y) / CHAR_Y_STEP) + 2
     const { nodes: newNodes, edges: newEdges } = buildCharSection(nextCharIdx)
     setNodes(nds => [...nds, ...newNodes])
     setEdges(eds => [...eds, ...newEdges])
-  }, [pushHistory, getNodes, setNodes, setEdges])
+  }, [getNodes, setNodes, setEdges])
 
   const deleteCharSection = useCallback((uid) => {
     if (!uid) return
-    pushHistory()
+    recordRemoval(n => n.id.endsWith(`-${uid}`), e => e.id.endsWith(`-${uid}`))
     setNodes(nds => nds.filter(n => !n.id.endsWith(`-${uid}`)))
     setEdges(eds => eds.filter(e => !e.id.endsWith(`-${uid}`)))
-  }, [pushHistory, setNodes, setEdges])
+  }, [recordRemoval, setNodes, setEdges])
 
   useEffect(() => { addCharSectionRef.current = addCharSection }, [addCharSection])
   useEffect(() => { deleteCharSectionRef.current = deleteCharSection }, [deleteCharSection])
@@ -673,10 +679,10 @@ function FlowCanvas() {
   // ── 씬 삭제 ──────────────────────────────────────────────────
   const deleteScene = useCallback((uid) => {
     if (!uid) return  // 씬 1 보호
-    pushHistory()
+    recordRemoval(n => n.id.endsWith(`-${uid}`), e => e.id.endsWith(`-${uid}`))
     setNodes(nds => nds.filter(n => !n.id.endsWith(`-${uid}`)))
     setEdges(eds => eds.filter(e => !e.id.endsWith(`-${uid}`)))
-  }, [pushHistory, setNodes, setEdges])
+  }, [recordRemoval, setNodes, setEdges])
 
   // ── 씬 추가 ──────────────────────────────────────────────────
   const addScene = useCallback(() => {
@@ -854,7 +860,7 @@ function FlowCanvas() {
     if (!contextMenu?.nodeId) return
     const id = contextMenu.nodeId
     if (action === 'delete') {
-      pushHistory()
+      recordRemoval(n => n.id === id, () => false)
       setNodes(nds => nds.filter(n => n.id !== id))
       setEdges(eds => eds.filter(e => e.source !== id && e.target !== id))
     } else if (action === 'duplicate') {
@@ -865,16 +871,16 @@ function FlowCanvas() {
         { ...node, id: `${node.type}-${Date.now()}`, position: { x: node.position.x + 30, y: node.position.y + 30 }, selected: false },
       ])
     }
-  }, [contextMenu, nodes, pushHistory, setNodes, setEdges])
+  }, [contextMenu, nodes, recordRemoval, setNodes, setEdges])
 
   // ── 엣지 삭제 ─────────────────────────────────────────────
   const handleEdgeAction = useCallback((action) => {
     if (!contextMenu?.edgeId) return
     if (action === 'delete') {
-      pushHistory()
+      recordRemoval(() => false, e => e.id === contextMenu.edgeId)
       setEdges(eds => eds.filter(e => e.id !== contextMenu.edgeId))
     }
-  }, [contextMenu, pushHistory, setEdges])
+  }, [contextMenu, recordRemoval, setEdges])
 
   useEffect(() => {
     const blockCut = (e) => {
@@ -896,26 +902,38 @@ function FlowCanvas() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       e.preventDefault()
       if (e.shiftKey) {
-        // Redo: idx를 앞으로
-        if (historyIdxRef.current >= historyRef.current.length - 1) return
-        historyIdxRef.current++
-        const snap = historyRef.current[historyIdxRef.current]
-        isUndoRedoRef.current = true
-        setNodes(snap.nodes)
-        setEdges(snap.edges)
+        // 다시 실행: 방금 되살린 것만 다시 지운다 (지금 데이터를 기록해 두어 또 되돌릴 수 있게)
+        const entry = redoStackRef.current.pop()
+        if (!entry) return
+        const nodeIds = new Set(entry.nodeIds)
+        const edgeIds = new Set(entry.edgeIds)
+        undoStackRef.current.push({
+          nodes: getNodes().filter(n => nodeIds.has(n.id)),
+          edges: getEdges().filter(eg => edgeIds.has(eg.id)),
+        })
+        setNodes(nds => nds.filter(n => !nodeIds.has(n.id)))
+        setEdges(eds => eds.filter(eg => !edgeIds.has(eg.id)))
       } else {
-        // Undo: 현재 상태를 history에 push한 뒤 idx를 뒤로
-        if (historyIdxRef.current < 0) return
-        const snap = historyRef.current[historyIdxRef.current]
-        historyIdxRef.current--
-        isUndoRedoRef.current = true
-        setNodes(snap.nodes)
-        setEdges(snap.edges)
+        // 되돌리기: 마지막으로 지운 노드·엣지를 현재 캔버스에 다시 추가한다. 다른 노드는 건드리지 않는다.
+        const entry = undoStackRef.current.pop()
+        if (!entry) return
+        setNodes(nds => {
+          const have = new Set(nds.map(n => n.id))
+          return [...nds, ...entry.nodes.filter(n => !have.has(n.id))]
+        })
+        setEdges(eds => {
+          const have = new Set(eds.map(eg => eg.id))
+          return [...eds, ...entry.edges.filter(eg => !have.has(eg.id))]
+        })
+        redoStackRef.current.push({
+          nodeIds: entry.nodes.map(n => n.id),
+          edgeIds: entry.edges.map(eg => eg.id),
+        })
       }
     }
     window.addEventListener('keydown', handleUndoRedo)
     return () => window.removeEventListener('keydown', handleUndoRedo)
-  }, [setNodes, setEdges])
+  }, [getNodes, getEdges, setNodes, setEdges])
 
   useEffect(() => {
     const handler = (e) => {
@@ -939,7 +957,9 @@ function FlowCanvas() {
   const handleConfirmDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return
     const { nodeIds, edgeIds } = pendingDeleteRef.current
-    pushHistoryRef.current?.()
+    const pendingNodeIds = new Set(nodeIds)
+    const pendingEdgeIds = new Set(edgeIds)
+    recordRemoval(n => pendingNodeIds.has(n.id), e => pendingEdgeIds.has(e.id))
     if (nodeIds.length > 0) {
       const idSet = new Set(nodeIds)
       setNodes(nds => nds.filter(n => !idSet.has(n.id)))
@@ -951,7 +971,7 @@ function FlowCanvas() {
     }
     pendingDeleteRef.current = null
     setConfirmDelete(false)
-  }, [setNodes, setEdges])
+  }, [recordRemoval, setNodes, setEdges])
 
   useEffect(() => {
     if (!confirmDelete) return
