@@ -15,6 +15,12 @@ The overall layout is organized like a professional animation character sheet, c
 export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
 
+  // 노드의 취소 버튼은 상태를 생성 중이 아닌 값으로 바꾼다 — 그러면 폴링을 멈추고 이 작업의 결과는 반영하지 않는다
+  const isCancelled = useCallback((nodeId, jobId) => {
+    const d = getNodes().find(n => n.id === nodeId)?.data
+    return !d || !['generating', 'slow'].includes(d.status) || d.jobId !== jobId
+  }, [getNodes])
+
   const handleHiggsfieldGenerate = useCallback(async (nodeId) => {
     const epoch = epochRef?.current ?? 0
     const currentNodes = getNodes()
@@ -310,6 +316,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
+        if (isCancelled(nodeId, jobId)) return
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
@@ -340,7 +347,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.error(`[생성 실패] (${ts()})`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef])
+  }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef, isCancelled])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     const epoch = epochRef?.current ?? 0
@@ -363,6 +370,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
+        if (isCancelled(nodeId, jobId)) return
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
         if (statusData.error) throw new Error(statusData.error)
         if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
@@ -388,7 +396,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.error(`[재개 폴링 실패]`, err.message)
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData, epochRef])
+  }, [getNodes, getEdges, updateNodeData, epochRef, isCancelled])
 
   const handleSheetGenerate = useCallback(async (nodeId) => {
     const epoch = epochRef?.current ?? 0

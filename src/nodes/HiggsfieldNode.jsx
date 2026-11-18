@@ -1163,7 +1163,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
             </div>
           )}
           <button
-            onClick={() => updateNodeData(id, { status: 'idle', error: undefined })}
+            onClick={() => updateNodeData(id, { status: data.resultUrl ? 'done' : 'idle', error: undefined })}
             style={{
               flexShrink: 0, fontSize: 9, fontWeight: 700,
               color: 'rgba(227,64,84,0.7)', background: 'rgba(227,64,84,0.08)',
@@ -1209,8 +1209,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 결과 미리보기 + 다운로드 */}
-      {isDone && data.resultUrl && (
+      {/* 결과 미리보기 + 다운로드 — 재생성 중·취소·오류 때도 기존 결과는 계속 보여준다 */}
+      {data.resultUrl && (
         <div style={{ marginTop: 8 }}>
           <div
             className="nopan nodrag"
