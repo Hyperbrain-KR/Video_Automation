@@ -30,10 +30,14 @@ const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_
 // 로그인 토큰(Supabase JWT)으로 사용자를 확인하고, 허용 이메일 목록도 서버에서 검사한다.
 const _verifiedTokens = new Map() // token -> { email, expires }
 
+// 토큰이 진짜로 무효면 null, Supabase 호출 자체가 실패했으면 예외 — 둘을 구분해야 일시 장애를 로그아웃으로 오인하지 않는다
 async function verifyLoginToken(token) {
   const cached = _verifiedTokens.get(token)
   if (cached && cached.expires > Date.now()) return cached.email
   const { data, error } = await supabase.auth.getUser(token)
+  if (error && ![400, 401, 403].includes(error.status)) {
+    throw new Error(`로그인 확인 실패: ${error.message}`)
+  }
   const email = error ? null : data?.user?.email?.toLowerCase() ?? null
   if (!email) return null
   if (_verifiedTokens.size > 500) _verifiedTokens.clear()
@@ -46,7 +50,13 @@ app.use('/api', async (req, res, next) => {
 
   const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '')
   if (token && supabase) {
-    const email = await verifyLoginToken(token).catch(() => null)
+    let email
+    try {
+      email = await verifyLoginToken(token)
+    } catch (err) {
+      console.warn('[auth]', err.message)
+      return res.status(503).json({ error: '로그인 확인 서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.' })
+    }
     const allowed = email && (!ALLOWED_EMAILS.length || ALLOWED_EMAILS.includes(email))
     if (allowed) {
       req.userEmail = email

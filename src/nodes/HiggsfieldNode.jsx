@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
-import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef, higgsfieldResumeHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { ownJobIdOf } from '../hooks/useHiggsfieldGenerate'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
@@ -1204,6 +1205,20 @@ export default function HiggsfieldNode({ id, data, selected }) {
           border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.6,
         }}>
           <div style={{ marginBottom: 6 }}>⚠ {data.error}</div>
+          {ownJobIdOf(data) && (
+            <button
+              className="nopan nodrag"
+              onClick={() => higgsfieldResumeHandlerRef.current?.(id)}
+              title="이미 Higgsfield에 들어간 작업의 결과만 다시 확인합니다"
+              style={{
+                width: '100%', padding: '4px 0', marginBottom: 4,
+                background: 'rgba(41,217,217,0.1)',
+                border: '1px solid rgba(41,217,217,0.35)',
+                borderRadius: 5, fontSize: 10, fontWeight: 700,
+                color: '#29D9D9', fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >⤓ 결과 다시 불러오기 (크레딧 차감 없음)</button>
+          )}
           <button
             className="nopan nodrag"
             onClick={() => higgsfieldHandlerRef.current?.(id)}
@@ -1229,8 +1244,9 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 결과 미리보기 + 다운로드 — 재생성 중·취소·오류 때도 기존 결과는 계속 보여준다 */}
-      {data.resultUrl && (
+      {/* 결과 미리보기 + 다운로드 — 재생성 중·취소·오류 때도 기존 결과는 계속 보여준다.
+          단, 앞 노드가 넘겨준 결과(비디오 노드에 들어온 첫 프레임 이미지 등)는 이 노드의 결과가 아니므로 제외 */}
+      {data.resultUrl && (isDone || (data.resultHistory ?? []).includes(data.resultUrl)) && (
         <div style={{ marginTop: 8 }}>
           <div
             className="nopan nodrag"

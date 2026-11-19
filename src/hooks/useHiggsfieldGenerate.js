@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef } from '../lib/higgsfieldHandlerRef'
+import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef, higgsfieldResumeHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { friendlyError } from '../lib/friendlyError'
 import { apiFetch } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
@@ -11,6 +11,11 @@ const SHEET_PROMPT = `Keeping the referenced character unchanged, a clean charac
 Below the body views, a row of six close-up facial expression panels, each labeled and depicting distinct emotions: joy (bright wide smile, sparkling eyes), sadness (downcast eyes, subtle tears, trembling lips), anger (furrowed brows, sharp glare, clenched jaw), pain/agony (scrunched brows, eyes squeezed shut, grimacing mouth), neutral/serious (flat calm expression, steady gaze, composed lips), and excitement (wide sparkling eyes, open elated smile, raised eyebrows).
 
 The overall layout is organized like a professional animation character sheet, clean white or very light gray background, soft even ambient light across all panels, consistent character scale throughout, mood is professional and reference-ready. Clean guide lines separating each section.`
+
+// 노드의 jobId 는 앞 노드가 결과를 넘겨줄 때 덮어써질 수 있어, 이 노드가 직접 제출한 작업 id 를 따로 본다
+export function ownJobIdOf(d) {
+  return d.ownJobId ?? (d.generatingStartedAt ? d.jobId : null)
+}
 
 export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
@@ -300,12 +305,13 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       console.log(`[생성 요청 완료] jobId: ${jobId} (${ts()})`)
 
       updateNodeData(nodeId, {
-        status: 'generating', jobId, generatingStartedAt: Date.now(),
+        status: 'generating', jobId, ownJobId: jobId, generatingStartedAt: Date.now(),
         elementWarning: unresolvedElements.length ? unresolvedElements.map(n => `@${n}`).join(', ') : undefined,
       })
 
       const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
+      let authRetries = 0
       let pollCount = 0
       let warnedSlow = false
       while (true) {
@@ -316,7 +322,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         console.log(`[폴링 #${pollCount}] (${ts()})`, statusData.resultUrl ? `✅ URL: ${statusData.resultUrl.slice(0, 60)}` : `⏳ 대기 중`, statusData.error ? `❌ ${statusData.error}` : '', '\n  Higgsfield 응답:', rawStatus)
         if (!statusRes.ok) {
-          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
+          if (statusRes.status >= 500 || statusRes.status === 401) {
+            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
+            await new Promise(r => setTimeout(r, 5000)); continue
+          }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
         if (isCancelled(nodeId, jobId)) return
@@ -360,6 +370,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     try {
       const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null
+      let authRetries = 0
       let pollCount = 0
       let warnedSlow = false
       while (true) {
@@ -370,7 +381,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         console.log(`[재개 폴링 #${pollCount}]`, statusData.resultUrl ? `✅ URL` : `⏳ 대기`, statusData.error ? `❌ ${statusData.error}` : '', rawStatus.slice(0, 60))
         if (!statusRes.ok) {
-          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
+          if (statusRes.status >= 500 || statusRes.status === 401) {
+            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
+            await new Promise(r => setTimeout(r, 5000)); continue
+          }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
         if (isCancelled(nodeId, jobId)) return
@@ -454,12 +469,17 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       if (!jobId) throw new Error('jobId를 받지 못했습니다')
 
       let resultUrl = null
+      let authRetries = 0
       while (true) {
         const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
         const statusData = await statusRes.json()
         const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
         if (!statusRes.ok) {
-          if (statusRes.status >= 500) { await new Promise(r => setTimeout(r, 5000)); continue }
+          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
+          if (statusRes.status >= 500 || statusRes.status === 401) {
+            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
+            await new Promise(r => setTimeout(r, 5000)); continue
+          }
           throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
         }
         if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
@@ -496,6 +516,14 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   useEffect(() => {
     higgsfieldSheetHandlerRef.current = handleSheetGenerate
   }, [handleSheetGenerate])
+
+  useEffect(() => {
+    higgsfieldResumeHandlerRef.current = (nodeId) => {
+      const d = getNodes().find(n => n.id === nodeId)?.data
+      const jobId = d ? ownJobIdOf(d) : null
+      if (jobId) resumePolling(nodeId, jobId, d.type === 'video')
+    }
+  }, [getNodes, resumePolling])
 
   return resumePolling
 }
