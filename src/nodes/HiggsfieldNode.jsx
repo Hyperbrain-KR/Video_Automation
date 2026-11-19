@@ -1176,6 +1176,26 @@ export default function HiggsfieldNode({ id, data, selected }) {
         </div>
       )}
 
+      {/* 프롬프트의 @이름 중 Higgsfield 엘리먼트 목록에 없는 것 — 생성은 진행됐지만 그 참조는 첨부되지 않음 */}
+      {data.elementWarning && (
+        <div style={{
+          marginTop: 8, fontSize: 10, color: '#F59E0B', lineHeight: 1.6,
+          padding: '6px 8px', background: 'rgba(245,158,11,0.08)',
+          border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6,
+          display: 'flex', alignItems: 'flex-start', gap: 6,
+        }}>
+          <span style={{ flex: 1 }}>
+            ⚠ 엘리먼트 {data.elementWarning} 를 찾지 못해 이번 생성에 첨부하지 못했습니다. 이름이 맞는지, Higgsfield에 등록돼 있는지 확인해주세요.
+          </span>
+          <button className="nopan nodrag"
+            onClick={() => updateNodeData(id, { elementWarning: undefined })}
+            title="경고 닫기"
+            style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
+              color: '#F59E0B', fontSize: 10, padding: 0, lineHeight: 1.6, fontFamily: 'inherit' }}
+          >✕</button>
+        </div>
+      )}
+
       {/* 오류 */}
       {status === 'error' && data.error && (
         <div style={{

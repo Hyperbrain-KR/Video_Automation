@@ -84,7 +84,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
     console.log(`[생성 시작] nodeId: ${nodeId}, type: ${isVideo ? '비디오' : '이미지'}, prompt: "${prompt.slice(0, 60)}..."`)
 
-    updateNodeData(nodeId, { status: 'loading', error: undefined })
+    updateNodeData(nodeId, { status: 'loading', error: undefined, elementWarning: undefined })
 
     let referenceMediaIds = []
 
@@ -294,12 +294,15 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         throw new Error(err.error || `서버 오류 ${genRes.status}`)
       }
       const genResData = await genRes.json()
-      const { jobId } = genResData
+      const { jobId, unresolvedElements = [] } = genResData
       console.log(`[생성 응답 원문] content:`, genResData.content?.[0]?.text)
       if (!jobId) throw new Error('jobId를 받지 못했습니다')
       console.log(`[생성 요청 완료] jobId: ${jobId} (${ts()})`)
 
-      updateNodeData(nodeId, { status: 'generating', jobId, generatingStartedAt: Date.now() })
+      updateNodeData(nodeId, {
+        status: 'generating', jobId, generatingStartedAt: Date.now(),
+        elementWarning: unresolvedElements.length ? unresolvedElements.map(n => `@${n}`).join(', ') : undefined,
+      })
 
       const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
       let resultUrl = null

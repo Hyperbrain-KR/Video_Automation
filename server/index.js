@@ -480,10 +480,11 @@ app.post('/api/higgsfield/image', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
 
-  let prompt
+  let prompt, unresolvedElements = []
   try {
     const r = await resolveElementMentions(rawPrompt)
     prompt = r.prompt
+    unresolvedElements = r.unresolved
     if (r.resolved.length || r.unresolved.length) console.log(`[higgsfield/image] 엘리먼트 변환: ${r.resolved.join(', ') || '-'} | 못 찾음: ${r.unresolved.join(', ') || '-'}`)
   } catch (err) {
     console.error('[higgsfield/image] 엘리먼트 조회 실패:', err.message)
@@ -532,7 +533,7 @@ app.post('/api/higgsfield/image', async (req, res) => {
     if (result.isError) return res.status(500).json({ error: result.content?.[0]?.text || '생성 오류' })
     const jobId = extractJobId(result)
     console.log('[higgsfield/image] jobId:', jobId)
-    res.json({ jobId, content: result.content })
+    res.json({ jobId, content: result.content, unresolvedElements })
   } catch (err) {
     console.error('[higgsfield/image]', err.message)
     res.status(500).json({ error: err.message })
@@ -558,10 +559,11 @@ app.post('/api/higgsfield/video', async (req, res) => {
   const videoModel = VALID_VIDEO_MODELS.includes(rawVideoModel) ? rawVideoModel : 'kling3_0'
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
-  let resolvedPrompt
+  let resolvedPrompt, unresolvedElements = []
   try {
     const r = await resolveElementMentions(rawPrompt)
     resolvedPrompt = r.prompt
+    unresolvedElements = r.unresolved
     if (r.resolved.length || r.unresolved.length) console.log(`[higgsfield/video] 엘리먼트 변환: ${r.resolved.join(', ') || '-'} | 못 찾음: ${r.unresolved.join(', ') || '-'}`)
   } catch (err) {
     console.error('[higgsfield/video] 엘리먼트 조회 실패:', err.message)
@@ -674,7 +676,7 @@ app.post('/api/higgsfield/video', async (req, res) => {
       console.error('[higgsfield/video] jobId 추출 실패, content:', rawContent)
       return res.status(500).json({ error: `jobId 추출 실패: ${rawContent.slice(0, 200)}` })
     }
-    res.json({ jobId, content: result.content })
+    res.json({ jobId, content: result.content, unresolvedElements })
   } catch (err) {
     console.error(`[higgsfield/video] 실패 (${ts()}):`, err.message)
     res.status(500).json({ error: err.message })
