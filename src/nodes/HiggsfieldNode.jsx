@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef, higgsfieldResumeHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { ownJobIdOf } from '../hooks/useHiggsfieldGenerate'
+import { friendlyError } from '../lib/friendlyError'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
@@ -1204,7 +1205,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
           padding: '7px 8px', background: 'rgba(227,64,84,0.08)',
           border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.6,
         }}>
-          <div style={{ marginBottom: 6 }}>⚠ {data.error}</div>
+          <div style={{ marginBottom: 6 }}>⚠ {friendlyError(data.error)}</div>
           {ownJobIdOf(data) && (
             <button
               className="nopan nodrag"

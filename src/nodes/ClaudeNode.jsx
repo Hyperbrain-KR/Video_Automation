@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react'
 import { useReactFlow } from '@xyflow/react'
 import { generateHandlerRef } from '../lib/generateHandlerRef'
+import { friendlyError } from '../lib/friendlyError'
 
 const C = {
   orange: '#D4622A',
@@ -244,7 +245,7 @@ export default function ClaudeNode({ id, data, selected }) {
           padding: '5px 8px', background: 'rgba(227,64,84,0.08)',
           border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.5,
         }}>
-          ⚠ {data.error}
+          ⚠ {friendlyError(data.error)}
         </div>
       )}
 

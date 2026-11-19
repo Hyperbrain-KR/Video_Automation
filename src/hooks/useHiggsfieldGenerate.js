@@ -288,6 +288,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       })
       if (!genRes.ok) {
         const err = await genRes.json().catch(() => ({}))
+        if (genRes.status === 401 && err.code === 'LOGIN_REQUIRED') {
+          updateNodeData(nodeId, { status: 'error', error: err.error })
+          return
+        }
         if (genRes.status === 401) {
           updateNodeData(nodeId, { status: 'auth_error', error: err.error })
           return

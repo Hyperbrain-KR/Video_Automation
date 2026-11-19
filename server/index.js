@@ -64,11 +64,11 @@ app.use('/api', async (req, res, next) => {
     }
     if (email) {
       console.warn(`[auth] 서버 ALLOWED_EMAILS 에 없는 계정: ${email}`)
-      return res.status(403).json({ error: 'Forbidden' })
+      return res.status(403).json({ error: '이 계정은 사용 권한이 없습니다. 관리자에게 문의해주세요.', code: 'NOT_ALLOWED' })
     }
   }
 
-  res.status(401).json({ error: 'Unauthorized' })
+  res.status(401).json({ error: '로그인이 만료됐습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.', code: 'LOGIN_REQUIRED' })
 })
 
 const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
