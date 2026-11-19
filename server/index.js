@@ -946,14 +946,14 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
         const imgContentType = rawType.split(';')[0].trim()
         const uploadResult = await callHiggsfieldMCP('media_upload', { filename: 'reference.jpg', content_type: imgContentType })
         if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-        const { presignedUrl, id } = extractPresigned(uploadResult)
+        const { presignedUrl, id, publicUrl } = extractPresigned(uploadResult)
         if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
         const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
         const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
         const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: imgBuf })
         if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
         mediaId = id
-        mediaUrl = imageUrl
+        mediaUrl = publicUrl ?? imageUrl
         await new Promise(r => setTimeout(r, 1500))
         console.log(`[register-elem] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
       }
@@ -964,8 +964,9 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
         content_type: contentType || 'image/jpeg',
       })
       if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-      const { presignedUrl, id } = extractPresigned(uploadResult)
+      const { presignedUrl, id, publicUrl } = extractPresigned(uploadResult)
       if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
+      if (!publicUrl) throw new Error('업로드 주소를 받지 못했습니다')
       const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
@@ -973,10 +974,12 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
       const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: buffer })
       if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
       mediaId = id
+      mediaUrl = publicUrl
       console.log(`[register-elem] ② 업로드 완료, mediaId: ${mediaId} (${ts()})`)
     }
 
     if (!mediaId) throw new Error('mediaId 획득 실패')
+    if (!mediaUrl) throw new Error('업로드한 이미지 주소를 확인하지 못했습니다')
 
     console.log(`[register-elem] ③ media_confirm... (${mediaId})`)
     let confirmResult
@@ -993,7 +996,7 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
     }
 
     console.log(`[register-elem] ④ manage_reference_elements create... (${ts()})`)
-    const medias = [{ id: mediaId, type: 'media_input', ...(mediaUrl ? { url: mediaUrl } : {}) }]
+    const medias = [{ id: mediaId, type: 'media_input', url: mediaUrl }]
     const createArgs = { action: 'create', medias, category }
     if (name) createArgs.name = name.startsWith('@') ? name.slice(1) : name
 
@@ -1046,7 +1049,8 @@ function extractPresigned(result) {
   // structuredContent.uploads[0] 우선
   const upload = result.structuredContent?.uploads?.[0]
   if (upload?.upload_url && upload?.media_id) {
-    return { presignedUrl: upload.upload_url, id: upload.media_id }
+    // url: 업로드 완료 후 파일이 놓이는 https 주소 — 엘리먼트 등록에 필요
+    return { presignedUrl: upload.upload_url, id: upload.media_id, publicUrl: upload.url ?? null }
   }
   // fallback: text 파싱
   for (const c of (result.content ?? [])) {
