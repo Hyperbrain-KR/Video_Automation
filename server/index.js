@@ -472,6 +472,7 @@ app.get('/api/higgsfield/models', async (req, res) => {
 
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
 
+const SEEDANCE_MAX_REFERENCES = 9
 const { loadAllElements, resolveElementMentions } = createElementResolver((tool, args) => callHiggsfieldMCP(tool, args, 20_000))
 
 app.post('/api/higgsfield/image', async (req, res) => {
@@ -559,11 +560,12 @@ app.post('/api/higgsfield/video', async (req, res) => {
   const videoModel = VALID_VIDEO_MODELS.includes(rawVideoModel) ? rawVideoModel : 'kling3_0'
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
-  let resolvedPrompt, unresolvedElements = []
+  let resolvedPrompt, unresolvedElements = [], resolvedElementCount = 0
   try {
     const r = await resolveElementMentions(rawPrompt)
     resolvedPrompt = r.prompt
     unresolvedElements = r.unresolved
+    resolvedElementCount = r.resolved.length
     if (r.resolved.length || r.unresolved.length) console.log(`[higgsfield/video] 엘리먼트 변환: ${r.resolved.join(', ') || '-'} | 못 찾음: ${r.unresolved.join(', ') || '-'}`)
   } catch (err) {
     console.error('[higgsfield/video] 엘리먼트 조회 실패:', err.message)
@@ -587,6 +589,16 @@ app.post('/api/higgsfield/video', async (req, res) => {
     else if (firstFrameJobId) medias.push({ value: firstFrameJobId, role: 'start_image' })
     if (endFrameMediaId) medias.push({ value: endFrameMediaId, role: 'end_image' })
     else if (endFrameJobId) medias.push({ value: endFrameJobId, role: 'end_image' })
+  }
+
+  // Seedance 는 참조(레퍼런스 이미지 + 엘리먼트)를 최대 9개까지만 받는다 — 크레딧 차감 전에 막는다
+  if (videoModel === 'seedance_2_0') {
+    const total = medias.length + resolvedElementCount
+    if (total > SEEDANCE_MAX_REFERENCES) {
+      return res.status(400).json({
+        error: `Seedance는 참조를 최대 ${SEEDANCE_MAX_REFERENCES}개까지 첨부할 수 있습니다. 지금 ${total}개입니다 (레퍼런스 이미지 ${medias.length}개 + 엘리먼트 ${resolvedElementCount}개). ${total - SEEDANCE_MAX_REFERENCES}개를 줄인 뒤 다시 생성해주세요.`,
+      })
+    }
   }
 
   const args = {
