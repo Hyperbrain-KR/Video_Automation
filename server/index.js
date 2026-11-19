@@ -8,6 +8,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { createClient } from '@supabase/supabase-js'
 import { startOrphanSweep } from './storageCleanup.js'
+import { createElementResolver, truncateKeepingPlaceholders } from './higgsfieldElements.js'
 const CHANGELOG = JSON.parse(fs.readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'))
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -470,11 +471,24 @@ app.get('/api/higgsfield/models', async (req, res) => {
 })
 
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
+
+const { loadAllElements, resolveElementMentions } = createElementResolver((tool, args) => callHiggsfieldMCP(tool, args, 20_000))
+
 app.post('/api/higgsfield/image', async (req, res) => {
-  const { prompt, model = 'nano_banana_pro', quality, aspectRatio,
+  const { prompt: rawPrompt, model = 'nano_banana_pro', quality, aspectRatio,
           referenceMediaIds = [], referenceJobIds = [] } = req.body
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
-  if (!prompt) return res.status(400).json({ error: 'prompt 필요' })
+  if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
+
+  let prompt
+  try {
+    const r = await resolveElementMentions(rawPrompt)
+    prompt = r.prompt
+    if (r.resolved.length || r.unresolved.length) console.log(`[higgsfield/image] 엘리먼트 변환: ${r.resolved.join(', ') || '-'} | 못 찾음: ${r.unresolved.join(', ') || '-'}`)
+  } catch (err) {
+    console.error('[higgsfield/image] 엘리먼트 조회 실패:', err.message)
+    return res.status(502).json({ error: `엘리먼트 목록을 불러오지 못해 생성을 중단했습니다: ${err.message}` })
+  }
 
   const isGptImage = model === 'gpt_image_2'
   const supportsResolution = ['nano_banana_2', 'nano_banana_pro', 'nano_banana_2_shots', 'cinematic_studio_2_5', 'marketing_studio_image', 'ms_image', 'flux_2'].includes(model)
@@ -544,8 +558,17 @@ app.post('/api/higgsfield/video', async (req, res) => {
   const videoModel = VALID_VIDEO_MODELS.includes(rawVideoModel) ? rawVideoModel : 'kling3_0'
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   if (!rawPrompt) return res.status(400).json({ error: 'prompt 필요' })
-  const trimmed = rawPrompt.length > 2490 ? rawPrompt.slice(0, 2490) : rawPrompt
-  if (rawPrompt.length > 2490) console.warn(`[higgsfield/video] prompt truncated ${rawPrompt.length} → 2490`)
+  let resolvedPrompt
+  try {
+    const r = await resolveElementMentions(rawPrompt)
+    resolvedPrompt = r.prompt
+    if (r.resolved.length || r.unresolved.length) console.log(`[higgsfield/video] 엘리먼트 변환: ${r.resolved.join(', ') || '-'} | 못 찾음: ${r.unresolved.join(', ') || '-'}`)
+  } catch (err) {
+    console.error('[higgsfield/video] 엘리먼트 조회 실패:', err.message)
+    return res.status(502).json({ error: `엘리먼트 목록을 불러오지 못해 생성을 중단했습니다: ${err.message}` })
+  }
+  const trimmed = truncateKeepingPlaceholders(resolvedPrompt, 2490)
+  if (trimmed.length < resolvedPrompt.length) console.warn(`[higgsfield/video] prompt truncated ${resolvedPrompt.length} → ${trimmed.length}`)
   // dedup 방지: Higgsfield가 동일 프롬프트 재사용 시 실패 job을 반환하는 문제 우회
   const prompt = trimmed + ` [${Date.now()}]`
 
@@ -678,24 +701,15 @@ app.get('/api/higgsfield/tools', async (req, res) => {
 app.get('/api/higgsfield/elements', async (req, res) => {
   if (!process.env.HIGGSFIELD_API_KEY) return res.status(500).json({ error: 'HIGGSFIELD_API_KEY 미설정' })
   try {
-    const result = await callHiggsfieldMCP('show_reference_elements', {}, 15_000)
-    const raw = result.content?.map(c => c.text).join('') ?? ''
-    console.log('[higgsfield/elements] 응답:', raw.slice(0, 800))
-
-    // 파싱: 블록 단위로 분리 후 필드 추출
-    const elements = []
-    const blocks = raw.split(/\n\s*-\s+id:/)
-    for (const block of blocks.slice(1)) {
-      const nameM    = block.match(/name:\s*(.+)/)
-      const catM     = block.match(/category:\s*(.+)/)
-      const mediaM   = block.match(/"(https?:\/\/[^"]+)"/)
-      if (!nameM) continue
-      const name     = nameM[1].trim()
-      const category = catM ? catM[1].trim() : 'auto'
-      const thumbUrl = mediaM ? mediaM[1] : null
-      const capCat   = category.charAt(0).toUpperCase() + category.slice(1)
-      elements.push({ name: `@${name}`, category: capCat, thumbUrl })
-    }
+    const items = await loadAllElements({ fresh: true })
+    const elements = items.filter(el => el?.name).map(el => {
+      const category = el.category || 'auto'
+      return {
+        name: `@${el.name}`,
+        category: category.charAt(0).toUpperCase() + category.slice(1),
+        thumbUrl: el.medias?.[0]?.url ?? null,
+      }
+    })
     res.json({ elements })
   } catch (err) {
     console.error('[higgsfield/elements] 오류:', err.message)
