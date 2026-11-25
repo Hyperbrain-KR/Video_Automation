@@ -206,7 +206,7 @@ function SelectRow({ label, value, onChange, options }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ fontSize: 9, color: 'var(--t4)', width: 36, flexShrink: 0 }}>{label}</span>
-      <select value={value} onChange={e => onChange(e.target.value)} style={selectStyle}>
+      <select className="nopan nodrag" value={value} onChange={e => onChange(e.target.value)} style={selectStyle}>
         {options.map(([v, l]) => (
           <option key={v} value={v} style={{ background: '#0d1020' }}>{l}</option>
         ))}

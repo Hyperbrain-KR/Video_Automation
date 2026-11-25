@@ -218,7 +218,7 @@ function DialogueInput({ label, value, onChange, placeholder }) {
       </div>
       <textarea
         ref={ref}
-        className="nopan nodrag"
+        className="nopan nodrag nowheel"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
@@ -463,7 +463,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
       <div style={{ position: 'relative' }}>
         <div
           ref={editorRef}
-          className="nopan nodrag"
+          className="nopan nodrag nowheel"
           contentEditable
           suppressContentEditableWarning
           style={{
@@ -506,7 +506,7 @@ export default function VideoDirectionNode({ id, data, selected }) {
             <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: 'var(--drop-accent)', fontWeight: 700, letterSpacing: '0.03em' }}>
               @ {dropQuery || 'Elements'}
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }} onWheel={e => e.stopPropagation()}>
+            <div className="nowheel" style={{ maxHeight: 200, overflowY: 'auto' }}>
               {dropItems.map((el, i) => {
                 const isFirstElem = !el.isFrame && (i === 0 || dropItems[i - 1]?.isFrame)
                 const showSep = isFirstElem && dropItems.some(x => x.isFrame)

@@ -448,7 +448,7 @@ export default function TextInputNode({ id, data, selected }) {
       <div style={{ position: 'relative' }}>
         <div
           ref={editorRef}
-          className="nopan nodrag"
+          className="nopan nodrag nowheel"
           contentEditable
           suppressContentEditableWarning
           style={{
@@ -498,7 +498,7 @@ export default function TextInputNode({ id, data, selected }) {
             <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--sep)', fontSize: 10, color: 'var(--drop-accent)', fontWeight: 700, letterSpacing: '0.03em' }}>
               @ {dropQuery || 'Elements'}
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }} onWheel={e => e.stopPropagation()}>
+            <div className="nowheel" style={{ maxHeight: 200, overflowY: 'auto' }}>
               {dropItems.map((el, i) => (
                 <div
                   key={el.id}

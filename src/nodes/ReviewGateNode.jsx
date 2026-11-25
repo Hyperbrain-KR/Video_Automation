@@ -403,7 +403,7 @@ export default function ReviewGateNode({ id, data, selected }) {
                 }}
               >{copied ? '✓ 복사됨' : '복사'}</button>
             </div>
-            <textarea style={styles.textarea} value={prompt}
+            <textarea className="nopan nodrag nowheel" style={styles.textarea} value={prompt}
               onChange={e => setPrompt(e.target.value)} />
             <CharCount text={prompt} />
             <div style={styles.row}>
@@ -461,7 +461,7 @@ export default function ReviewGateNode({ id, data, selected }) {
               value={feedback}
               onChange={e => setFeedback(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) regenerate() }}
-              className="nopan nodrag"
+              className="nopan nodrag nowheel"
               style={{
                 ...styles.textarea, minHeight: 72,
                 border: isDraggingOver ? '1.5px solid rgba(41,217,217,0.6)' : '1.5px solid rgba(41,217,217,0.45)',
@@ -560,6 +560,7 @@ export default function ReviewGateNode({ id, data, selected }) {
 
       {/* 프롬프트 / 번역 토글 영역 */}
       <div
+        className="nopan nodrag nowheel"
         onClick={toggleTranslation}
         title={showKo ? '클릭하면 영어 원문 보기' : '클릭하면 한국어 번역 보기'}
         style={{

@@ -104,6 +104,7 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
         </div>
         <textarea
           ref={imgRef}
+          className="nopan nodrag nowheel"
           style={textareaStyle}
           placeholder="이미지 스타일 앵커를 붙여넣으세요..."
           value={imageAnchor}
@@ -123,6 +124,7 @@ export default function StyleAnchorInputNode({ id, data, selected }) {
         </div>
         <textarea
           ref={vidRef}
+          className="nopan nodrag nowheel"
           style={textareaStyle}
           placeholder="비디오 스타일 앵커를 붙여넣으세요..."
           value={videoAnchor}
