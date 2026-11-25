@@ -2,6 +2,7 @@ import { useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { apiFetch } from '../lib/config'
+import { SafetyChanges } from '../components/SafetyFixModal'
 
 const C = {
   blue: '#1F41B0',
@@ -189,6 +190,23 @@ function CharCount({ text, charLimit }) {
   )
 }
 
+// 안전 수정이 적용된 상태에서만 보인다 — 그 뒤 프롬프트를 고치거나 새로 만들면 사라진다
+function SafetyFixBadge({ fix, onRevert }) {
+  const [open, setOpen] = useState(false)
+  const small = { fontSize: 10, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', borderRadius: 4, padding: '2px 7px' }
+  return (
+    <div className="nopan nodrag" style={{ marginTop: 8, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={() => setOpen(v => !v)} style={{ ...small, flex: 1, textAlign: 'left', color: 'var(--diff-add-text)', background: 'var(--diff-add-bg)', border: '1px solid var(--sep2)' }}>
+          {open ? '▾' : '▸'} 안전 수정됨 · {fix.count}곳
+        </button>
+        <button onClick={onRevert} style={{ ...small, color: 'var(--t1)', background: 'var(--node-section)', border: '1px solid var(--sep2)' }}>수정 전으로</button>
+      </div>
+      {open && <div className="nowheel" style={{ marginTop: 8, maxHeight: 260, overflowY: 'auto' }}><SafetyChanges segments={fix.segments} /></div>}
+    </div>
+  )
+}
+
 export default function ReviewGateNode({ id, data, selected }) {
   const { updateNodeData, getEdges, getNodes } = useReactFlow()
   const projectId = useContext(ProjectContext)
@@ -328,6 +346,10 @@ export default function ReviewGateNode({ id, data, selected }) {
     </>
   )
 
+  const safetyBadge = data.safetyFix && data.prompt === data.safetyFix.after
+    ? <SafetyFixBadge fix={data.safetyFix} onRevert={() => updateNodeData(id, { prompt: data.safetyFix.before, safetyFix: undefined })} />
+    : null
+
   if (status === 'approved') {
     return (
       <div style={{ ...styles.approvedNode, ...selectedGlow }}>
@@ -341,6 +363,7 @@ export default function ReviewGateNode({ id, data, selected }) {
             되돌리기
           </button>
         </div>
+        {safetyBadge}
       </div>
     )
   }
@@ -574,6 +597,7 @@ export default function ReviewGateNode({ id, data, selected }) {
       </div>
 
       <CharCount text={prompt} />
+      {safetyBadge}
       <div style={styles.row}>
         <button style={styles.btnSecondary} onClick={() => { setEditTab('direct'); setFeedback(''); setIsEditing(true) }}>
           수정

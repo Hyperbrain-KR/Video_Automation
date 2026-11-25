@@ -4,6 +4,8 @@ import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef, higgsfieldResumeHandlerRef } from '../lib/higgsfieldHandlerRef'
 import { ownHistory, ownJobIdOf, ownResultUrl } from '../lib/nodeResult'
 import { friendlyError } from '../lib/friendlyError'
+import { ProjectContext } from '../lib/ProjectContext'
+import SafetyFixModal from '../components/SafetyFixModal'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
 import { loadImage as loadImageDB } from '../lib/imageDB'
@@ -315,6 +317,38 @@ export default function HiggsfieldNode({ id, data, selected }) {
     getEdges()
       .filter(e => e.source === id && e.target !== id && !isGenerator.has(e.target))
       .forEach(e => updateNodeData(e.target, { resultUrl: newUrl }))
+  }
+
+  // 차단 오류: 코드가 없던 때 저장된 노드는 문구로 판단한다. 이미지가 원인(IMAGE_NSFW)이면 프롬프트 수정은 제안하지 않는다.
+  const projectId = useContext(ProjectContext)
+  const [fixPrompt, setFixPrompt] = useState(null)
+  const blockCode = status !== 'error' ? null
+    : data.errorCode ?? (/안전 시스템에 의해 차단/.test(data.error ?? '') ? 'SAFETY' : null)
+  const promptSourceId = useStore(s => s.edges.find(e => e.target === id && e.targetHandle === 'prompt')?.source ?? null)
+  const promptText = useStore(s => {
+    const d = s.nodes.find(n => n.id === promptSourceId)?.data
+    return d?.prompt || d?.value || ''
+  })
+  const fixable = (blockCode === 'SAFETY' || blockCode === 'IP') && !!promptText
+
+  const applySafetyFix = (fix, regenerate) => {
+    const read = () => getNodes().find(n => n.id === promptSourceId)?.data
+    const src = read()
+    const field = src?.prompt ? 'prompt' : 'value'
+    if (src?.[field] !== fix.before) return '그사이 프롬프트가 바뀌었습니다. 다시 수정해주세요.'
+    updateNodeData(promptSourceId, {
+      [field]: fix.after,
+      safetyFix: { before: fix.before, after: fix.after, segments: fix.segments, count: fix.count },
+    })
+    setFixPrompt(null)
+    if (!regenerate) return null
+    // 새 프롬프트가 반영된 뒤에 생성해야 옛 프롬프트로 제출되지 않는다
+    const start = (tries = 0) => {
+      if (read()?.[field] === fix.after) higgsfieldHandlerRef.current?.(id)
+      else if (tries < 60) setTimeout(() => start(tries + 1), 50)
+    }
+    start()
+    return null
   }
 
   const [elapsed, setElapsed] = useState(0)
@@ -1183,7 +1217,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {/* 프롬프트의 @이름 중 Higgsfield 엘리먼트 목록에 없는 것 — 생성은 진행됐지만 그 참조는 첨부되지 않음 */}
       {data.elementWarning && (
         <div style={{
-          marginTop: 8, fontSize: 10, color: '#F59E0B', lineHeight: 1.6,
+          marginTop: 8, fontSize: 10, color: 'var(--warn-text)', lineHeight: 1.6,
           padding: '6px 8px', background: 'rgba(245,158,11,0.08)',
           border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6,
           display: 'flex', alignItems: 'flex-start', gap: 6,
@@ -1195,7 +1229,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
             onClick={() => updateNodeData(id, { elementWarning: undefined })}
             title="경고 닫기"
             style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
-              color: '#F59E0B', fontSize: 10, padding: 0, lineHeight: 1.6, fontFamily: 'inherit' }}
+              color: 'var(--warn-text)', fontSize: 10, padding: 0, lineHeight: 1.6, fontFamily: 'inherit' }}
           >✕</button>
         </div>
       )}
@@ -1203,22 +1237,36 @@ export default function HiggsfieldNode({ id, data, selected }) {
       {/* 오류 */}
       {status === 'error' && data.error && (
         <div style={{
-          marginTop: 8, fontSize: 10, color: C.red,
+          marginTop: 8, fontSize: 10, color: 'var(--error-text)',
           padding: '7px 8px', background: 'rgba(227,64,84,0.08)',
-          border: '1px solid rgba(227,64,84,0.18)', borderRadius: 6, lineHeight: 1.6,
+          border: '1px solid rgba(227,64,84,0.3)', borderRadius: 6, lineHeight: 1.6,
         }}>
           <div style={{ marginBottom: 6 }}>⚠ {friendlyError(data.error)}</div>
-          {ownJobIdOf(data) && (
+          {fixable && (
+            <>
+              <button
+                className="nopan nodrag"
+                onClick={() => setFixPrompt(promptText)}
+                style={{
+                  width: '100%', padding: '5px 0', marginBottom: 4,
+                  background: 'var(--btn-done-bg)', border: '1px solid var(--btn-done-border)',
+                  borderRadius: 5, fontSize: 10, fontWeight: 700,
+                  color: 'var(--accent-text)', fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >✦ 프롬프트 안전하게 수정</button>
+              <div style={{ fontSize: 9, color: 'var(--t2)', marginBottom: 6 }}>수정 후에도 막히면 참조 이미지를 바꿔보세요.</div>
+            </>
+          )}
+          {!blockCode && ownJobIdOf(data) && (
             <button
               className="nopan nodrag"
               onClick={() => higgsfieldResumeHandlerRef.current?.(id)}
               title="이미 Higgsfield에 들어간 작업의 결과만 다시 확인합니다"
               style={{
                 width: '100%', padding: '4px 0', marginBottom: 4,
-                background: 'rgba(41,217,217,0.1)',
-                border: '1px solid rgba(41,217,217,0.35)',
+                background: 'var(--btn-done-bg)', border: '1px solid var(--btn-done-border)',
                 borderRadius: 5, fontSize: 10, fontWeight: 700,
-                color: '#29D9D9', fontFamily: 'inherit', cursor: 'pointer',
+                color: 'var(--accent-text)', fontFamily: 'inherit', cursor: 'pointer',
               }}
             >⤓ 결과 다시 불러오기 (크레딧 차감 없음)</button>
           )}
@@ -1228,12 +1276,18 @@ export default function HiggsfieldNode({ id, data, selected }) {
             style={{
               width: '100%', padding: '4px 0',
               background: 'rgba(227,64,84,0.12)',
-              border: '1px solid rgba(227,64,84,0.3)',
+              border: '1px solid rgba(227,64,84,0.35)',
               borderRadius: 5, fontSize: 10, fontWeight: 700,
-              color: C.red, fontFamily: 'inherit', cursor: 'pointer',
+              color: 'var(--error-text)', fontFamily: 'inherit', cursor: 'pointer',
             }}
           >↺ 다시 시도</button>
         </div>
+      )}
+      {fixPrompt !== null && (
+        <SafetyFixModal
+          prompt={fixPrompt} code={blockCode} isVideo={isVideo} limit={isVideo ? 2490 : null}
+          projectId={projectId} onApply={applySafetyFix} onClose={() => setFixPrompt(null)}
+        />
       )}
 
       {/* 인증 만료 안내 */}

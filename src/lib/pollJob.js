@@ -29,7 +29,7 @@ export async function pollJob({
       authFailures = 0
       outages = 0
       if (data.resultUrl) return data.resultUrl
-      if (data.error) throw new Error(data.error)
+      if (data.error) throw Object.assign(new Error(data.error), { code: data.code })
       const raw = data.content?.[0]?.text?.slice(0, 200) ?? ''
       if (raw.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${raw}`)
     }

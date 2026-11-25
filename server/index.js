@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import { startOrphanSweep } from './storageCleanup.js'
 import { createElementResolver, truncateKeepingPlaceholders } from './higgsfieldElements.js'
 import { decodeImage, uploadImage } from './higgsfieldUpload.js'
+import { blockCode, blockMessage } from './higgsfieldBlock.js'
 const CHANGELOG = JSON.parse(fs.readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'))
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -539,7 +540,8 @@ app.post('/api/higgsfield/image', async (req, res) => {
       } else if (isHiggsfieldCreditError(msg)) {
         return res.status(402).json({ error: 'insufficient credits' })
       } else {
-        return res.status(500).json({ error: msg })
+        const code = blockCode(msg)
+        return res.status(code ? 422 : 500).json({ error: code ? blockMessage(code) : msg, code })
       }
     }
     if (result.isError) return res.status(500).json({ error: result.content?.[0]?.text || '생성 오류' })
@@ -690,7 +692,8 @@ app.post('/api/higgsfield/video', async (req, res) => {
       } else if (isHiggsfieldCreditError(rawContent)) {
         return res.status(402).json({ error: 'insufficient credits' })
       } else {
-        return res.status(500).json({ error: rawContent || 'generate_video 실패' })
+        const code = blockCode(rawContent)
+        return res.status(code ? 422 : 500).json({ error: code ? blockMessage(code) : rawContent || 'generate_video 실패', code })
       }
     }
     const jobId = extractJobId(result)
@@ -781,23 +784,21 @@ app.get('/api/higgsfield/status/:jobId', async (req, res) => {
     const statusText = result.content?.[0]?.text ?? '(no text)'
     const lower = statusText.toLowerCase()
 
-    const isSafety = lower.includes('flagged') || lower.includes('safety system') || lower.includes('nsfw')
+    const jobStatus = result.structuredContent?.generation?.status ?? ''
+    const code = blockCode(`${jobStatus} ${statusText}`)
     const isFailed =
       result.isError ||
-      isSafety ||
+      !!code ||
+      /fail|cancel/i.test(jobStatus) ||
       lower.includes('something went wrong') ||
       lower.includes('failed') ||
-      lower.includes('error') ||
-      lower.includes('— failed') ||
-      lower.includes('status: failed')
+      lower.includes('error')
 
     console.log(`[higgsfield/status] ${req.params.jobId.slice(0, 8)}… → ${resultUrl ? '✅ URL' : isFailed ? '❌ 실패' : '⏳ 대기'} | ${statusText.slice(0, 120)}`)
 
     if (isFailed && !resultUrl) {
-      const errorMsg = isSafety
-        ? '안전 시스템에 의해 차단됐습니다. 다른 프롬프트나 이미지를 사용해보세요.'
-        : '힉스필드 서버 오류. 힉스필드 웹에서 확인해보세요.'
-      return res.json({ jobId: req.params.jobId, resultUrl: null, error: errorMsg, content: result.content })
+      const errorMsg = code ? blockMessage(code) : '힉스필드 서버 오류. 힉스필드 웹에서 확인해보세요.'
+      return res.json({ jobId: req.params.jobId, resultUrl: null, error: errorMsg, code, content: result.content })
     }
 
     res.json({ jobId: req.params.jobId, resultUrl, content: result.content })
@@ -867,6 +868,11 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
     if (confirmResult.isError || finalConfirmText.toLowerCase().includes('something went wrong')) {
       const errText = confirmResult.content?.map(c => c.text).join(' ') ?? 'confirm 실패'
       throw new Error(`media_confirm 실패: ${errText}`)
+    }
+
+    if (confirmResult.structuredContent?.results?.[0]?.status === 'nsfw') {
+      console.warn(`[upload-ref] nsfw 로 분류된 이미지: ${mediaId} (${ts()})`)
+      return res.status(422).json({ error: blockMessage('IMAGE_NSFW'), code: 'IMAGE_NSFW' })
     }
 
     console.log(`[upload-ref] 완료 → mediaId: ${mediaId} (총 ${ts()})`)

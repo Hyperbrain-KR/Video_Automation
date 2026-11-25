@@ -50,7 +50,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     } catch (err) {
       console.error(`[생성 실패] ${nodeId}`, err.message)
       if (isStopped()) return
-      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message), errorCode: err.code })
     }
   }, [getNodes, getEdges, updateNodeData, epochRef, isCancelled])
 
@@ -59,6 +59,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     const switched = () => (epochRef?.current ?? 0) !== epoch
     const currentNodes = getNodes()
     const currentEdges = getEdges()
+
+    const uploadError = (body, fallback) => Object.assign(new Error(body.error || fallback), { code: body.code })
+    const named = (label, e) => Object.assign(new Error(`${label} — ${friendlyError(e.message)}`), { code: e.code })
+    const failed = err => updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message), errorCode: err.code })
 
     const node = currentNodes.find(n => n.id === nodeId)
     const isVideo = node?.data?.type === 'video'
@@ -86,7 +90,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         body: JSON.stringify({ url, fileBase64, filename, contentType }),
       })
       const uploadData = await uploadRes.json()
-      if (!uploadRes.ok || !uploadData.mediaId) throw new Error(uploadData.error || '이미지 업로드 실패')
+      if (!uploadRes.ok || !uploadData.mediaId) throw named('레퍼런스 노드 이미지', uploadError(uploadData, '이미지 업로드 실패'))
       return uploadData.mediaId
     }
 
@@ -105,7 +109,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!res.ok || !data.mediaId) throw new Error(data.error || '레퍼런스 업로드 실패')
+      if (!res.ok || !data.mediaId) throw uploadError(data, '레퍼런스 업로드 실패')
       return data.mediaId
     }
 
@@ -118,7 +122,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
 
     const importStored = async (kind, item, key) => {
       const src = await loadStored(kind, item, key)
-      return importRefUrl(src).catch(e => { throw new Error(`${kind} "${item.name}" — ${friendlyError(e.message)}`) })
+      return importRefUrl(src).catch(e => { throw named(`${kind} "${item.name}"`, e) })
     }
 
     const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
@@ -131,7 +135,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
     console.log(`[생성 시작] nodeId: ${nodeId}, type: ${isVideo ? '비디오' : '이미지'}, prompt: "${prompt.slice(0, 60)}..."`)
 
-    updateNodeData(nodeId, { status: 'loading', error: undefined, elementWarning: undefined })
+    updateNodeData(nodeId, {
+      status: 'loading', error: undefined, errorCode: undefined, elementWarning: undefined,
+      ownJobId: undefined, generatingStartedAt: undefined,
+    })
 
     let referenceMediaIds = []
 
@@ -156,7 +163,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         } else {
           const results = await Promise.all(mediaSources.map(src => {
             if (src.type === 'referenceImage') return uploadRefImage(src)
-            if (src.data?.resultUrl) return importRefUrl(src.data.resultUrl)
+            if (src.data?.resultUrl) return importRefUrl(src.data.resultUrl).catch(e => { throw named('연결된 이미지', e) })
             return Promise.resolve(null)
           }))
           results.forEach(id => { if (id) referenceMediaIds.push(id) })
@@ -170,7 +177,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         }
       } catch (err) {
         if (switched()) return
-        updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+        failed(err)
         return
       }
     }
@@ -224,7 +231,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           try {
             const resolved = await Promise.all(
               tasks.map(async (task) => {
-                const mediaId = task.type === 'url' ? await importRefUrl(task.url)
+                const mediaId = task.type === 'url' ? await importRefUrl(task.url).catch(e => { throw named('첫 프레임 이미지', e) })
                   : task.type === 'asset' ? await loadAssetFrame(task.asset)
                   : await loadCharFrame(task.charId)
                 return mediaId ? { mediaId, role: task.role } : null
@@ -234,7 +241,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           } catch (err) {
             console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
             if (switched()) return
-            updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+            failed(err)
             return
           }
         }
@@ -260,11 +267,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           const [fId, eId] = await Promise.all([
             firstCharId ? loadCharFrame(firstCharId)
               : mediaSrc?.type === 'referenceImage' ? uploadRefImage(mediaSrc)
-              : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl)
+              : mediaSrc?.data?.resultUrl ? importRefUrl(mediaSrc.data.resultUrl).catch(e => { throw named('첫 프레임 이미지', e) })
               : Promise.resolve(null),
             endCharId ? loadCharFrame(endCharId)
               : endSrc?.type === 'referenceImage' ? uploadRefImage(endSrc)
-              : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl)
+              : endSrc?.data?.resultUrl ? importRefUrl(endSrc.data.resultUrl).catch(e => { throw named('끝 프레임 이미지', e) })
               : Promise.resolve(null),
           ])
           if (fId) firstFrameMediaId = fId
@@ -272,7 +279,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         } catch (err) {
           console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
           if (switched()) return
-          updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+          failed(err)
           return
         }
       }
@@ -324,7 +331,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           updateNodeData(nodeId, { status: 'error', error: 'Higgsfield 크레딧이 부족합니다. Higgsfield 계정에서 크레딧을 충전해주세요.' })
           return
         }
-        throw new Error(err.error || `서버 오류 ${genRes.status}`)
+        throw Object.assign(new Error(err.error || `서버 오류 ${genRes.status}`), { code: err.code })
       }
       const genResData = await genRes.json()
       const { jobId, unresolvedElements = [] } = genResData
@@ -341,14 +348,14 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
     } catch (err) {
       console.error(`[생성 실패] (${ts()})`, err.message)
       if (switched()) return
-      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+      failed(err)
     }
   }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef, waitForResult])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     const epoch = epochRef?.current ?? 0
     console.log(`[결과 대기 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
-    updateNodeData(nodeId, { status: 'generating', jobId, ownJobId: jobId, error: undefined })
+    updateNodeData(nodeId, { status: 'generating', jobId, ownJobId: jobId, error: undefined, errorCode: undefined })
     await waitForResult(nodeId, jobId, isVideo, epoch)
   }, [updateNodeData, epochRef, waitForResult])
 

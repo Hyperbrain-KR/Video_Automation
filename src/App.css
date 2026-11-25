@@ -33,6 +33,14 @@ html.theme-transitioning *::after {
   --btn-done-text: rgba(41,217,217,0.85);
   --btn-done-bg: rgba(41,217,217,0.08);
   --btn-done-border: rgba(41,217,217,0.3);
+
+  --diff-del-text: #FF9AA6;
+  --diff-del-bg: rgba(227,64,84,0.22);
+  --diff-add-text: #7BE8A0;
+  --diff-add-bg: rgba(34,197,94,0.20);
+  --accent-text: #3FE0E0;
+  --error-text: #FF8A98;
+  --warn-text: #F5B041;
   /* Node surfaces */
   --node-bg: rgba(255,255,255,0.04);
   --node-prompt: rgba(0,0,0,0.25);
@@ -78,6 +86,14 @@ html.theme-transitioning *::after {
   --btn-done-text: #0a7a7a;
   --btn-done-bg: rgba(41,217,217,0.14);
   --btn-done-border: rgba(41,217,217,0.55);
+
+  --diff-del-text: #A3122A;
+  --diff-del-bg: rgba(227,64,84,0.14);
+  --diff-add-text: #0B5F2C;
+  --diff-add-bg: rgba(34,160,84,0.18);
+  --accent-text: #055E5E;
+  --error-text: #A3122A;
+  --warn-text: #7A4B00;
   /* Node surfaces */
   --node-bg: rgba(255,255,255,0.82);
   --node-prompt: rgba(225,229,248,0.55);
