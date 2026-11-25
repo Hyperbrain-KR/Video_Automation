@@ -116,6 +116,11 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       return src
     }
 
+    const importStored = async (kind, item, key) => {
+      const src = await loadStored(kind, item, key)
+      return importRefUrl(src).catch(e => { throw new Error(`${kind} "${item.name}" — ${friendlyError(e.message)}`) })
+    }
+
     const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
       (e.targetHandle === 'ref' || e.targetHandle === 'image'))
     const mediaSources = mediaEdges
@@ -141,10 +146,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           for (const charId of selectedCharIds) {
             const char = characters.find(c => c.id === charId)
             if (!char) continue
-            const src = await loadStored('캐릭터', char, `char-${charId}`)
-            const mediaId = await importRefUrl(src).catch(e => {
-              throw new Error(`캐릭터 "${char.name}" 이미지를 불러올 수 없습니다: ${e.message}`)
-            })
+            const mediaId = await importStored('캐릭터', char, `char-${charId}`)
             if (mediaId) referenceMediaIds.push(mediaId)
           }
           const refImgResults = await Promise.all(
@@ -164,10 +166,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         for (const assetId of node?.data?.selectedAssetIds ?? []) {
           const asset = assets.find(a => a.id === assetId)
           if (!asset) continue
-          const src = await loadStored('제품', asset, `asset-${assetId}`)
-          referenceMediaIds.push(await importRefUrl(src).catch(e => {
-            throw new Error(`제품 "${asset.name}" 이미지를 불러올 수 없습니다: ${e.message}`)
-          }))
+          referenceMediaIds.push(await importStored('제품', asset, `asset-${assetId}`))
         }
       } catch (err) {
         if (switched()) return
@@ -185,10 +184,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const loadCharFrame = async (charId) => {
         const char = characters.find(c => c.id === charId)
         if (!char) return null
-        return importRefUrl(await loadStored('캐릭터', char, `char-${charId}`))
+        return importStored('캐릭터', char, `char-${charId}`)
       }
 
-      const loadAssetFrame = async (asset) => importRefUrl(await loadStored('제품', asset, `asset-${asset.id}`))
+      const loadAssetFrame = asset => importStored('제품', asset, `asset-${asset.id}`)
 
       const videoModel = node?.data?.videoModel ?? 'kling3_0'
 
