@@ -1,4 +1,5 @@
 import { apiFetch } from './config'
+import { translatePrompt } from './translatePrompt'
 
 const SYSTEM = `You help a Korean ad studio revise an AI image/video prompt that a generation service refused under its content policy.
 Make the prompt genuinely compliant by changing what is depicted, so the resulting picture itself is clearly acceptable. Examples: dress or wrap the subject and move the moment to before or after a bath; replace a wound with a light stumble and a worried look; replace a copyrighted character with an original design that nobody would mistake for it (different species, colors and features); replace a brand or named place with a generic one that does not imitate its look.
@@ -7,7 +8,7 @@ Never keep the same picture and only reword it. Do not disguise, misspell, encod
 The service gives no reason, so identify the most likely causes yourself. Pay particular attention to: minors together with bathing, bare skin or distress; nudity or bare skin; sexualized wording; gore, injury or weapons; medical or body-part close-ups; named people, brands and copyrighted characters.
 
 Return edits, not a rewritten prompt. Output ONLY this JSON, nothing else:
-{"edits":[{"find":"exact text copied from the prompt","replace":"replacement in English","reason":"한국어로 짧은 한 줄 이유"}]}
+{"edits":[{"find":"exact text copied from the prompt","replace":"replacement in English","find_ko":"find 의 한국어 번역","replace_ko":"replace 의 한국어 번역","reason":"한국어로 짧은 한 줄 이유"}]}
 
 Rules:
 - "find" must be copied character for character from the prompt (same case, punctuation, line breaks) and be as short as possible while unambiguous.
@@ -15,7 +16,9 @@ Rules:
 - Edit every occurrence of the same problem.
 - Keep every @token exactly where it is: do not write any @token in "replace" unless the same @token is in that "find", and never drop one. Never alter dialogue lines or quoted Korean text.
 - Keep the total length about the same or shorter.
+- "find_ko" and "replace_ko" are natural, faithful Korean translations of exactly those texts in context (keep @tokens as they are).
 - "reason" is Korean, under 30 characters, describing why that phrase may be refused.
+- If a user request is given, it says what must stay or how to change it. Follow it: never remove what the user says is essential, and make the scene acceptable by changing the other elements around it (clothing, age, framing, contact, props, mood). Only if the requested element itself can never be acceptable, keep the closest acceptable version of it.
 - If nothing in the prompt plausibly caused a refusal, return {"edits":[]}.`
 
 const mentions = t => (t.match(/@[\w-]+/g) ?? []).sort().join('\n')
@@ -34,7 +37,11 @@ export function parseEdits(text) {
   return edits
     .filter(e => e && typeof e.find === 'string' && e.find && typeof e.replace === 'string' && e.find !== e.replace)
     // 원래 없던 @멘션을 새로 넣으면 다른 이미지가 첨부되므로 일반 표현으로 바꾼다
-    .map(e => ({ ...e, replace: e.replace.replace(/@[\w-]+/g, t => (e.find.includes(t) ? t : 'the character')) }))
+    .map(e => {
+      const plain = (text, word) => text.replace(/@[\w-]+/g, t => (e.find.includes(t) ? t : word))
+      const ko = t => (typeof t === 'string' ? t : '')
+      return { ...e, replace: plain(e.replace, 'the character'), find_ko: ko(e.find_ko), replace_ko: plain(ko(e.replace_ko), '캐릭터') }
+    })
 }
 
 // 원문에 편집을 직접 적용한다. segments 를 이어 붙이면 항상 원문/수정문 전체가 되므로 표시되지 않는 변경이 있을 수 없다.
@@ -46,7 +53,7 @@ export function applyEdits(prompt, edits) {
     if (at === -1) { notFound.push(e.find); continue }
     for (; at !== -1; at = prompt.indexOf(e.find, at + e.find.length)) {
       const to = at + e.find.length
-      if (!ranges.some(r => at < r.to && to > r.from)) ranges.push({ from: at, to, add: e.replace, reason: e.reason ?? '' })
+      if (!ranges.some(r => at < r.to && to > r.from)) ranges.push({ from: at, to, add: e.replace, reason: e.reason ?? '', delKo: e.find_ko ?? '', addKo: e.replace_ko ?? '' })
     }
   }
   ranges.sort((a, b) => a.from - b.from)
@@ -55,7 +62,7 @@ export function applyEdits(prompt, edits) {
   let pos = 0
   for (const r of ranges) {
     if (r.from > pos) segments.push({ same: prompt.slice(pos, r.from) })
-    segments.push({ del: prompt.slice(r.from, r.to), add: r.add, reason: r.reason })
+    segments.push({ del: prompt.slice(r.from, r.to), add: r.add, reason: r.reason, delKo: r.delKo, addKo: r.addKo })
     pos = r.to
   }
   if (pos < prompt.length) segments.push({ same: prompt.slice(pos) })
@@ -94,7 +101,8 @@ export function wordDiff(a, b) {
 
 const MAX_ATTEMPTS = 3
 
-export async function requestSafetyFix({ prompt, code, isVideo, limit, projectId }) {
+export async function requestSafetyFix({ prompt, code, isVideo, limit, projectId, request = '', previous = null }) {
+  const rejected = (previous?.segments ?? []).filter(g => g.same === undefined).map(g => ({ find: g.del, replace: g.add }))
   let problem = ''
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const last = attempt === MAX_ATTEMPTS - 1
@@ -106,10 +114,12 @@ export async function requestSafetyFix({ prompt, code, isVideo, limit, projectId
         userMessage: [
           `Type: ${isVideo ? 'video' : 'image'} prompt`,
           `Refused for: ${code === 'IP' ? 'detected copyrighted or trademarked subject. Each replacement character must differ from the original in BOTH species and main color, with none of its signature features; brands and places must lose their signature colors and look too' : 'safety / content policy'}`,
+          request.trim() && `User request (must be followed):\n<request>\n${request.trim()}\n</request>`,
+          rejected.length > 0 && `The user was not satisfied with these earlier edits, so propose different ones for the same original prompt:\n${JSON.stringify(rejected)}`,
           problem && `Your previous answer was rejected: ${problem}. Fix this.`,
           `Prompt:\n<prompt>\n${prompt}\n</prompt>`,
         ].filter(Boolean).join('\n\n'),
-        maxTokens: 4000,
+        maxTokens: 6000,
         projectId: projectId ?? undefined,
       }),
     })
@@ -138,4 +148,23 @@ export async function requestSafetyFix({ prompt, code, isVideo, limit, projectId
     return { before: prompt, after, segments, count: segments.filter(g => g.same === undefined).length }
   }
   throw new Error('프롬프트를 안전하게 고치지 못했습니다. 다시 시도하거나 리뷰 노드에서 직접 수정해주세요.')
+}
+
+// 바뀐 부분에 번호 표시를 붙여 번역시켜, 번역문에서도 어디가 바뀌었는지 알 수 있게 한다
+export function parseMarkedKo(text) {
+  const parts = []
+  let pos = 0
+  for (const m of text.matchAll(/\[\[(\d+)\]\]([\s\S]*?)\[\[\/\1\]\]/g)) {
+    if (m.index > pos) parts.push({ text: text.slice(pos, m.index) })
+    parts.push({ text: m[2], changed: true })
+    pos = m.index + m[0].length
+  }
+  if (pos < text.length) parts.push({ text: text.slice(pos) })
+  return parts.map(p => ({ ...p, text: p.text.replace(/\[\[\/?\d+\]\]/g, '') })).filter(p => p.text)
+}
+
+export async function translateFix({ segments, projectId }) {
+  let n = 0
+  const marked = segments.map(g => (g.same !== undefined ? g.same : (n++, g.add ? `[[${n}]]${g.add}[[/${n}]]` : ''))).join('')
+  return parseMarkedKo(await translatePrompt(marked, projectId))
 }

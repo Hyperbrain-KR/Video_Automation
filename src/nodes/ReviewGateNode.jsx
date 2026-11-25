@@ -2,6 +2,7 @@ import { useState, useContext } from 'react'
 import { Handle, Position, useReactFlow } from '@xyflow/react'
 import { ProjectContext } from '../lib/ProjectContext'
 import { apiFetch } from '../lib/config'
+import { translatePrompt } from '../lib/translatePrompt'
 import { SafetyChanges } from '../components/SafetyFixModal'
 
 const C = {
@@ -304,18 +305,7 @@ export default function ReviewGateNode({ id, data, selected }) {
     if (koText) { setShowKo(true); return }
     setTranslating(true)
     try {
-      const res = await apiFetch('/api/claude/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemPrompt: 'Translate the following English AI image/video generation prompt into natural Korean. Output Korean translation only — no explanations, no English.',
-          userMessage: prompt,
-          maxTokens: 4000,
-          projectId: projectId ?? undefined,
-        }),
-      })
-      const data2 = await res.json()
-      setKoText(data2.text || '번역 실패')
+      setKoText(await translatePrompt(prompt, projectId))
       setShowKo(true)
     } catch {
       setKoText('번역 오류')

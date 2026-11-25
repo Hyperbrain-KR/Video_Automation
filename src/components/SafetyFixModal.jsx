@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { requestSafetyFix, wordDiff } from '../lib/safetyFix'
+import { requestSafetyFix, translateFix, wordDiff } from '../lib/safetyFix'
 import { friendlyError } from '../lib/friendlyError'
 
 const del = { color: 'var(--diff-del-text)', background: 'var(--diff-del-bg)', textDecoration: 'line-through', borderRadius: 2, padding: '0 1px' }
@@ -39,19 +39,55 @@ export function SafetyChanges({ segments }) {
           <b style={{ color: 'var(--diff-add-text)' }}>+</b>
           <span>{before}<Words parts={parts} skip="del" style={add} />{after}</span>
         </div>
+        {(g.delKo || g.addKo) && (
+          <div style={{ ...line, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--sep2)' }}>
+            <b style={{ flexShrink: 0, color: 'var(--t2)' }}>번역</b>
+            <span><span style={del}>{g.delKo}</span> → {g.addKo ? <span style={add}>{g.addKo}</span> : '(삭제)'}</span>
+          </div>
+        )}
       </div>
     )
   })
 }
 
-function FullText({ segments }) {
+function FullText({ segments, projectId }) {
+  const [lang, setLang] = useState('en')
+  const [ko, setKo] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const showKo = () => {
+    setLang('ko')
+    if (ko || loading) return
+    setLoading(true)
+    setError('')
+    translateFix({ segments, projectId })
+      .then(setKo)
+      .catch(e => { setError(friendlyError(e.message)); setLang('en') })
+      .finally(() => setLoading(false))
+  }
+  const tab = on => ({
+    padding: '3px 10px', borderRadius: 5, fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+    color: on ? 'var(--accent-text)' : 'var(--t2)', background: on ? 'var(--btn-done-bg)' : 'transparent',
+    border: `1px solid ${on ? 'var(--btn-done-border)' : 'var(--sep2)'}`,
+  })
+
   return (
+    <>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <button onClick={() => setLang('en')} style={tab(lang === 'en')}>영어 원문</button>
+      <button onClick={showKo} style={tab(lang === 'ko')}>한글 번역</button>
+      {error && <span style={{ fontSize: 11, color: 'var(--error-text)' }}>⚠ {error}</span>}
+    </div>
     <div style={{ fontSize: 11, lineHeight: 1.65, color: 'var(--t1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       padding: '10px 12px', background: 'var(--node-prompt)', border: '1px solid var(--sep2)', borderRadius: 8 }}>
-      {segments.map((g, i) => g.same !== undefined
-        ? <span key={i}>{g.same}</span>
-        : <span key={i}><span style={del}>{g.del}</span><span style={add}>{g.add}</span></span>)}
+      {lang === 'ko'
+        ? (ko ? ko.map((p, i) => <span key={i} style={p.changed ? add : undefined}>{p.text}</span>) : '번역 중…')
+        : segments.map((g, i) => g.same !== undefined
+          ? <span key={i}>{g.same}</span>
+          : <span key={i}><span style={del}>{g.del}</span><span style={add}>{g.add}</span></span>)}
     </div>
+    </>
   )
 }
 
@@ -66,16 +102,18 @@ const btn = (primary, disabled) => ({
 export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId, onApply, onClose }) {
   const [fix, setFix] = useState(null)
   const [error, setError] = useState('')
-  const [attempt, setAttempt] = useState(0)
+  const [job, setJob] = useState({ request: '', previous: null })
   const [showFull, setShowFull] = useState(false)
+  const [asking, setAsking] = useState(false)
+  const [request, setRequest] = useState('')
 
   useEffect(() => {
     let alive = true
-    requestSafetyFix({ prompt, code, isVideo, limit, projectId })
+    requestSafetyFix({ prompt, code, isVideo, limit, projectId, ...job })
       .then(r => { if (alive) setFix(r) })
       .catch(e => { if (alive) setError(friendlyError(e.message)) })
     return () => { alive = false }
-  }, [attempt]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [job]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose() }
@@ -83,7 +121,13 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const retry = () => { setFix(null); setError(''); setAttempt(a => a + 1) }
+  const retry = () => {
+    setJob({ request, previous: fix?.count ? fix : null })
+    setFix(null)
+    setError('')
+    setAsking(false)
+    setShowFull(false)
+  }
   const apply = regenerate => {
     const problem = onApply(fix, regenerate)
     if (problem) setError(problem)
@@ -107,7 +151,12 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
         </div>
 
         <div style={{ overflowY: 'auto', flex: 1, minHeight: 60 }}>
-          {!fix && !error && <div style={{ fontSize: 12, color: 'var(--t2)', padding: '18px 0' }}>⚙ 막혔을 만한 표현을 찾아 고치는 중…</div>}
+          {job.request && (
+            <div style={{ fontSize: 11, lineHeight: 1.6, color: 'var(--t1)', background: 'var(--btn-done-bg)', border: '1px solid var(--btn-done-border)', borderRadius: 8, padding: '7px 11px', marginBottom: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              <b style={{ color: 'var(--accent-text)' }}>반영한 요청</b> {job.request}
+            </div>
+          )}
+          {!fix && !error && <div style={{ fontSize: 12, color: 'var(--t2)', padding: '18px 0' }}>⚙ {job.request ? '요청을 반영해 다시 고치는 중…' : '막혔을 만한 표현을 찾아 고치는 중…'}</div>}
           {error && (
             <div role="alert" style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--diff-del-text)', background: 'var(--diff-del-bg)', borderRadius: 8, padding: '9px 11px', marginBottom: 8 }}>
               ⚠ {error}
@@ -115,7 +164,9 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
           )}
           {fix?.count === 0 && (
             <div style={{ fontSize: 12, lineHeight: 1.7, color: 'var(--t1)', padding: '8px 0' }}>
-              프롬프트에서 막힐 만한 표현을 찾지 못했습니다. 참조 이미지나 첫 프레임이 원인일 수 있으니 이미지를 바꿔보세요.
+              {job.request
+                ? '요청을 지키면서 고칠 만한 표현을 찾지 못했습니다. 요청을 바꿔보거나, 참조 이미지나 첫 프레임을 바꿔보세요.'
+                : '프롬프트에서 막힐 만한 표현을 찾지 못했습니다. 참조 이미지나 첫 프레임이 원인일 수 있으니 이미지를 바꿔보세요.'}
             </div>
           )}
           {fix?.count > 0 && (
@@ -124,7 +175,7 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
               <button onClick={() => setShowFull(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t2)', fontSize: 11, fontWeight: 700, padding: '4px 0 8px', fontFamily: 'inherit' }}>
                 {showFull ? '▾' : '▸'} 전체 프롬프트 보기 (바뀐 곳 강조)
               </button>
-              {showFull && <FullText segments={fix.segments} />}
+              {showFull && <FullText segments={fix.segments} projectId={projectId} />}
               <div style={{ fontSize: 11, lineHeight: 1.6, color: 'var(--t2)', marginTop: 8 }}>
                 Higgsfield가 막은 이유를 알려주지 않아 추정해서 고쳤습니다. 적용 후에도 막히면 참조 이미지를 바꿔보세요.
               </div>
@@ -132,12 +183,35 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
           )}
         </div>
 
+        {asking ? (
+          <div style={{ marginTop: 14 }}>
+            <label htmlFor="safety-fix-request" style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>
+              요청 사항 <span style={{ fontWeight: 400, color: 'var(--t2)' }}>(선택) 꼭 있어야 하는 연출이나 바꾸고 싶은 방향을 적어주세요</span>
+            </label>
+            <textarea
+              id="safety-fix-request" autoFocus value={request} rows={3} maxLength={1000}
+              onChange={e => setRequest(e.target.value)}
+              onKeyDown={e => {
+                e.stopPropagation()
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) retry()
+              }}
+              placeholder={'예) 욕조는 꼭 있어야 해요. 아기는 옷을 입은 모습으로 바꿔주세요.'}
+              style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '9px 11px', fontSize: 12, lineHeight: 1.6, fontFamily: 'inherit',
+                color: 'var(--t1)', background: 'var(--node-input)', border: '1px solid var(--btn-done-border)', borderRadius: 8, outline: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button onClick={() => setAsking(false)} style={btn(false)}>돌아가기</button>
+              <button onClick={retry} style={btn(true)}>{request.trim() ? '요청 반영해서 다시 수정' : '요청 없이 다시 수정'} (⌘↵)</button>
+            </div>
+          </div>
+        ) : (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button onClick={onClose} style={btn(false)}>{fix?.count === 0 ? '닫기' : '취소'}</button>
-          {(error || fix) && <button onClick={retry} style={btn(false)}>다시 수정</button>}
+          {(error || fix) && <button onClick={() => setAsking(true)} style={btn(false)}>다시 수정</button>}
           {fix?.count > 0 && <button onClick={() => apply(false)} style={btn(false)}>적용만</button>}
           {fix?.count > 0 && <button onClick={() => apply(true)} style={btn(true)}>적용하고 재생성</button>}
         </div>
+        )}
       </div>
     </div>,
     document.body
