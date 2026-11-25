@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 import { createClient } from '@supabase/supabase-js'
 import { startOrphanSweep } from './storageCleanup.js'
 import { createElementResolver, truncateKeepingPlaceholders } from './higgsfieldElements.js'
+import { decodeImage, uploadImage } from './higgsfieldUpload.js'
 const CHANGELOG = JSON.parse(fs.readFileSync(new URL('./changelog.json', import.meta.url), 'utf8'))
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -837,54 +838,15 @@ app.post('/api/higgsfield/upload-reference', async (req, res) => {
         const imgBuf = Buffer.from(await imgRes.arrayBuffer())
         const rawType = imgRes.headers.get('content-type') || 'image/jpeg'
         const imgContentType = rawType.split(';')[0].trim()
-        const uploadResult = await callHiggsfieldMCP('media_upload', {
-          filename: 'reference.jpg', content_type: imgContentType,
-        })
-        if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
-        const { presignedUrl, id } = extractPresigned(uploadResult)
-        if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
-        const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
-        const fallbackPutHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
-        const putRes = await fetch(presignedUrl, {
-          method: 'PUT', headers: fallbackPutHeaders, body: imgBuf,
-        })
-        if (!putRes.ok) {
-          const errBody = await putRes.text().catch(() => '')
-          console.error(`[upload-ref] S3 fallback 오류 응답:`, errBody.slice(0, 500))
-          throw new Error(`S3 업로드 실패: ${putRes.status}`)
-        }
-        mediaId = id
+        mediaId = await uploadImage(callHiggsfieldMCP, imgBuf, imgContentType)
         await new Promise(r => setTimeout(r, 1500))
         console.log(`[upload-ref] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
       }
     } else {
-      console.log(`[upload-ref] ① media_upload presigned 요청 중... (${filename})`)
-      const uploadResult = await callHiggsfieldMCP('media_upload', {
-        filename: filename || 'reference.jpg',
-        content_type: contentType || 'image/jpeg',
-      })
-      if (uploadResult.isError) throw new Error(uploadResult.content?.[0]?.text || 'presigned URL 요청 실패')
-      const { presignedUrl, id } = extractPresigned(uploadResult)
-      console.log(`[upload-ref] ② presignedUrl: ${presignedUrl?.slice(0, 60)} id: ${id} (${ts()})`)
-      if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
-
-      const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
-      const buffer = Buffer.from(base64Data, 'base64')
-      console.log(`[upload-ref] ③ S3 PUT 업로드 중... (${buffer.length} bytes)`)
-      const mainSignedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
-      const mainPutHeaders = mainSignedHeaders.includes('content-type') ? { 'Content-Type': contentType || 'image/jpeg' } : {}
-      const putRes = await fetch(presignedUrl, {
-        method: 'PUT',
-        headers: mainPutHeaders,
-        body: buffer,
-      })
-      console.log(`[upload-ref] ④ S3 PUT 완료: ${putRes.status} (${ts()})`)
-      if (!putRes.ok) {
-        const errBody = await putRes.text().catch(() => '')
-        console.error(`[upload-ref] S3 오류 응답:`, errBody.slice(0, 500))
-        throw new Error(`S3 업로드 실패: ${putRes.status}`)
-      }
-      mediaId = id
+      const image = decodeImage(fileBase64, contentType)
+      console.log(`[upload-ref] ① 업로드 중... (${filename}, ${image.contentType}, ${image.buffer.length} bytes)`)
+      mediaId = await uploadImage(callHiggsfieldMCP, image.buffer, image.contentType)
+      console.log(`[upload-ref] ② 업로드 완료, mediaId: ${mediaId} (${ts()})`)
     }
 
     if (!mediaId) throw new Error('mediaId 획득 실패')
@@ -943,34 +905,14 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
         const imgBuf = Buffer.from(await imgRes.arrayBuffer())
         const rawType = imgRes.headers.get('content-type') || 'image/jpeg'
         const imgContentType = rawType.split(';')[0].trim()
-        const uploadResult = await callHiggsfieldMCP('media_upload', { filename: 'reference.jpg', content_type: imgContentType })
-        if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-        const { presignedUrl, id } = extractPresigned(uploadResult)
-        if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
-        const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
-        const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
-        const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: imgBuf })
-        if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
-        mediaId = id
+        mediaId = await uploadImage(callHiggsfieldMCP, imgBuf, imgContentType)
         await new Promise(r => setTimeout(r, 1500))
         console.log(`[register-elem] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
       }
     } else {
-      console.log(`[register-elem] ① media_upload presigned 요청... (${filename})`)
-      const uploadResult = await callHiggsfieldMCP('media_upload', {
-        filename: filename || 'reference.jpg',
-        content_type: contentType || 'image/jpeg',
-      })
-      if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-      const { presignedUrl, id } = extractPresigned(uploadResult)
-      if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
-      const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
-      const buffer = Buffer.from(base64Data, 'base64')
-      const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
-      const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': contentType || 'image/jpeg' } : {}
-      const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: buffer })
-      if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
-      mediaId = id
+      const image = decodeImage(fileBase64, contentType)
+      console.log(`[register-elem] ① 업로드 중... (${filename}, ${image.contentType})`)
+      mediaId = await uploadImage(callHiggsfieldMCP, image.buffer, image.contentType)
       console.log(`[register-elem] ② 업로드 완료, mediaId: ${mediaId} (${ts()})`)
     }
 
@@ -1022,26 +964,6 @@ function extractMediaId(result) {
     }
   }
   return null
-}
-
-function extractPresigned(result) {
-  // structuredContent.uploads[0] 우선
-  const upload = result.structuredContent?.uploads?.[0]
-  if (upload?.upload_url && upload?.media_id) {
-    return { presignedUrl: upload.upload_url, id: upload.media_id }
-  }
-  // fallback: text 파싱
-  for (const c of (result.content ?? [])) {
-    if (c.type === 'text') {
-      try {
-        const obj = JSON.parse(c.text)
-        const presignedUrl = obj.upload_url || obj.presigned_url || obj.url
-        const id = obj.id || obj.media_id
-        if (presignedUrl) return { presignedUrl, id }
-      } catch {}
-    }
-  }
-  return {}
 }
 
 // ── 다운로드 프록시 ───────────────────────────────────────
