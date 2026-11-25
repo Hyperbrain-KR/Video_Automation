@@ -20,6 +20,7 @@ import { addCharSectionRef, deleteCharSectionRef } from './lib/charSectionHandle
 import { useClaudeGenerate } from './hooks/useClaudeGenerate'
 import { useHiggsfieldGenerate } from './hooks/useHiggsfieldGenerate'
 import { useVersionCheck } from './hooks/useVersionCheck'
+import { ownJobIdOf } from './lib/nodeResult'
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
@@ -433,7 +434,7 @@ function FlowCanvas() {
       .forEach(n => {
         if (pollingNodeIds.current.has(n.id)) return
         pollingNodeIds.current.add(n.id)
-        resumePolling(n.id, n.data.jobId, n.data.type === 'video')
+        resumePolling(n.id, ownJobIdOf(n.data) ?? n.data.jobId, n.data.type === 'video')
           .finally(() => pollingNodeIds.current.delete(n.id))
       })
   }, [resumePolling])

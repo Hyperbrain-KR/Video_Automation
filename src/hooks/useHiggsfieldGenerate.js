@@ -5,6 +5,8 @@ import { friendlyError } from '../lib/friendlyError'
 import { apiFetch } from '../lib/config'
 import { loadImageByNodeId } from '../lib/imageDB'
 import { calcHiggsfieldCredits } from '../lib/higgsfieldCredits'
+import { pollJob } from '../lib/pollJob'
+import { appendResult, ownJobIdOf } from '../lib/nodeResult'
 
 const SHEET_PROMPT = `Keeping the referenced character unchanged, a clean character reference sheet layout featuring the character displayed in three body views arranged in a row: front-facing pose, side profile (left), side profile (right), and back view — full body each, neutral standing pose, evenly spaced against a plain light background.
 
@@ -12,22 +14,49 @@ Below the body views, a row of six close-up facial expression panels, each label
 
 The overall layout is organized like a professional animation character sheet, clean white or very light gray background, soft even ambient light across all panels, consistent character scale throughout, mood is professional and reference-ready. Clean guide lines separating each section.`
 
-// 노드의 jobId 는 앞 노드가 결과를 넘겨줄 때 덮어써질 수 있어, 이 노드가 직접 제출한 작업 id 를 따로 본다
-export function ownJobIdOf(d) {
-  return d.ownJobId ?? (d.generatingStartedAt ? d.jobId : null)
-}
-
 export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
   const { getNodes, getEdges, updateNodeData } = useReactFlow()
 
-  // 노드의 취소 버튼은 상태를 생성 중이 아닌 값으로 바꾼다 — 그러면 폴링을 멈추고 이 작업의 결과는 반영하지 않는다
+  // 노드의 취소 버튼은 상태를 생성 중이 아닌 값으로 바꾼다 — 그러면 기다리기를 멈추고 이 작업의 결과는 반영하지 않는다
   const isCancelled = useCallback((nodeId, jobId) => {
     const d = getNodes().find(n => n.id === nodeId)?.data
-    return !d || !['generating', 'slow'].includes(d.status) || d.jobId !== jobId
+    return !d || !['generating', 'slow'].includes(d.status) || ownJobIdOf(d) !== jobId
   }, [getNodes])
+
+  // 제출된 작업을 기다렸다가 노드에 반영한다. 취소되거나 프로젝트가 바뀌면 아무것도 쓰지 않는다.
+  const waitForResult = useCallback(async (nodeId, jobId, isVideo, epoch) => {
+    const isStopped = () => (epochRef?.current ?? 0) !== epoch || isCancelled(nodeId, jobId)
+    try {
+      // 방금 쓴 '생성 중' 상태가 반영되기 전에 확인하면 취소로 오해하므로 반영될 때까지 잠깐 기다린다
+      for (let i = 0; i < 60 && isCancelled(nodeId, jobId); i++) await new Promise(r => setTimeout(r, 50))
+      const resultUrl = await pollJob({
+        fetchStatus: () => apiFetch(`/api/higgsfield/status/${jobId}`),
+        isStopped,
+        slowAfterMs: (isVideo ? 10 : 5) * 60 * 1000,
+        onSlow: () => updateNodeData(nodeId, { status: 'slow' }),
+      })
+      if (!resultUrl) return
+      console.log(`[생성 완료] ${nodeId}: ${resultUrl.slice(0, 80)}`)
+      const data = getNodes().find(n => n.id === nodeId)?.data ?? {}
+      updateNodeData(nodeId, {
+        status: 'done', ...appendResult(data, resultUrl), jobId, generatedAt: Date.now(),
+        creditsUsed: (data.creditsUsed ?? 0) + calcHiggsfieldCredits(data),
+      })
+      window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
+      // 다른 생성 노드는 연결선으로 이 노드의 결과를 직접 읽는다 — 넘겨주면 그 노드의 결과와 작업 id 를 덮어쓰게 된다
+      const isGenerator = new Set(getNodes().filter(n => n.type === 'higgsfieldNode').map(n => n.id))
+      getEdges().filter(e => e.source === nodeId && e.target !== nodeId && !isGenerator.has(e.target))
+        .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
+    } catch (err) {
+      console.error(`[생성 실패] ${nodeId}`, err.message)
+      if (isStopped()) return
+      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
+    }
+  }, [getNodes, getEdges, updateNodeData, epochRef, isCancelled])
 
   const handleHiggsfieldGenerate = useCallback(async (nodeId) => {
     const epoch = epochRef?.current ?? 0
+    const switched = () => (epochRef?.current ?? 0) !== epoch
     const currentNodes = getNodes()
     const currentEdges = getEdges()
 
@@ -48,6 +77,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       let url = imageUrl || null
       if (hasLocalImage) {
         fileBase64 = await loadImageByNodeId(imageKey ?? srcNode.id) ?? null
+        if (!fileBase64) throw new Error('레퍼런스 이미지 노드의 파일을 불러올 수 없습니다. 이미지를 다시 올리거나 연결을 해제해주세요.')
       }
       if (!fileBase64 && !url) return null
       const uploadRes = await apiFetch('/api/higgsfield/upload-reference', {
@@ -79,6 +109,13 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       return data.mediaId
     }
 
+    // 선택한 참조를 못 읽으면 빠진 채로 생성하지 않고 중단한다 — 크레딧만 쓰고 @imageN 번호도 밀린다
+    const loadStored = async (kind, item, key) => {
+      const src = item.hasLocalImage ? await loadImageByNodeId(key) : item.resultUrl
+      if (!src) throw new Error(`${kind} "${item.name}" 이미지를 불러올 수 없습니다. 다시 등록하거나 선택을 해제해주세요.`)
+      return src
+    }
+
     const mediaEdges = currentEdges.filter(e => e.target === nodeId &&
       (e.targetHandle === 'ref' || e.targetHandle === 'image'))
     const mediaSources = mediaEdges
@@ -104,10 +141,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           for (const charId of selectedCharIds) {
             const char = characters.find(c => c.id === charId)
             if (!char) continue
-            const src = char.hasLocalImage
-              ? await loadImageByNodeId(`char-${charId}`)
-              : char.resultUrl
-            if (!src) continue
+            const src = await loadStored('캐릭터', char, `char-${charId}`)
             const mediaId = await importRefUrl(src).catch(e => {
               throw new Error(`캐릭터 "${char.name}" 이미지를 불러올 수 없습니다: ${e.message}`)
             })
@@ -125,26 +159,20 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           }))
           results.forEach(id => { if (id) referenceMediaIds.push(id) })
         }
+
+        // 제품 참조 이미지 추가
+        for (const assetId of node?.data?.selectedAssetIds ?? []) {
+          const asset = assets.find(a => a.id === assetId)
+          if (!asset) continue
+          const src = await loadStored('제품', asset, `asset-${assetId}`)
+          referenceMediaIds.push(await importRefUrl(src).catch(e => {
+            throw new Error(`제품 "${asset.name}" 이미지를 불러올 수 없습니다: ${e.message}`)
+          }))
+        }
       } catch (err) {
+        if (switched()) return
         updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
         return
-      }
-
-      // 제품 참조 이미지 추가
-      const selectedAssetIds = node?.data?.selectedAssetIds ?? []
-      for (const assetId of selectedAssetIds) {
-        const asset = assets.find(a => a.id === assetId)
-        if (!asset) continue
-        const src = asset.hasLocalImage
-          ? await loadImageByNodeId(`asset-${assetId}`)
-          : asset.resultUrl
-        if (!src) continue
-        try {
-          const mediaId = await importRefUrl(src)
-          if (mediaId) referenceMediaIds.push(mediaId)
-        } catch (e) {
-          console.warn(`[제품 참조 업로드 실패] ${asset.name}:`, e.message)
-        }
       }
     }
 
@@ -157,21 +185,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const loadCharFrame = async (charId) => {
         const char = characters.find(c => c.id === charId)
         if (!char) return null
-        const src = char.hasLocalImage
-          ? await loadImageByNodeId(`char-${charId}`)
-          : char.resultUrl
-        if (!src) return null
-        return importRefUrl(src)
+        return importRefUrl(await loadStored('캐릭터', char, `char-${charId}`))
       }
 
-      // 빠진 채로 보내면 @imageN 번호가 밀리므로, 못 읽으면 생성을 중단시킨다
-      const loadAssetFrame = async (asset) => {
-        const src = asset.hasLocalImage
-          ? await loadImageByNodeId(`asset-${asset.id}`)
-          : asset.resultUrl
-        if (!src) throw new Error(`제품 "${asset.name}" 이미지를 불러올 수 없습니다`)
-        return importRefUrl(src)
-      }
+      const loadAssetFrame = async (asset) => importRefUrl(await loadStored('제품', asset, `asset-${asset.id}`))
 
       const videoModel = node?.data?.videoModel ?? 'kling3_0'
 
@@ -217,6 +234,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
             seedanceMediasPayload = resolved.filter(Boolean)
           } catch (err) {
             console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
+            if (switched()) return
             updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
             return
           }
@@ -224,8 +242,10 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       } else {
         // Kling: videoFrameCharIds[0] → 첫프레임, [1] → 끝프레임
         const videoFrameCharIds = node?.data?.videoFrameCharIds ?? []
-        const firstCharId = videoFrameCharIds[0] ?? null
-        const endCharId   = videoFrameCharIds[1] ?? null
+        // 목록에서 지워진 캐릭터는 화면에 보이지 않으므로 선택하지 않은 것으로 본다
+        const existing = id => characters.some(c => c.id === id) ? id : null
+        const firstCharId = existing(videoFrameCharIds[0])
+        const endCharId   = existing(videoFrameCharIds[1])
 
         // 엣지 기반 소스 (캐릭터 참조가 없을 때 폴백)
         const refImgEdge = mediaEdges.find(e => currentNodes.find(n => n.id === e.source)?.type === 'referenceImage')
@@ -252,11 +272,15 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
           if (eId) endFrameMediaId = eId
         } catch (err) {
           console.error(`[미디어 임포트 실패] ${err.message} (${ts()})`)
+          if (switched()) return
           updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
           return
         }
       }
     }
+
+    // 준비하는 동안 프로젝트가 바뀌었으면 제출하지 않는다 (다른 프로젝트의 같은 id 노드에 결과가 들어가는 것 방지)
+    if (switched()) return
 
     try {
       const endpoint = isVideo ? 'video' : 'image'
@@ -286,6 +310,7 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      if (switched()) return
       if (!genRes.ok) {
         const err = await genRes.json().catch(() => ({}))
         if (genRes.status === 401 && err.code === 'LOGIN_REQUIRED') {
@@ -313,115 +338,24 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
         elementWarning: unresolvedElements.length ? unresolvedElements.map(n => `@${n}`).join(', ') : undefined,
       })
 
-      const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
-      let resultUrl = null
-      let authRetries = 0
-      let pollCount = 0
-      let warnedSlow = false
-      while (true) {
-        if ((epochRef?.current ?? 0) !== epoch) return
-        pollCount++
-        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
-        const statusData = await statusRes.json()
-        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
-        console.log(`[폴링 #${pollCount}] (${ts()})`, statusData.resultUrl ? `✅ URL: ${statusData.resultUrl.slice(0, 60)}` : `⏳ 대기 중`, statusData.error ? `❌ ${statusData.error}` : '', '\n  Higgsfield 응답:', rawStatus)
-        if (!statusRes.ok) {
-          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
-          if (statusRes.status >= 500 || statusRes.status === 401) {
-            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
-            await new Promise(r => setTimeout(r, 5000)); continue
-          }
-          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
-        }
-        if (isCancelled(nodeId, jobId)) return
-        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
-        if (statusData.error) throw new Error(statusData.error)
-        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
-        if (!warnedSlow && Date.now() > warnAfterMs) {
-          if ((epochRef?.current ?? 0) !== epoch) return
-          warnedSlow = true
-          updateNodeData(nodeId, { status: 'slow', jobId })
-        }
-        await new Promise(r => setTimeout(r, 5000))
-      }
-
-      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
-      console.log(`[생성 완료] resultUrl: ${resultUrl.slice(0, 80)} (${ts()})`)
-
-      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
-      const doneNode = getNodes().find(n => n.id === nodeId)
-      const cost = calcHiggsfieldCredits(doneNode?.data ?? node?.data ?? {})
-      const prevCredits = doneNode?.data?.creditsUsed ?? 0
-      const prevHistory = doneNode?.data?.resultHistory ?? []
-      const newHistory = [...prevHistory, resultUrl].slice(-5)
-      updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: newHistory, resultIndex: newHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
-      window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
-
-      getEdges().filter(e => e.source === nodeId && e.target !== nodeId && e.targetHandle !== 'ref')
-        .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
-
+      await waitForResult(nodeId, jobId, isVideo, epoch)
     } catch (err) {
       console.error(`[생성 실패] (${ts()})`, err.message)
+      if (switched()) return
       updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
     }
-  }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef, isCancelled])
+  }, [getNodes, getEdges, updateNodeData, characters, assets, epochRef, waitForResult])
 
   const resumePolling = useCallback(async (nodeId, jobId, isVideo) => {
     const epoch = epochRef?.current ?? 0
-    console.log(`[폴링 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
-    if ((epochRef?.current ?? 0) !== epoch) return
-    updateNodeData(nodeId, { status: 'generating', jobId })
-    try {
-      const warnAfterMs = Date.now() + (isVideo ? 10 * 60 * 1000 : 5 * 60 * 1000)
-      let resultUrl = null
-      let authRetries = 0
-      let pollCount = 0
-      let warnedSlow = false
-      while (true) {
-        if ((epochRef?.current ?? 0) !== epoch) return
-        pollCount++
-        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
-        const statusData = await statusRes.json()
-        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
-        console.log(`[재개 폴링 #${pollCount}]`, statusData.resultUrl ? `✅ URL` : `⏳ 대기`, statusData.error ? `❌ ${statusData.error}` : '', rawStatus.slice(0, 60))
-        if (!statusRes.ok) {
-          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
-          if (statusRes.status >= 500 || statusRes.status === 401) {
-            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
-            await new Promise(r => setTimeout(r, 5000)); continue
-          }
-          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
-        }
-        if (isCancelled(nodeId, jobId)) return
-        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
-        if (statusData.error) throw new Error(statusData.error)
-        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
-        if (!warnedSlow && Date.now() > warnAfterMs) {
-          if ((epochRef?.current ?? 0) !== epoch) return
-          warnedSlow = true
-          updateNodeData(nodeId, { status: 'slow', jobId })
-        }
-        await new Promise(r => setTimeout(r, 5000))
-      }
-      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
-      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
-      const resumeNode = getNodes().find(n => n.id === nodeId)
-      const cost = calcHiggsfieldCredits(resumeNode?.data ?? {})
-      const prevCredits = resumeNode?.data?.creditsUsed ?? 0
-      const resumePrevHistory = resumeNode?.data?.resultHistory ?? []
-      const resumeNewHistory = [...resumePrevHistory, resultUrl].slice(-5)
-      updateNodeData(nodeId, { status: 'done', resultUrl, resultHistory: resumeNewHistory, resultIndex: resumeNewHistory.length - 1, jobId, generatedAt: Date.now(), creditsUsed: prevCredits + cost })
-      window.dispatchEvent(new CustomEvent('higgsfield-generate-done'))
-      getEdges().filter(e => e.source === nodeId && e.target !== nodeId && e.targetHandle !== 'ref')
-        .forEach(e => updateNodeData(e.target, { resultUrl, jobId }))
-    } catch (err) {
-      console.error(`[재개 폴링 실패]`, err.message)
-      updateNodeData(nodeId, { status: 'error', error: friendlyError(err.message) })
-    }
-  }, [getNodes, getEdges, updateNodeData, epochRef, isCancelled])
+    console.log(`[결과 대기 재개] nodeId: ${nodeId}, jobId: ${jobId}, isVideo: ${isVideo}`)
+    updateNodeData(nodeId, { status: 'generating', jobId, ownJobId: jobId, error: undefined })
+    await waitForResult(nodeId, jobId, isVideo, epoch)
+  }, [updateNodeData, epochRef, waitForResult])
 
   const handleSheetGenerate = useCallback(async (nodeId) => {
     const epoch = epochRef?.current ?? 0
+    const switched = () => (epochRef?.current ?? 0) !== epoch
     const currentNodes = getNodes()
     const node = currentNodes.find(n => n.id === nodeId)
     if (!node?.data?.resultUrl) return
@@ -472,43 +406,21 @@ export function useHiggsfieldGenerate(characters, assets = [], epochRef) {
       const { jobId } = await genRes.json()
       if (!jobId) throw new Error('jobId를 받지 못했습니다')
 
-      let resultUrl = null
-      let authRetries = 0
-      while (true) {
-        const statusRes = await apiFetch(`/api/higgsfield/status/${jobId}`)
-        const statusData = await statusRes.json()
-        const rawStatus = statusData.content?.[0]?.text?.slice(0, 200) ?? '(응답 없음)'
-        if (!statusRes.ok) {
-          // 결과 확인 중 일시 장애(서버 재시작·로그인 확인 실패)로 이미 돌고 있는 작업을 포기하지 않는다
-          if (statusRes.status >= 500 || statusRes.status === 401) {
-            if (statusRes.status === 401 && ++authRetries > 12) throw new Error(statusData.error || '로그인이 만료됐습니다. 새로고침 후 다시 로그인해주세요.')
-            await new Promise(r => setTimeout(r, 5000)); continue
-          }
-          throw new Error(statusData.error || `상태 조회 오류 ${statusRes.status}`)
-        }
-        if (statusData.resultUrl) { resultUrl = statusData.resultUrl; break }
-        if (statusData.error) throw new Error(statusData.error)
-        if (rawStatus.toLowerCase().includes('something went wrong')) throw new Error(`Higgsfield 오류: ${rawStatus}`)
-        await new Promise(r => setTimeout(r, 5000))
-      }
-
-      if (!resultUrl) throw new Error('결과 URL을 받지 못했습니다')
-
-      if ((epochRef?.current ?? 0) !== epoch) return  // 프로젝트 전환됨 — 결과 버림
-      const doneNode = getNodes().find(n => n.id === nodeId)
-      const prevHistory = doneNode?.data?.resultHistory ?? []
-      const newHistory = [...prevHistory, resultUrl].slice(-5)
-      const cost = calcHiggsfieldCredits(doneNode?.data ?? node.data)
-      const prevCredits = doneNode?.data?.creditsUsed ?? 0
+      // 시트 생성에는 취소 버튼이 없으므로 서버가 5분 넘게 응답하지 않으면 멈춘다
+      const resultUrl = await pollJob({
+        fetchStatus: () => apiFetch(`/api/higgsfield/status/${jobId}`),
+        isStopped: switched,
+        maxOutages: 60,
+      })
+      if (!resultUrl) return
+      const data = getNodes().find(n => n.id === nodeId)?.data ?? node.data
       updateNodeData(nodeId, {
-        sheetGenerating: false,
-        resultUrl,
-        resultHistory: newHistory,
-        resultIndex: newHistory.length - 1,
-        creditsUsed: prevCredits + cost,
+        sheetGenerating: false, ...appendResult(data, resultUrl),
+        creditsUsed: (data.creditsUsed ?? 0) + calcHiggsfieldCredits(data),
       })
     } catch (err) {
       console.error('[시트 생성 실패]', err.message)
+      if (switched()) return
       updateNodeData(nodeId, { sheetGenerating: false, sheetError: friendlyError(err.message) })
     }
   }, [getNodes, updateNodeData, epochRef])

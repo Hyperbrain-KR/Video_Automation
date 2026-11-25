@@ -2,7 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position, useReactFlow, useStore } from '@xyflow/react'
 import { higgsfieldHandlerRef, higgsfieldSheetHandlerRef, higgsfieldResumeHandlerRef } from '../lib/higgsfieldHandlerRef'
-import { ownJobIdOf } from '../hooks/useHiggsfieldGenerate'
+import { ownHistory, ownJobIdOf, ownResultUrl } from '../lib/nodeResult'
 import { friendlyError } from '../lib/friendlyError'
 import { CharactersContext } from '../lib/CharactersContext'
 import { AssetsContext } from '../lib/AssetsContext'
@@ -219,7 +219,7 @@ const VIDEO_MODE_OPTIONS = [['std','Standard'], ['pro','Pro'], ['4k','4K']]
 const VIDEO_ASPECT_OPTIONS = [['auto','Auto'], ['16:9','16:9'], ['9:16','9:16'], ['4:3','4:3'], ['3:4','3:4'], ['1:1','1:1'], ['21:9','21:9']]
 
 export default function HiggsfieldNode({ id, data, selected }) {
-  const { updateNodeData, getEdges, setNodes } = useReactFlow()
+  const { updateNodeData, getEdges, setNodes, getNodes } = useReactFlow()
   const { characters, saveCharacter, deleteCharacter } = useContext(CharactersContext)
   const { assets, deleteAsset } = useContext(AssetsContext)
   const [savingName, setSavingName] = useState('')
@@ -302,16 +302,18 @@ export default function HiggsfieldNode({ id, data, selected }) {
   const isDone = status === 'done'
   const isAuthError = status === 'auth_error'
 
-  const resultHistory = data.resultHistory ?? (data.resultUrl ? [data.resultUrl] : [])
-  const resultIndex = data.resultIndex ?? (resultHistory.length - 1)
+  const resultHistory = ownHistory(data)
+  const resultUrl = ownResultUrl(data)
+  const resultIndex = Math.max(0, resultHistory.lastIndexOf(resultUrl))
 
   const navigateHistory = (newIndex) => {
     const newUrl = resultHistory[newIndex]
     if (!newUrl) return
     updateNodeData(id, { resultIndex: newIndex, resultUrl: newUrl })
-    // 'ref'(캐릭터 참조) 연결은 결과 전달 대상이 아님 — 생성 완료 시의 전달 규칙과 동일
+    // 다른 생성 노드는 결과 전달 대상이 아님 — 생성 완료 시의 전달 규칙과 동일
+    const isGenerator = new Set(getNodes().filter(n => n.type === 'higgsfieldNode').map(n => n.id))
     getEdges()
-      .filter(e => e.source === id && e.target !== id && e.targetHandle !== 'ref')
+      .filter(e => e.source === id && e.target !== id && !isGenerator.has(e.target))
       .forEach(e => updateNodeData(e.target, { resultUrl: newUrl }))
   }
 
@@ -1165,7 +1167,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
             </div>
           )}
           <button
-            onClick={() => updateNodeData(id, { status: data.resultUrl ? 'done' : 'idle', error: undefined })}
+            onClick={() => updateNodeData(id, { status: resultUrl ? 'done' : 'idle', error: undefined })}
             style={{
               flexShrink: 0, fontSize: 9, fontWeight: 700,
               color: 'rgba(227,64,84,0.7)', background: 'rgba(227,64,84,0.08)',
@@ -1247,7 +1249,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
 
       {/* 결과 미리보기 + 다운로드 — 재생성 중·취소·오류 때도 기존 결과는 계속 보여준다.
           단, 앞 노드가 넘겨준 결과(비디오 노드에 들어온 첫 프레임 이미지 등)는 이 노드의 결과가 아니므로 제외 */}
-      {data.resultUrl && (isDone || (data.resultHistory ?? []).includes(data.resultUrl)) && (
+      {resultUrl && (
         <div style={{ marginTop: 8 }}>
           <div
             className="nopan nodrag"
@@ -1273,8 +1275,8 @@ export default function HiggsfieldNode({ id, data, selected }) {
             }}>▾</span>
           </div>
           {!thumbCollapsed && (isVideo
-            ? <video src={data.resultUrl} controls style={{ width: '100%', borderRadius: 7 }} />
-            : <img src={data.resultUrl} alt="생성 결과" style={{ width: '100%', borderRadius: 7, display: 'block' }} />
+            ? <video src={resultUrl} controls style={{ width: '100%', borderRadius: 7 }} />
+            : <img src={resultUrl} alt="생성 결과" style={{ width: '100%', borderRadius: 7, display: 'block' }} />
           )}
           {!thumbCollapsed && resultHistory.length > 1 && (
             <div className="nopan nodrag" style={{
@@ -1308,7 +1310,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
           )}
           {!thumbCollapsed && <>
             <a
-              href={`${CANVAS_API}/api/download?url=${encodeURIComponent(data.resultUrl)}&filename=${encodeURIComponent(downloadFilename)}`}
+              href={`${CANVAS_API}/api/download?url=${encodeURIComponent(resultUrl)}&filename=${encodeURIComponent(downloadFilename)}`}
               download={downloadFilename}
               style={{ display: 'block', textDecoration: 'none', marginTop: 6 }}
             >
@@ -1333,7 +1335,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                   onChange={e => setSavingName(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && savingName.trim()) {
-                      saveCharacter(savingName.trim(), data.resultUrl)
+                      saveCharacter(savingName.trim(), resultUrl)
                       setSavingName(''); setShowSaveInput(false)
                     }
                     if (e.key === 'Escape') setShowSaveInput(false)
@@ -1349,7 +1351,7 @@ export default function HiggsfieldNode({ id, data, selected }) {
                 <button className="nopan nodrag"
                   onClick={() => {
                     if (savingName.trim()) {
-                      saveCharacter(savingName.trim(), data.resultUrl)
+                      saveCharacter(savingName.trim(), resultUrl)
                       setSavingName(''); setShowSaveInput(false)
                     }
                   }}

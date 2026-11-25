@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import { ownResultUrl } from '../lib/nodeResult'
 
 const STATUS_DOT = {
   done:       { color: '#22c55e', glow: '0 0 6px #22c55e', pulse: false },
@@ -1094,7 +1095,7 @@ export default function SceneNavBar({
           imgStatus:    imgNode?.data?.status    ?? 'idle',
           imgResultUrl: imgNode?.data?.resultUrl ?? null,
           vidStatus:    vidNode?.data?.status    ?? 'idle',
-          vidResultUrl: vidNode?.data?.status === 'done' ? (vidNode?.data?.resultUrl ?? null) : null,
+          vidResultUrl: vidNode?.data?.status === 'done' ? ownResultUrl(vidNode.data) : null,
           vidApproved:  vidNode?.data?.approved  ?? false,
         }
       })
