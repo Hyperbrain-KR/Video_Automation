@@ -483,7 +483,7 @@ app.get('/api/higgsfield/models', async (req, res) => {
 // ── Higgsfield: 이미지 생성 ────────────────────────────────
 
 const SEEDANCE_MAX_REFERENCES = 9
-const { loadAllElements, resolveElementMentions } = createElementResolver((tool, args) => callHiggsfieldMCP(tool, args, 20_000))
+const { loadAllElements, resolveElementMentions, createElement } = createElementResolver((tool, args) => callHiggsfieldMCP(tool, args, 20_000))
 
 app.post('/api/higgsfield/image', async (req, res) => {
   const { prompt: rawPrompt, model = 'nano_banana_pro', quality, aspectRatio,
@@ -925,7 +925,7 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
   const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`
 
   try {
-    let mediaId, mediaUrl
+    let mediaId
 
     if (imageUrl) {
       console.log(`[register-elem] ① media_import_url 호출... (${imageUrl.slice(0, 60)})`)
@@ -935,7 +935,6 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
       const importOk = !importResult.isError && !importLower.includes('something went wrong') && !importLower.includes('violates')
       if (importOk) {
         mediaId = extractMediaId(importResult)
-        mediaUrl = imageUrl
         console.log(`[register-elem] ② mediaId 획득: ${mediaId} (${ts()})`)
       } else {
         console.warn(`[register-elem] URL import 실패, 직접 다운로드 fallback... (${ts()})`)
@@ -946,14 +945,13 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
         const imgContentType = rawType.split(';')[0].trim()
         const uploadResult = await callHiggsfieldMCP('media_upload', { filename: 'reference.jpg', content_type: imgContentType })
         if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-        const { presignedUrl, id, publicUrl } = extractPresigned(uploadResult)
+        const { presignedUrl, id } = extractPresigned(uploadResult)
         if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
         const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
         const putHeaders = signedHeaders.includes('content-type') ? { 'Content-Type': imgContentType } : {}
         const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: imgBuf })
         if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
         mediaId = id
-        mediaUrl = publicUrl ?? imageUrl
         await new Promise(r => setTimeout(r, 1500))
         console.log(`[register-elem] ② fallback 업로드 완료, mediaId: ${mediaId} (${ts()})`)
       }
@@ -964,9 +962,8 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
         content_type: contentType || 'image/jpeg',
       })
       if (uploadResult.isError) throw new Error('presigned URL 요청 실패')
-      const { presignedUrl, id, publicUrl } = extractPresigned(uploadResult)
+      const { presignedUrl, id } = extractPresigned(uploadResult)
       if (!presignedUrl || !id) throw new Error('presigned URL 획득 실패')
-      if (!publicUrl) throw new Error('업로드 주소를 받지 못했습니다')
       const base64Data = fileBase64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       const signedHeaders = new URL(presignedUrl).searchParams.get('X-Amz-SignedHeaders') || ''
@@ -974,12 +971,10 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
       const putRes = await fetch(presignedUrl, { method: 'PUT', headers: putHeaders, body: buffer })
       if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`)
       mediaId = id
-      mediaUrl = publicUrl
       console.log(`[register-elem] ② 업로드 완료, mediaId: ${mediaId} (${ts()})`)
     }
 
     if (!mediaId) throw new Error('mediaId 획득 실패')
-    if (!mediaUrl) throw new Error('업로드한 이미지 주소를 확인하지 못했습니다')
 
     console.log(`[register-elem] ③ media_confirm... (${mediaId})`)
     let confirmResult
@@ -995,30 +990,14 @@ app.post('/api/higgsfield/register-element', async (req, res) => {
       throw new Error(`media_confirm 실패: ${confirmText}`)
     }
 
-    console.log(`[register-elem] ④ manage_reference_elements create... (${ts()})`)
-    const medias = [{ id: mediaId, type: 'media_input', url: mediaUrl }]
-    const createArgs = { action: 'create', medias, category }
-    if (name) createArgs.name = name.startsWith('@') ? name.slice(1) : name
-
-    const createResult = await callHiggsfieldMCP('manage_reference_elements', createArgs)
-    const createText = createResult.content?.map(c => c.text).join('') ?? ''
-    console.log(`[register-elem] 결과 (${ts()}):`, createText.slice(0, 300))
-
-    if (createResult.isError || createText.toLowerCase().includes('something went wrong')) {
-      throw new Error(createText || 'element 생성 실패')
-    }
-
-    const nameM = createText.match(/name:\s*(\S+)/)
-    const catM  = createText.match(/category:\s*(\S+)/)
-    const idM   = createText.match(/id:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i)
-    const createdName = nameM ? nameM[1].replace(/^@/, '') : (name || 'element')
-    const createdCat  = catM  ? catM[1] : category
-    const elementId   = idM   ? idM[1] : extractMediaId(createResult)
-
-    console.log(`[register-elem] 완료 → @${createdName} (${ts()})`)
+    console.log(`[register-elem] ④ elements_create... (${ts()})`)
+    const displayName = (filename || 'element').replace(/\.[^.]+$/, '')
+    const element = await createElement({ name, displayName, category, mediaId })
+    console.log(`[register-elem] 완료 → @${element.name} (요청한 이름: ${name || '-'}) (${ts()})`)
+    const createdCat = element.category || category
     res.json({
-      elementId,
-      name: `@${createdName}`,
+      elementId: element.id,
+      name: `@${element.name}`,
       category: createdCat.charAt(0).toUpperCase() + createdCat.slice(1),
     })
   } catch (err) {
@@ -1049,8 +1028,7 @@ function extractPresigned(result) {
   // structuredContent.uploads[0] 우선
   const upload = result.structuredContent?.uploads?.[0]
   if (upload?.upload_url && upload?.media_id) {
-    // url: 업로드 완료 후 파일이 놓이는 https 주소 — 엘리먼트 등록에 필요
-    return { presignedUrl: upload.upload_url, id: upload.media_id, publicUrl: upload.url ?? null }
+    return { presignedUrl: upload.upload_url, id: upload.media_id }
   }
   // fallback: text 파싱
   for (const c of (result.content ?? [])) {

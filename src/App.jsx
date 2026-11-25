@@ -253,7 +253,7 @@ function FlowCanvas() {
         })
         body = { fileBase64: b64, filename: elemRegFile.name, contentType: elemRegFile.type || 'image/jpeg', name: elemRegName || undefined, category: elemRegCategory }
       } else {
-        body = { imageUrl: elemRegSelectedImg.url, name: elemRegName || elemRegSelectedImg.label || undefined, category: elemRegCategory }
+        body = { imageUrl: elemRegSelectedImg.url, name: elemRegName || undefined, filename: elemRegSelectedImg.label || undefined, category: elemRegCategory }
       }
       const res = await apiFetch('/api/higgsfield/register-element', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const resData = await res.json()

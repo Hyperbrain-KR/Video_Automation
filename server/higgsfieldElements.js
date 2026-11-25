@@ -26,9 +26,47 @@ export function createElementResolver(callTool) {
   }
 
   const indexByName = items => {
+    // 같은 이름이 여러 개면 가장 최근에 등록한 것을 쓴다
     const byName = new Map()
-    for (const el of items) if (el?.name && el?.id) byName.set(el.name.toLowerCase(), el.id)
+    const newestFirst = [...items].sort((a, b) => (b?.created_at ?? 0) - (a?.created_at ?? 0))
+    for (const el of newestFirst) {
+      const key = el?.name?.toLowerCase()
+      if (key && el.id && !byName.has(key)) byName.set(key, el.id)
+    }
     return byName
+  }
+
+  // "@mm_c_01-style" 처럼 이름 뒤에 하이픈으로 다른 말이 붙은 경우 뒤에서부터 떼어 가며 찾는다
+  const matchName = (byName, raw) => {
+    for (let name = raw; name; name = name.includes('-') ? name.slice(0, name.lastIndexOf('-')) : '') {
+      if (byName.has(name.toLowerCase())) return name
+    }
+    return null
+  }
+
+  // 멘션 이름(name)은 사용자가 입력한 그대로 저장한다. 이름을 안 주면 Higgsfield 가 display_name 으로 지어낸다.
+  async function createElement({ name, displayName, category, mediaId }) {
+    const handle = name?.trim().replace(/^@/, '').replace(/\s+/g, '_') || null
+    const result = await callTool('elements_create', {
+      category,
+      display_name: handle ?? displayName,
+      ...(handle ? { name: handle } : {}),
+      medias: [{ id: mediaId, type: 'media_input' }],
+    })
+    cache = { at: 0, items: null }
+    const text = (result?.content ?? []).map(c => c.text ?? '').join('')
+    const receipt = result?.structuredContent?.results?.[0]
+    if (result?.isError || receipt?.status !== 'ok' || !receipt.element?.id) {
+      const detail = JSON.stringify(receipt ?? {}) + text
+      if (handle && /409|already (exists|taken)|is taken|conflict/i.test(detail)) {
+        throw new Error(`이미 등록된 이름입니다: @${handle}. 다른 이름으로 등록해주세요.`)
+      }
+      if (receipt?.status === 'uncertain') {
+        throw new Error('등록됐는지 확인되지 않았습니다. 다시 등록하기 전에 @ 목록에 이미 있는지 확인해주세요.')
+      }
+      throw new Error(text || 'element 생성 실패')
+    }
+    return receipt.element
   }
 
   async function resolveElementMentions(prompt) {
@@ -37,20 +75,20 @@ export function createElementResolver(callTool) {
 
     let byName = indexByName(await loadAllElements())
     // 방금 등록한 엘리먼트일 수 있으니 못 찾은 이름이 있으면 한 번 새로 받아온다
-    if (names.some(n => !byName.has(n.toLowerCase()))) byName = indexByName(await loadAllElements({ fresh: true }))
+    if (names.some(n => !matchName(byName, n))) byName = indexByName(await loadAllElements({ fresh: true }))
 
     const resolved = [], unresolved = []
     const out = prompt.replace(MENTION, (whole, name) => {
       if (FRAME_MENTION.test(name)) return whole
-      const id = byName.get(name.toLowerCase())
-      if (!id) { if (!unresolved.includes(name)) unresolved.push(name); return whole }
-      if (!resolved.includes(name)) resolved.push(name)
-      return `<<<${id}>>>`
+      const found = matchName(byName, name)
+      if (!found) { if (!unresolved.includes(name)) unresolved.push(name); return whole }
+      if (!resolved.includes(found)) resolved.push(found)
+      return `<<<${byName.get(found.toLowerCase())}>>>${name.slice(found.length)}`
     })
     return { prompt: out, resolved, unresolved }
   }
 
-  return { loadAllElements, resolveElementMentions }
+  return { loadAllElements, resolveElementMentions, createElement }
 }
 
 // 길이 제한으로 자를 때 <<<id>>> 가 중간에서 잘려 깨진 자리표시자가 남지 않게 한다

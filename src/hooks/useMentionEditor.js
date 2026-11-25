@@ -54,7 +54,7 @@ function textToHtml(text) {
   return escaped
     .split('\n')
     .map(line => line.replace(
-      /@(\w+)/g,
+      /@([\w-]+)/g,
       '<span class="rf-mention" contenteditable="false">@$1</span>'
     ))
     .join('<br>')
@@ -134,7 +134,7 @@ export function useMentionEditor({ value, onChange, frameItems = [], resetKey })
     if (node.parentElement?.classList.contains('rf-mention')) return null
 
     const text = node.textContent.slice(0, offset)
-    const m = text.match(/@(\w*)$/)
+    const m = text.match(/@([\w-]*)$/)
     if (!m) return null
     return { query: m[1], node, atOffset: offset - m[0].length, cursorOffset: offset }
   }

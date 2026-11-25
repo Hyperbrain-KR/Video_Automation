@@ -81,7 +81,7 @@ Output rules:
 - No code blocks, no Korean, no explanations
 - @image tokens must appear exactly as written — never drop the @ symbol`,
     user: (anchor, command) => {
-      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionMatches = (command || '').match(/@[\w@-]+/g)
       const mentionWarning = mentionMatches?.length
         ? `⚠️ @REFERENCE IMAGES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
         : ''
@@ -149,7 +149,7 @@ Output rules:
         koreanDialogue?.trim() ? `Korean Dialogue: ${koreanDialogue.trim()}` : '',
         englishDialogue?.trim() ? `English Dialogue: ${englishDialogue.trim()}` : '',
       ].filter(Boolean).join('\n')
-      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionMatches = (command || '').match(/@[\w@-]+/g)
       const mentionWarning = mentionMatches?.length
         ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output wherever you refer to those subjects:\n${[...new Set(mentionMatches)].join(', ')}`
         : ''
@@ -216,7 +216,7 @@ Output rules:
 - Write everything in English EXCEPT dialogue quotes and @mention tokens
 - Maximum 2500 characters total — cut setting/voice details before cutting shots or dialogue`,
     user: (anchor, command, koreanDialogue, englishDialogue, shotCount) => {
-      const mentionMatches = (command || '').match(/@[\w@]+/g)
+      const mentionMatches = (command || '').match(/@[\w@-]+/g)
       const mentionWarning = mentionMatches?.length
         ? `⚠️ @ELEMENT REFERENCES DETECTED — use these tokens verbatim in the output:\n${[...new Set(mentionMatches)].join(', ')}`
         : ''
