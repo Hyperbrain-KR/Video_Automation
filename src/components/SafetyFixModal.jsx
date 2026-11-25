@@ -218,10 +218,10 @@ export default function SafetyFixModal({ prompt, code, isVideo, limit, projectId
           </div>
         ) : (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button onClick={onClose} style={btn(false)}>{fix?.count === 0 ? '닫기' : '취소'}</button>
-          {(error || fix) && <button onClick={() => setAsking(true)} style={btn(false)}>다시 수정</button>}
-          {fix?.count > 0 && <button onClick={() => apply(false)} style={btn(false)}>적용만</button>}
-          {fix?.count > 0 && <button onClick={() => apply(true)} style={btn(true)}>적용하고 재생성</button>}
+          <button onClick={onClose} title="아무것도 바꾸지 않고 창을 닫습니다" style={btn(false)}>{fix?.count === 0 ? '닫기' : '취소'}</button>
+          {(error || fix) && <button onClick={() => setAsking(true)} title="요청 사항을 적어 수정안을 새로 받습니다 (비워도 됩니다)" style={btn(false)}>다시 수정</button>}
+          {fix?.count > 0 && <button onClick={() => apply(false)} title="프롬프트만 수정안으로 바꾸고, 생성은 하지 않습니다" style={btn(false)}>적용만</button>}
+          {fix?.count > 0 && <button onClick={() => apply(true)} title="프롬프트를 바꾸고 바로 다시 생성합니다 (Higgsfield 크레딧 사용)" style={btn(true)}>적용하고 재생성</button>}
         </div>
         )}
       </div>
