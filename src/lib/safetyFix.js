@@ -11,12 +11,12 @@ Return edits, not a rewritten prompt. Output ONLY this JSON, nothing else:
 {"edits":[{"find":"exact text copied from the prompt","replace":"replacement in English","find_ko":"find 의 한국어 번역","replace_ko":"replace 의 한국어 번역","reason":"한국어로 짧은 한 줄 이유"}]}
 
 Rules:
-- "find" must be copied character for character from the prompt (same case, punctuation, line breaks) and be as short as possible while unambiguous.
+- "find" must be copied character for character from the prompt (same case, punctuation, line breaks) and be as short as possible while unambiguous. Never replace a whole paragraph or several sentences in one edit: use several small edits, each covering only the words that change.
 - Change only what is needed. Keep the story, composition, camera, style and tone. Edits must not overlap.
 - Edit every occurrence of the same problem.
 - Keep every @token exactly where it is: do not write any @token in "replace" unless the same @token is in that "find", and never drop one. Never alter dialogue lines or quoted Korean text.
 - Keep the total length about the same or shorter.
-- "find_ko" and "replace_ko" are natural, faithful Korean translations of exactly those texts in context (keep @tokens as they are).
+- "find_ko" and "replace_ko" are natural, faithful Korean translations of exactly those texts in context (keep @tokens as they are). Wherever "find" and "replace" share the same wording, use exactly the same Korean words and word order in both, so that only the real difference differs.
 - "reason" is Korean, under 30 characters, describing why that phrase may be refused.
 - If a user request is given, it says what must stay or how to change it. Follow it: never remove what the user says is essential, and make the scene acceptable by changing the other elements around it (clothing, age, framing, contact, props, mood). Only if the requested element itself can never be acceptable, keep the closest acceptable version of it.
 - If nothing in the prompt plausibly caused a refusal, return {"edits":[]}.`
@@ -96,7 +96,39 @@ export function wordDiff(a, b) {
     else if (j >= y.length || (i < x.length && L[i + 1][j] >= L[i][j + 1])) push('del', x[i++])
     else push('add', y[j++])
   }
-  return out
+  return tidy(out)
+}
+
+const wordCount = t => (t.match(/\S+/g) ?? []).length
+
+// 바뀐 단어 사이에 우연히 같은 짧은 말(a, the, 조사 등)이 끼면 강조가 잘게 끊기므로 한 덩어리로 합친다
+function tidy(parts) {
+  const out = []
+  let del = '', add = '', hold = ''
+  const flush = () => {
+    if (del) out.push({ type: 'del', text: del })
+    if (add) out.push({ type: 'add', text: add })
+    if (hold) out.push({ type: 'same', text: hold })
+    del = add = hold = ''
+  }
+  for (const p of parts) {
+    if (p.type === 'same') {
+      if (!del && !add) out.push(p)
+      else if (wordCount(p.text) <= 2) hold += p.text
+      else { flush(); out.push(p) }
+      continue
+    }
+    if (hold) { del += hold; add += hold; hold = '' }
+    if (p.type === 'del') del += p.text
+    else add += p.text
+  }
+  flush()
+  return out.reduce((acc, p) => {
+    const last = acc[acc.length - 1]
+    if (last?.type === p.type) last.text += p.text
+    else acc.push({ ...p })
+    return acc
+  }, [])
 }
 
 const MAX_ATTEMPTS = 3
@@ -165,6 +197,9 @@ export function parseMarkedKo(text) {
 
 export async function translateFix({ segments, projectId }) {
   let n = 0
-  const marked = segments.map(g => (g.same !== undefined ? g.same : (n++, g.add ? `[[${n}]]${g.add}[[/${n}]]` : ''))).join('')
+  const marked = segments.map(g => g.same ?? wordDiff(g.del, g.add).map(p => {
+    if (p.type === 'same') return p.text
+    return p.type === 'add' && p.text.trim() ? `[[${++n}]]${p.text}[[/${n}]]` : ''
+  }).join('')).join('')
   return parseMarkedKo(await translatePrompt(marked, projectId))
 }

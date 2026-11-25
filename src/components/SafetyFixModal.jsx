@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { requestSafetyFix, translateFix, wordDiff } from '../lib/safetyFix'
 import { friendlyError } from '../lib/friendlyError'
 
-const del = { color: 'var(--diff-del-text)', background: 'var(--diff-del-bg)', textDecoration: 'line-through', borderRadius: 2, padding: '0 1px' }
+const del = { color: 'var(--diff-del-text)', background: 'var(--diff-del-bg)', borderRadius: 2, padding: '0 1px' }
 const add = { color: 'var(--diff-add-text)', background: 'var(--diff-add-bg)', textDecoration: 'underline', textUnderlineOffset: 2, borderRadius: 2, padding: '0 1px' }
 
 const CONTEXT = 45
@@ -11,9 +11,17 @@ const flat = t => t.replace(/\s+/g, ' ')
 const tail = t => { const s = flat(t); return s.length > CONTEXT ? `…${s.slice(-CONTEXT).replace(/^\S*\s/, '')}` : s.trimStart() }
 const head = t => { const s = flat(t); return s.length > CONTEXT ? `${s.slice(0, CONTEXT).replace(/\s\S*$/, '')}…` : s.trimEnd() }
 
+// 바뀐 단어만 강조하고, 바뀌지 않은 긴 구간은 접는다
 function Words({ parts, skip, style }) {
-  return parts.filter(p => p.type !== skip).map((p, i) =>
-    p.type === 'same' ? <span key={i}>{p.text}</span> : <span key={i} style={style}>{p.text}</span>)
+  const shown = parts.filter(p => p.type !== skip)
+  return shown.map((p, i) => {
+    if (p.type !== 'same') return <span key={i} style={style}>{p.text}</span>
+    const text = flat(p.text)
+    if (text.length <= CONTEXT * 2) return <span key={i}>{text}</span>
+    const left = i === 0 ? '' : head(text)
+    const right = i === shown.length - 1 ? '' : tail(text)
+    return <span key={i}>{left && right ? `${left} ${right.slice(1)}` : left || right}</span>
+  })
 }
 
 // 바뀐 곳만 모아 보여준다 (앞뒤 문맥 + 이유)
@@ -24,6 +32,7 @@ export function SafetyChanges({ segments }) {
     if (g.same !== undefined) return null
     n++
     const parts = wordDiff(g.del, g.add)
+    const koParts = wordDiff(g.delKo ?? '', g.addKo ?? '')
     const before = tail(segments[i - 1]?.same ?? '')
     const after = head(segments[i + 1]?.same ?? '')
     return (
@@ -42,7 +51,10 @@ export function SafetyChanges({ segments }) {
         {(g.delKo || g.addKo) && (
           <div style={{ ...line, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--sep2)' }}>
             <b style={{ flexShrink: 0, color: 'var(--t2)' }}>번역</b>
-            <span><span style={del}>{g.delKo}</span> → {g.addKo ? <span style={add}>{g.addKo}</span> : '(삭제)'}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={line}><b style={{ color: 'var(--diff-del-text)' }}>−</b><span><Words parts={koParts} skip="add" style={del} /></span></div>
+              <div style={line}><b style={{ color: 'var(--diff-add-text)' }}>+</b><span>{g.addKo ? <Words parts={koParts} skip="del" style={add} /> : '(삭제)'}</span></div>
+            </div>
           </div>
         )}
       </div>
