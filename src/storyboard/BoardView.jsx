@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { addComment, deleteComment, getBoard, listComments, newFrame, removeImage, saveBoard, signedUrls, uploadFrameImage } from './api'
+import { SCENARIO_COMMENT_ID, addComment, deleteComment, getBoard, listComments, newFrame, removeImage, saveBoard, signedUrls, uploadFrameImage } from './api'
 import { openBoard } from './nav'
 import FrameCard from './FrameCard'
+import ScenarioCard from './ScenarioCard'
 import ThemeToggle from './ThemeToggle'
 
 const SAVE_DELAY = 800
@@ -138,6 +139,12 @@ export default function BoardView({ boardId, user }) {
       </header>
       {error && <div className="sb-alert sb-alert-bar" role="alert">⚠ {error} <button className="sb-link" onClick={() => setError('')}>닫기</button></div>}
       <main className="sb-board">
+        <ScenarioCard scenario={board.scenario} canEdit={canEdit}
+          onChange={patch => update(b => ({ scenario: { ...b.scenario, ...patch } }))}
+          comments={comments.filter(c => c.frame_id === SCENARIO_COMMENT_ID)} userId={user.id}
+          onAddComment={async body => { const c = await addComment(boardId, SCENARIO_COMMENT_ID, body, user); setComments(cs => [...cs, c]) }}
+          onDeleteComment={async id => { await deleteComment(id); setComments(cs => cs.filter(c => c.id !== id)) }}
+        />
         {board.frames.map((f, i) => (
           <FrameCard key={f.id} index={i} total={board.frames.length} frame={f}
             imageUrl={f.image ? urls[f.image] : null} canEdit={canEdit} uploading={!!uploading[f.id]}

@@ -1,16 +1,7 @@
 import { useRef, useState } from 'react'
 import { FIELDS, STAGES, STAGE_PRESETS } from './api'
+import AutoText from './AutoText'
 import Comments from './Comments'
-
-function AutoText({ value, onChange, readOnly, placeholder }) {
-  const ref = useRef(null)
-  const grow = el => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }
-  return (
-    <textarea ref={el => { ref.current = el; grow(el) }} className="sb-field-input" rows={1}
-      value={value} readOnly={readOnly} placeholder={readOnly ? '' : placeholder}
-      onChange={e => { grow(e.target); onChange(e.target.value) }} />
-  )
-}
 
 export default function FrameCard({ index, total, frame, imageUrl, canEdit, uploading, onChange, onImage, onRemoveImage, onMove, onDelete, comments, userId, onAddComment, onDeleteComment }) {
   const fileRef = useRef(null)

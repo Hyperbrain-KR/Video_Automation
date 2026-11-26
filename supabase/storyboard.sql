@@ -23,6 +23,9 @@ create table if not exists public.storyboard_comments (
   created_at timestamptz not null default now()
 );
 
+-- 2026-11-26 추가: 맨 왼쪽 시나리오 카드 내용 (이미 위 테이블을 만든 경우 이 줄만 실행)
+alter table public.storyboards add column if not exists scenario jsonb not null default '{}'::jsonb;
+
 create index if not exists storyboard_comments_board_idx on public.storyboard_comments (storyboard_id, created_at);
 
 alter table public.storyboards enable row level security;

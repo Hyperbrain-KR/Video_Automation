@@ -11,7 +11,17 @@ export const STAGES = [
   { key: 'purple', label: '보라' },
   { key: 'gray', label: '회색' },
 ]
-export const STAGE_PRESETS = ['Trigger', 'Discovery', 'Journey Step', 'Conclusion']
+// 단계 이름은 사용자가 직접 적고, 입력할 때 아래 이름을 추천으로 보여준다
+export const STAGE_PRESETS = ['Hook', 'Bridge']
+// 맨 왼쪽 시나리오 카드 — list: true 는 한 줄에 하나씩 적는 목록
+export const SCENARIO_FIELDS = [
+  { key: 'summary', label: '설명', placeholder: '이 주인공은 어떤 사람이고 무엇을 하려는지' },
+  { key: 'goals', label: '목표와 니즈', list: true },
+  { key: 'pains', label: '고민과 제약', list: true },
+  { key: 'context', label: '상황', list: true },
+  { key: 'activities', label: '주요 행동과 과제', list: true },
+]
+export const SCENARIO_COMMENT_ID = 'scenario'
 export const FIELDS = [
   { key: 'direction', label: '연출 입력' },
   { key: 'prompt', label: '프롬프트 초안' },
@@ -26,11 +36,11 @@ export function newFrame(stageLabel = '', stageColor = 'gray') {
 }
 
 const defaultFrames = () => [
-  newFrame('Trigger', 'red'),
-  newFrame('Discovery', 'yellow'),
-  newFrame('Journey Step', 'green'),
-  newFrame('Journey Step', 'green'),
-  newFrame('Conclusion', 'purple'),
+  newFrame('', 'red'),
+  newFrame('', 'yellow'),
+  newFrame('', 'green'),
+  newFrame('', 'green'),
+  newFrame('', 'purple'),
 ]
 
 export const displayName = user => user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '이름 없음'
@@ -56,9 +66,9 @@ export async function getBoard(id) {
   return must(await supabase.from('storyboards').select('*').eq('id', id).maybeSingle())
 }
 
-export async function saveBoard(id, { title, frames }) {
+export async function saveBoard(id, { title, frames, scenario }) {
   must(await supabase.from('storyboards')
-    .update({ title, frames, updated_at: new Date().toISOString() })
+    .update({ title, frames, scenario: scenario ?? {}, updated_at: new Date().toISOString() })
     .eq('id', id))
 }
 

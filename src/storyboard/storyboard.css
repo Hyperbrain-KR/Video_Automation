@@ -167,6 +167,19 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .sb-comment-new textarea { width: 100%; resize: vertical; border: 1px solid var(--sb-line-strong); border-radius: 8px; background: var(--sb-panel-2); padding: 7px 9px; font-size: 13px; line-height: 1.5; }
 .sb-comment-new textarea:focus { outline: none; border-color: var(--sb-accent-line); }
 
+/* 시나리오 카드 (맨 왼쪽) */
+.sb-scenario { flex: 0 0 640px; display: flex; flex-direction: column; background: var(--sb-panel); border: 1px solid var(--sb-line); border-radius: 12px; box-shadow: var(--sb-shadow); overflow: hidden; }
+.sb-scn-body { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; padding: 4px 14px 0; }
+.sb-scn-main, .sb-scn-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sb-scn-side { background: var(--sb-panel-2); border-radius: 10px; padding: 10px 8px; }
+.sb-scn-kicker { font-size: 11px; font-style: italic; color: var(--sb-text-3); padding: 0 6px; }
+.sb-scn-persona { width: 100%; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; margin-top: -8px; overflow-wrap: anywhere; }
+.sb-scn-persona:hover:not(.is-static), .sb-scn-persona:focus { border-color: var(--sb-line-strong); outline: none; }
+.sb-scn-persona::placeholder { color: var(--sb-text-3); font-weight: 700; }
+.sb-scn-label { font-size: 12px; font-weight: 700; color: var(--sb-text); padding: 0 6px 2px; }
+.sb-scn-list { padding: 2px 6px 0 22px; font-size: 13px; line-height: 1.55; display: flex; flex-direction: column; gap: 2px; }
+.sb-scn-empty { font-size: 13px; color: var(--sb-text-3); padding: 2px 6px; }
+
 .sb-add-frame { flex: 0 0 140px; align-self: stretch; min-height: 200px; border-radius: 12px; border: 1.5px dashed var(--sb-line-strong); background: transparent; color: var(--sb-text-2); font-size: 13px; font-weight: 600; }
 .sb-add-frame:hover { border-color: var(--sb-accent); color: var(--sb-accent); }
 
@@ -175,5 +188,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   .sb-title { order: 3; flex-basis: 100%; }
   .sb-board { padding: 16px; gap: 14px; }
   .sb-frame { flex-basis: min(290px, calc(100vw - 48px)); }
+  .sb-scenario { flex-basis: calc(100vw - 48px); }
+  .sb-scn-body { grid-template-columns: 1fr; }
   .sb-list { padding: 20px 16px 48px; }
 }
