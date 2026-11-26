@@ -3,6 +3,7 @@ import { SCENARIO_COMMENT_ID, addComment, deleteComment, getBoard, listComments,
 import { openBoard } from './nav'
 import FrameCard from './FrameCard'
 import ScenarioCard from './ScenarioCard'
+import { registerUpdateGuard, restoreScroll } from './updates'
 import ThemeToggle from './ThemeToggle'
 
 const SAVE_DELAY = 800
@@ -17,6 +18,8 @@ export default function BoardView({ boardId, user }) {
   const [copied, setCopied] = useState(false)
   const timer = useRef(null)
   const latest = useRef(null)
+  const failed = useRef(false)
+  const uploadingCount = useRef(0)
 
   const canEdit = board?.owner_id === user.id
 
@@ -42,20 +45,35 @@ export default function BoardView({ boardId, user }) {
     return () => clearInterval(t)
   }, [boardId])
 
+  // 저장할 게 없거나 저장에 성공하면 true
   const flush = useCallback(async () => {
     clearTimeout(timer.current)
     const b = latest.current
-    if (!b) return
+    if (!b) return !failed.current
     latest.current = null
     setSaveState('saving')
     try {
       await saveBoard(b.id, b)
+      failed.current = false
       setSaveState(s => (s === 'saving' && !latest.current ? 'saved' : s))
+      return true
     } catch (e) {
+      failed.current = true
+      latest.current ??= b
       setSaveState('error')
       setError(`저장하지 못했습니다: ${e.message}`)
+      return false
     }
   }, [])
+
+  // 새 버전 자동 적용 전에: 이미지 올리는 중이면 기다리고, 저장부터 한다
+  useEffect(() => registerUpdateGuard({
+    busy: () => uploadingCount.current > 0,
+    save: flush,
+  }), [flush])
+
+  const loaded = !!board
+  useEffect(() => { if (loaded) restoreScroll() }, [loaded])
 
   useEffect(() => {
     const beforeUnload = e => { if (latest.current) { flush(); e.preventDefault() } }
@@ -78,6 +96,7 @@ export default function BoardView({ boardId, user }) {
 
   const onImage = async (frame, file) => {
     setUploading(u => ({ ...u, [frame.id]: true }))
+    uploadingCount.current++
     try {
       const path = await uploadFrameImage(user.id, boardId, frame.id, file)
       const signed = await signedUrls([path])
@@ -88,6 +107,7 @@ export default function BoardView({ boardId, user }) {
     } catch (e) {
       setError(`이미지를 올리지 못했습니다: ${e.message}`)
     } finally {
+      uploadingCount.current--
       setUploading(u => ({ ...u, [frame.id]: false }))
     }
   }
