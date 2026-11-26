@@ -2,6 +2,22 @@ import { useEffect, useState } from 'react'
 import { createBoard, deleteBoard, listBoards } from './api'
 import { openBoard } from './nav'
 import ThemeToggle from './ThemeToggle'
+import changelog from './changelog.json'
+
+// 스토리보드 업데이트 내역 — 캔버스 앱(server/changelog.json)과 따로 관리
+function Changelog() {
+  return (
+    <details className="sb-changelog">
+      <summary>업데이트 내역</summary>
+      {changelog.map(day => (
+        <div key={day.date} className="sb-changelog-day">
+          <div className="sb-changelog-date">{day.date}</div>
+          <ul>{day.items.map(item => <li key={item}>{item.replace(/^(\[[A-Z]+\])+\s*/, '')}</li>)}</ul>
+        </div>
+      ))}
+    </details>
+  )
+}
 
 const when = iso => new Date(iso).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -71,6 +87,7 @@ export default function BoardList({ user }) {
             </section>
           </>
         )}
+        <Changelog />
       </main>
     </div>
   )

@@ -101,6 +101,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 /* 목록 */
 .sb-list { padding: 28px 24px 60px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px; width: 100%; }
+.sb-changelog { border-top: 1px solid var(--sb-line); padding-top: 16px; font-size: 13px; color: var(--sb-text-3); }
+.sb-changelog summary { cursor: pointer; width: fit-content; }
+.sb-changelog-day { margin-top: 12px; }
+.sb-changelog-date { font-weight: 600; color: var(--sb-text); margin-bottom: 4px; }
+.sb-changelog ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; line-height: 1.5; }
 .sb-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; }
 .sb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .sb-card { position: relative; padding: 16px; border-radius: 12px; background: var(--sb-panel); border: 1px solid var(--sb-line); box-shadow: var(--sb-shadow); cursor: pointer; }
