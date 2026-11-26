@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext'
 import BoardList from './BoardList'
 import BoardView from './BoardView'
 import { boardFromUrl } from './nav'
+import UpdateNotice from './UpdateNotice'
 
 function Login({ denied }) {
   const login = () => supabase.auth.signInWithOAuth({
@@ -33,5 +34,10 @@ export default function StoryboardApp() {
 
   if (user === undefined) return <div className="sb-center">불러오는 중…</div>
   if (!user) return <Login denied={denied} />
-  return boardId ? <BoardView key={boardId} boardId={boardId} user={user} /> : <BoardList user={user} />
+  return (
+    <>
+      {boardId ? <BoardView key={boardId} boardId={boardId} user={user} /> : <BoardList user={user} />}
+      <UpdateNotice />
+    </>
+  )
 }

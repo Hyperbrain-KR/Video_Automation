@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react'
 import { createBoard, deleteBoard, listBoards } from './api'
 import { openBoard } from './nav'
 import ThemeToggle from './ThemeToggle'
-import changelog from './changelog.json'
+import { fetchChangelog, stripTags } from './updates'
 
 // 스토리보드 업데이트 내역 — 캔버스 앱(server/changelog.json)과 따로 관리
 function Changelog() {
+  const [changelog, setChangelog] = useState(null)
+  const [error, setError] = useState('')
+  const load = e => { if (e.currentTarget.open && !changelog) fetchChangelog().then(setChangelog).catch(err => setError(err.message)) }
   return (
-    <details className="sb-changelog">
+    <details className="sb-changelog" onToggle={load}>
       <summary>업데이트 내역</summary>
-      {changelog.map(day => (
+      {error && <div className="sb-changelog-day">{error}</div>}
+      {changelog?.map(day => (
         <div key={day.date} className="sb-changelog-day">
           <div className="sb-changelog-date">{day.date}</div>
-          <ul>{day.items.map(item => <li key={item}>{item.replace(/^(\[[A-Z]+\])+\s*/, '')}</li>)}</ul>
+          <ul>{day.items.map(item => <li key={item}>{stripTags(item)}</li>)}</ul>
         </div>
       ))}
     </details>
