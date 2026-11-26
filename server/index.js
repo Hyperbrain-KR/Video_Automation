@@ -506,7 +506,8 @@ app.post('/api/higgsfield/image', async (req, res) => {
 
   const isGptImage = model === 'gpt_image_2'
   const supportsResolution = ['nano_banana_2', 'nano_banana_pro', 'nano_banana_2_shots', 'cinematic_studio_2_5', 'marketing_studio_image', 'ms_image', 'flux_2'].includes(model)
-  const refRole = model === 'nano_banana_2_shots' ? 'image_references' : 'image'
+  // Nano Banana 계열은 참조 이미지 역할 이름이 image_references (GPT 이미지는 image)
+  const refRole = model.startsWith('nano_banana') ? 'image_references' : 'image'
   const useAspect = aspectRatio && aspectRatio !== 'auto'
 
   const medias = [
