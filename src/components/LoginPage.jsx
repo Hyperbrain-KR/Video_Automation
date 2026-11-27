@@ -1,3 +1,4 @@
+import { loginError } from '../lib/loginError'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -28,14 +29,14 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {denied && (
+      {(denied || loginError) && (
         <div style={{
-          padding: '10px 18px', borderRadius: 8,
+          padding: '10px 18px', borderRadius: 8, maxWidth: 420, textAlign: 'center', lineHeight: 1.5,
           background: 'rgba(227,64,84,0.15)',
           border: '1px solid rgba(227,64,84,0.4)',
-          color: '#E34054', fontSize: 13,
+          color: '#FF8A98', fontSize: 13,
         }}>
-          접근이 허용되지 않은 계정입니다.
+          {denied ? '접근이 허용되지 않은 계정입니다.' : loginError}
         </div>
       )}
 

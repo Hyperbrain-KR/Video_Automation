@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { loginError } from '../lib/loginError'
 import BoardList from './BoardList'
 import BoardView from './BoardView'
 import { boardFromUrl } from './nav'
@@ -16,7 +17,7 @@ function Login({ denied }) {
       <img src="/logo-square.png" alt="" width="48" height="48" />
       <h1>Storyboard</h1>
       <p>팀 스토리보드는 허용된 계정으로 로그인해야 볼 수 있습니다.</p>
-      {denied && <div className="sb-alert">접근이 허용되지 않은 계정입니다.</div>}
+      {(denied || loginError) && <div className="sb-alert" role="alert">{denied ? '접근이 허용되지 않은 계정입니다.' : loginError}</div>}
       <button className="sb-btn sb-btn-primary" onClick={login}>Google로 로그인</button>
     </div>
   )

@@ -98,6 +98,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .sb-login { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; text-align: center; }
 .sb-login h1 { font-size: 26px; font-weight: 800; }
 .sb-login p { color: var(--sb-text-2); font-size: 14px; }
+.sb-login .sb-alert { max-width: 440px; line-height: 1.5; }
 
 /* 목록 */
 .sb-list { padding: 28px 24px 60px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px; width: 100%; }
